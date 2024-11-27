@@ -1,10 +1,10 @@
 # Motoko Base Library Revamp
 
-#### [Documentation preview](https://dfinity.github.io/motoko-base-revamp)
+### [Documentation preview](https://dfinity.github.io/motoko-base-revamp)
 
 ---
 
-This repository contains the spec for a revamped base library for the [Motoko](https://github.com/dfinity/motoko) programming language. 
+This repository contains module definitions for a revamped [Motoko](https://github.com/dfinity/motoko) base library. 
 
 If you are new to Motoko, the current version of the base library is available [here](https://github.com/dfinity/motoko-base).
 
@@ -30,7 +30,7 @@ It's possible to generate a documentation preview by running the following comma
 npm run docs
 ```
 
-We automatically generate previous for pull requests.
+We automatically generate previews for each pull request.
 
 ## Contributing
 

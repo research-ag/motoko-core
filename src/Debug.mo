@@ -55,14 +55,6 @@ module {
     Prim.trap errorMessage
   };
 
-  /// Not yet implemented
-  /// 
-  /// This function is well-typed in all typing contexts, which
-  /// trap in all execution contexts.
-  public func nyi() : None {
-    trap("Debug.nyi()")
-  };
-
   /// TODO
   /// 
   /// Similar to `nyi` with the addition of a compiler warning at the corresponding line.
@@ -71,14 +63,6 @@ module {
   /// trap in all execution contexts.
   /// @deprecated `Debug.todo()`
   public func todo<T>() : None = Prim.trap "Debug.todo()";
-
-  /// XXX
-  /// 
-  /// This function is well-typed in all typing contexts, which
-  /// trap in all execution contexts.
-  public func xxx() : None {
-    trap("Debug.xxx()")
-  };
 
   /// Mark unreachable code with the `unreachable` function.
   ///

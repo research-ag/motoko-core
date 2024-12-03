@@ -27,7 +27,7 @@ jobs:
           message: "⏳ Loading documentation preview..."
 
       - name: Checkout website repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -44,7 +44,7 @@ jobs:
         run: npm run docs
 
       - name: Deploy if main branch
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: JamesIves/github-pages-deploy-action@v4.7.0 # Regression in 4.7.1
         if: github.ref == 'refs/heads/main'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -55,7 +55,7 @@ jobs:
         run: npm run docs
 
       - name: Deploy to PR preview
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: JamesIves/github-pages-deploy-action@v4.7.0 # Regression in 4.7.1
         if: github.ref != 'refs/heads/main'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

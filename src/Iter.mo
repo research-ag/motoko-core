@@ -1,6 +1,7 @@
 /// Iterators
 
 import Order "Order";
+import { todo } "Debug";
 
 module {
 
@@ -130,24 +131,24 @@ module {
   /// assert(iter.next() == ?3);
   /// assert(iter.next() == null);
   /// ```
-  public class range(x : Int, y : Int) : Iter {
+  public class range(x : Int, y : Int) : Iter<Int> {
     var i = x;
     Iter(
       func() {
         if (i > y) { null } else { let j = i; i += 1; ?j }
       }
-    )
+    ) : Iter<Int>
   };
 
   /// Like `range` but produces the values in the opposite
   /// order.
-  public class revRange(x : Int, y : Int) {
+  public class revRange(x : Int, y : Int) : Iter<Int> {
     var i = x;
     Iter(
       func() {
         if (i < y) { null } else { let j = i; i -= 1; ?j }
       }
-    )
+    ) : Iter<Int>
   };
 
   /// Creates an iterator that produces an infinite sequence of `x`.
@@ -159,7 +160,7 @@ module {
   /// assert(?10 == iter.next());
   /// // ...
   /// ```
-  public func infinite<A>(x : A) : Iter<A> {
+  public func infinite<T>(x : T) : Iter<T> {
     Iter(func() = ?x)
   };
 

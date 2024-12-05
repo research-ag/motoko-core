@@ -1,4 +1,4 @@
-/// Original: `OrderedSet.mo`
+/// Original: `vector` Mops package?
 
 import Order "Order";
 import { nyi = todo } "Debug";
@@ -8,7 +8,7 @@ module {
 
   type State<T> = (); // Placeholder
 
-  public class Set<T>(ops : Ops<T>, state : State<T>) {
+  public class Vec<T>(ops : Ops<T>, state : State<T>) {
     public func contains(item : T) : Bool = todo();
 
     public func get(index : Nat) : T = todo()
@@ -16,9 +16,9 @@ module {
     // ...
   };
 
-  public func contains<T>(ops : Ops<T>, set : Set<T>, item : T) : Bool = todo();
+  public func contains<T>(ops : Ops<T>, vec : Vec<T>, item : T) : Bool = todo();
 
-  public func get<T>(ops : Ops<T>, set : Set<T>, index : Nat) : T = todo();
+  public func get<T>(ops : Ops<T>, vec : Vec<T>, index : Nat) : T = todo();
 
   // ...
 }

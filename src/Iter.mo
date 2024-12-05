@@ -17,7 +17,7 @@ module {
   /// An iterater `i` can be iterated over using
   /// ```
   /// for (x in i) {
-  ///   …do something with x…
+  ///   ...do something with x...
   /// }
   /// ```
   public type Iter<T> = { next : () -> ?T };

@@ -1,6 +1,6 @@
-/// The Iterator type
+/// The built-in iterator type
 
-// Just here to break cyclic module definitions
+// This is separate from `Iter.mo` to break cyclic module definitions.
 
 module {
   public type Iter<T> = { next : () -> ?T }

@@ -1,34 +1,26 @@
-/// Original: `OrderedSet.mo`
+/// Purely-functional, singly-linked lists.
 
-import Pure "pure/Stack";
-import Result "Result";
-import Order "Order";
-import Iter "Iter";
-import { nyi = todo } "Debug";
+import Array "../Array";
+import Iter "../IterType";
+import Order "../Order";
+import Result "../Result";
+import { nyi = todo } "../Debug";
 
 module {
 
-  type Stack<T> = { var pure : Pure.Stack<T> };
+  public type Stack<T> = ?(Stack<T>, T);
 
-  public func toPure<T>(stack : Stack<T>) : Pure.Stack<T> = stack.pure;
-
-  public func fromPure<T>(stack : Pure.Stack<T>) : Stack<T> = {
-    var pure = stack
-  };
-
-  public func new<T>() : Stack<T> = { var pure = Pure.new() };
-
-  public func clone<T>(stack : Stack<T>) : Stack<T> = { var pure = stack.pure };
+  public func new<T>() : Stack<T> = null;
 
   public func isEmpty<T>(stack : Stack<T>) : Bool = todo();
 
-  public func push<T>(stack : Stack<T>, item : T) : () = todo();
+  public func push<T>(stack : Stack<T>, item : T) : Stack<T> = ?(stack, item);
 
   public func last<T>(stack : Stack<T>) : ?T {
     todo()
   };
 
-  public func pop<T>(stack : Stack<T>) : ?T {
+  public func pop<T>(stack : Stack<T>) : (?T, Stack<T>) {
     todo()
   };
 
@@ -39,7 +31,7 @@ module {
     todo()
   };
 
-  public func reverse<T>(stack : Stack<T>) : () {
+  public func reverse<T>(stack : Stack<T>) : Stack<T> {
     todo()
   };
 
@@ -119,9 +111,7 @@ module {
     todo()
   };
 
-  public func singleton<T>(item : T) : Stack<T> {
-    todo()
-  };
+  public func singleton<T>(item : T) : Stack<T> = ?(null, item);
 
   public func repeat<T>(item : T, n : Nat) : Stack<T> {
     todo()
@@ -133,13 +123,25 @@ module {
     todo()
   };
 
-  public func split<T>(n : Nat, stack : Stack<T>) : (Stack<T>, Stack<T>) {
+  public func split<T>(stack : Stack<T>, n : Nat) : (Stack<T>, Stack<T>) {
     todo()
   };
 
-  public func chunks<T>(n : Nat, stack : Stack<T>) : Stack<Stack<T>> {
+  public func chunks<T>(stack : Stack<T>, n : Nat) : Stack<Stack<T>> {
     todo()
   };
+
+  public func fromArray<T>(array : [T]) : Stack<T> {
+    todo()
+  };
+
+  public func fromVarArray<T>(array : [var T]) : Stack<T> = fromArray<T>(Array.fromVarArray<T>(array));
+
+  public func toArray<T>(stack : Stack<T>) : [T] {
+    todo()
+  };
+
+  public func toVarArray<T>(stack : Stack<T>) : [var T] = Array.toVarArray<T>(toArray<T>(stack));
 
   public func toIter<T>(stack : Stack<T>) : Iter.Iter<T> {
     todo()
@@ -160,5 +162,6 @@ module {
       }
     );
     text # "]"
-  }
+  };
+
 }

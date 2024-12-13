@@ -8,7 +8,7 @@ import { nyi = todo } "Debug";
 
 module {
 
-  type Stack<T> = { var pure : Pure.Stack<T> };
+  public type Stack<T> = { var pure : Pure.Stack<T> };
 
   public func toPure<T>(stack : Stack<T>) : Pure.Stack<T> = stack.pure;
 
@@ -20,7 +20,17 @@ module {
 
   public func clone<T>(stack : Stack<T>) : Stack<T> = { var pure = stack.pure };
 
-  public func isEmpty<T>(stack : Stack<T>) : Bool = todo();
+  public func isEmpty(stack : Stack<Any>) : Bool {
+    todo()
+  };
+
+  public func size(stack : Stack<Any>) : Nat {
+    todo()
+  };
+
+  public func contains<T>(stack : Stack<T>, item : T) : Bool {
+    todo()
+  };
 
   public func push<T>(stack : Stack<T>, item : T) : () = todo();
 
@@ -32,9 +42,6 @@ module {
     todo()
   };
 
-  public func size<T>(stack : Stack<T>) : Nat {
-    todo()
-  };
   public func get<T>(stack : Stack<T>, n : Nat) : ?T {
     todo()
   };
@@ -95,11 +102,11 @@ module {
     todo()
   };
 
-  public func some<T>(stack : Stack<T>, f : T -> Bool) : Bool {
+  public func all<T>(stack : Stack<T>, f : T -> Bool) : Bool {
     todo()
   };
 
-  public func all<T>(stack : Stack<T>, f : T -> Bool) : Bool {
+  public func any<T>(stack : Stack<T>, f : T -> Bool) : Bool {
     todo()
   };
 
@@ -111,7 +118,7 @@ module {
     todo()
   };
 
-  public func equal<T>(stack1 : Stack<T>, stack2 : Stack<T>, equal : (T, T) -> Bool) : Bool {
+  public func equal<T>(stack1 : Stack<T>, stack2 : Stack<T>) : Bool {
     todo()
   };
 
@@ -138,6 +145,10 @@ module {
   };
 
   public func chunks<T>(n : Nat, stack : Stack<T>) : Stack<Stack<T>> {
+    todo()
+  };
+
+  public func vals<T>(stack : Stack<T>) : Iter.Iter<T> {
     todo()
   };
 

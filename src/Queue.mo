@@ -1,5 +1,6 @@
 // Original: `Deque.mo`
 
+import Iter "Iter";
 import Pure "pure/Queue";
 import { nyi = todo } "Debug";
 
@@ -25,6 +26,10 @@ module {
     todo()
   };
 
+  public func contains<T>(queue : Queue<T>, item : T) : Bool {
+    todo()
+  };
+
   public func peekFront<T>(queue : Queue<T>) : ?T {
     todo()
   };
@@ -46,6 +51,16 @@ module {
   };
 
   public func popBack<T>(queue : Queue<T>) : ?T {
+    todo()
+  };
+
+  public func vals<T>(queue : Queue<T>) : Iter.Iter<T> {
+    todo()
+  };
+
+  public func toIter<T>(queue : Queue<T>) : Iter.Iter<T> = vals(queue);
+
+  public func toText<T>(queue : Queue<T>, f : T -> Text) : Text {
     todo()
   };
 

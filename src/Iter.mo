@@ -1,11 +1,12 @@
 /// Iterators
 
+import Type "IterType";
 import Order "Order";
 import { nyi = todo } "Debug";
 
 module {
 
-  public type Iter<T> = { next : () -> ?T };
+  public type Iter<T> = Type.Iter<T>;
 
   public class range(fromInclusive : Int, toExclusive : Int) {
     todo()

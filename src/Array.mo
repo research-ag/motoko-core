@@ -7,7 +7,7 @@ import Prim "mo:⛔";
 import { todo } "Debug";
 
 module {
-  
+
   public func empty<T>() : [T] = [];
 
   public func repeat<T>(size : Nat, initValue : T) : [var T] = Prim.Array_init<T>(size, initValue);

@@ -1,21 +1,21 @@
 /// Original: `OrderedSet.mo`
 
-import Pure "pure/Set";
-import Iter "Iter";
+import Immutable "immutable/Set";
+import Iter "IterType";
 import Order "Order";
 import { todo } "Debug";
 
 module {
 
-  public type Set<T> = { var pure : Pure.Set<T> };
+  public type Set<T> = { var immutable : Immutable.Set<T> };
 
-  public func toPure<T>(set : Set<T>) : Pure.Set<T> = set.pure;
+  public func freeze<T>(set : Set<T>) : Immutable.Set<T> = set.immutable;
 
-  public func fromPure<T>(set : Pure.Set<T>) : Set<T> = { var pure = set };
+  public func thaw<T>(set : Immutable.Set<T>) : Set<T> = { var immutable = set };
 
-  public func clone<T>(set : Set<T>) : Set<T> = { var pure = set.pure };
+  public func clone<T>(set : Set<T>) : Set<T> = { var immutable = set.immutable };
 
-  public func empty<T>() : Set<T> = { var pure = Pure.empty() };
+  public func empty<T>() : Set<T> = { var immutable = Immutable.empty() };
 
   public func singleton<T>() : Set<T> {
     todo()
@@ -29,7 +29,7 @@ module {
     todo()
   };
 
-  public func contains<T>(set : Set<T>, item : T, compare : (T, T) -> Order.Order) : Bool {
+  public func contains<T>(set : Set<T>, compare : (T, T) -> Order.Order, item : T) : Bool {
     todo()
   };
 
@@ -37,11 +37,11 @@ module {
     todo()
   };
 
-  public func add<T>(set : Set<T>, item : T, compare : (T, T) -> Order.Order) : () {
+  public func add<T>(set : Set<T>, compare : (T, T) -> Order.Order, item : T) : () {
     todo()
   };
 
-  public func delete<T>(set : Set<T>, item : T, compare : (T, T) -> Order.Order) : Bool {
+  public func delete<T>(set : Set<T>, compare : (T, T) -> Order.Order, item : T) : Bool {
     todo()
   };
 
@@ -78,6 +78,10 @@ module {
   };
 
   public func diff<T>(set1 : Set<T>, set2 : Set<T>) : Set<T> {
+    todo()
+  };
+
+  public func forEach<T>(set : Set<T>, f : T -> ()) {
     todo()
   };
 
@@ -126,6 +130,10 @@ module {
   };
 
   public func toText<T>(set : Set<T>, f : T -> Text) : Text {
+    todo()
+  };
+
+  public func compare<T>(set1 : Set<T>, set2 : Set<T>, compare : (T, T) -> Order.Order) : Order.Order {
     todo()
   };
 

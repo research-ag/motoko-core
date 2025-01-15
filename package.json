@@ -7,8 +7,10 @@
     "postinstall": "mops install",
     "format:check": "npx -p prettier -p pretty-quick pretty-quick --check",
     "format": "npx -p prettier -p pretty-quick pretty-quick",
-    "test": "node test/js && mops test --reporter files",
-    "validate": "node test/js/validate",
+    "test": "run-s test:ts test:mops",
+    "test:ts": "cd test/ts && tsx .",
+    "test:mops": "mops test --reporter files",
+    "validate": "cd test/ts && tsx validate",
     "docs": "$(dfx cache show)/mo-doc"
   },
   "repository": {
@@ -28,8 +30,10 @@
     "husky": "^9.1.7",
     "ic-mops": "^1.1.1",
     "mo-dev": "^0.13.0",
+    "npm-run-all": "^4.1.5",
     "prettier": "2",
     "prettier-plugin-motoko": "^0.10.3",
-    "pretty-quick": "3"
+    "pretty-quick": "3",
+    "tsx": "^4.19.2"
   }
 }

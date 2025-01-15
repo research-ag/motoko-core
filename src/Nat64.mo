@@ -9,7 +9,6 @@ module {
 
   public type Nat64 = Prim.Types.Nat64;
 
-
   public let maximumValue = 18446744073709551615 : Nat64;
 
   public let toNat : Nat64 -> Nat = Prim.nat64ToNat;
@@ -111,6 +110,14 @@ module {
   public func mulWrap(x : Nat64, y : Nat64) : Nat64 { x *% y };
 
   public func powWrap(x : Nat64, y : Nat64) : Nat64 { x **% y };
+
+  public func range(fromInclusive : Nat64, toExclusive : Nat64) : Iter.Iter<Nat64> {
+    todo()
+  };
+
+  public func rangeInclusive(from : Nat64, to : Nat64) : Iter.Iter<Nat64> {
+    todo()
+  };
 
   public func allValues() : Iter.Iter<Nat64> {
     todo()

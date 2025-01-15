@@ -12,6 +12,10 @@ module {
     todo()
   };
 
+  public func singleton<T>(item : T) : Set<T> {
+    todo()
+  };
+
   public func isEmpty<T>(set : Set<T>) : Bool {
     todo()
   };
@@ -20,15 +24,15 @@ module {
     todo()
   };
 
-  public func contains<T>(set : Set<T>, item : T, compare : (T, T) -> Order.Order) : Bool {
+  public func contains<T>(set : Set<T>, compare : (T, T) -> Order.Order, item : T) : Bool {
     todo()
   };
 
-  public func add<T>(set : Set<T>, item : T, compare : (T, T) -> Order.Order) : Set<T> {
+  public func add<T>(set : Set<T>, compare : (T, T) -> Order.Order, item : T) : Set<T> {
     todo()
   };
 
-  public func delete<T>(set : Set<T>, item : T, compare : (T, T) -> Order.Order) : Set<T> {
+  public func delete<T>(set : Set<T>, compare : (T, T) -> Order.Order, item : T) : Set<T> {
     todo()
   };
 
@@ -69,6 +73,10 @@ module {
   };
 
   public func diff<T>(set1 : Set<T>, set2 : Set<T>) : Set<T> {
+    todo()
+  };
+
+  public func forEach<T>(set : Set<T>, f : T -> ()) {
     todo()
   };
 
@@ -113,6 +121,10 @@ module {
   };
 
   public func toText<T>(set : Set<T>, f : T -> Text) : Text {
+    todo()
+  };
+
+  public func compare<T>(set1 : Set<T>, set2 : Set<T>, compare : (T, T) -> Order.Order) : Order.Order {
     todo()
   };
 

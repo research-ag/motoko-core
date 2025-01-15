@@ -123,6 +123,14 @@ module {
 
   public func powWrap(x : Int16, y : Int16) : Int16 { x **% y };
 
+  public func range(fromInclusive : Int16, toExclusive : Int16) : Iter.Iter<Int16> {
+    todo()
+  };
+
+  public func rangeInclusive(from : Int16, to : Int16) : Iter.Iter<Int16> {
+    todo()
+  };
+
   public func allValues() : Iter.Iter<Int16> {
     todo()
   };

@@ -2,12 +2,17 @@
 
 import Iter "../Iter";
 import Stack "Stack";
+import Order "../Order";
 import { todo } "../Debug";
 
 module {
   public type Queue<T> = (Stack.Stack<T>, Stack.Stack<T>);
 
   public func empty<T>() : Queue<T> {
+    todo()
+  };
+
+  public func singleton<T>(item : T) : Queue<T> {
     todo()
   };
 
@@ -47,6 +52,10 @@ module {
     todo()
   };
 
+  public func fromIter<T>(iter : Iter.Iter<T>) : Queue<T> {
+    todo()
+  };
+
   public func values<T>(queue : Queue<T>) : Iter.Iter<T> {
     todo()
   };
@@ -55,7 +64,35 @@ module {
     todo()
   };
 
+  public func all<T>(queue : Queue<T>, predicate : T -> Bool) : Bool {
+    todo()
+  };
+
+  public func any<T>(queue : Queue<T>, predicate : T -> Bool) : Bool {
+    todo()
+  };
+
+  public func forEach<T>(queue : Queue<T>, f : T -> ()) {
+    todo()
+  };
+
+  public func map<T1, T2>(queue : Queue<T1>, f : T1 -> T2) : Queue<T2> {
+    todo()
+  };
+
+  public func filter<T>(queue : Queue<T>, f : T -> Bool) : Queue<T> {
+    todo()
+  };
+
+  public func filterMap<T, U>(queue : Queue<T>, f : T -> ?U) : Queue<U> {
+    todo()
+  };
+
   public func toText<T>(queue : Queue<T>, f : T -> Text) : Text {
+    todo()
+  };
+
+  public func compare<T>(queue1 : Queue<T>, queue2 : Queue<T>, compare : (T, T) -> Order.Order) : Order.Order {
     todo()
   };
 

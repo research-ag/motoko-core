@@ -1,7 +1,7 @@
 /// Utilities for `Order` (comparison between two values)
 
-import Iter "IterType";
 import { todo } "Debug";
+import Iter "IterType";
 
 module {
 
@@ -11,24 +11,12 @@ module {
     #greater
   };
 
-  public func isLess(order : Order) : Bool {
-    order == #less
-  };
-
-  public func isEqual(order : Order) : Bool {
-    order == #equal
-  };
-
-  public func isGreater(order : Order) : Bool {
-    order == #greater
-  };
-
   public func equal(o1 : Order, o2 : Order) : Bool {
     o1 == o2
   };
 
   public func allValues() : Iter.Iter<Order> {
     todo()
-  }
+  };
 
 }

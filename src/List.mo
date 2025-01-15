@@ -1,6 +1,6 @@
 /// Original: `vector` Mops package?
 
-import Iter "Iter";
+import Iter "IterType";
 import Order "Order";
 import Result "Result";
 import { todo } "Debug";
@@ -40,11 +40,15 @@ module {
     todo()
   };
 
-  public func push<T>(list : List<T>, item : T) : () {
+  public func add<T>(list : List<T>, item : T) : () {
     todo()
   };
 
-  public func pop<T>(list : List<T>) : ?T {
+  public func put<T>(list : List<T>, index : Nat, item : T) : () {
+    todo()
+  };
+
+  public func removeLast<T>(list : List<T>) : ?T {
     todo()
   };
 
@@ -68,7 +72,7 @@ module {
     todo()
   };
 
-  public func binarySearch<T>(list : List<T>, element : T, compare : (T, T) -> Order.Order) : ?Nat {
+  public func binarySearch<T>(list : List<T>, compare : (T, T) -> Order.Order, element : T) : ?Nat {
     todo()
   };
 
@@ -84,19 +88,11 @@ module {
     todo()
   };
 
-  public func isStrictPrefixOf<T>(list : List<T>, prefix : List<T>, equal : (T, T) -> Bool) : Bool {
-    todo()
-  };
-
   public func suffix<T>(list : List<T>, length : Nat) : List<T> {
     todo()
   };
 
   public func isSuffixOf<T>(list : List<T>, suffix : List<T>, equal : (T, T) -> Bool) : Bool {
-    todo()
-  };
-
-  public func isStrictSuffixOf<T>(list : List<T>, suffix : List<T>, equal : (T, T) -> Bool) : Bool {
     todo()
   };
 
@@ -137,10 +133,6 @@ module {
   };
 
   public func fromIter<T>(iter : { next : () -> ?T }) : List<T> {
-    todo()
-  };
-
-  public func trimToSize<T>(list : List<T>) {
     todo()
   };
 

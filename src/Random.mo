@@ -1,7 +1,6 @@
 /// Random number generation
 
-import Iter "Iter";
-import { todo; unreachable } "Debug";
+import { todo } "Debug";
 
 module {
 

@@ -2,7 +2,7 @@
 
 import Char "Char";
 import Hash "Hash";
-import Iter "Iter";
+import Iter "IterType";
 import Order "Order";
 import Prim "mo:⛔";
 import { todo } "Debug";
@@ -131,8 +131,8 @@ module {
 
   public let decodeUtf8 : Blob -> ?Text = Prim.decodeUtf8;
 
-  public let toLowercase : Text -> Text = Prim.textLowercase;
+  public let toLower : Text -> Text = Prim.textLowercase;
 
-  public let toUppercase : Text -> Text = Prim.textUppercase;
+  public let toUpper : Text -> Text = Prim.textUppercase;
 
 }

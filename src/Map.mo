@@ -671,7 +671,10 @@ module {
   /// ```
   /// Cost of iteration over all elements:
   /// Runtime: `O(n)`.
-  /// Space: `O(1)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
   public func entries<K, V>(map : Map<K, V>) : IterType.Iter<(K, V)> {
     switch (map.root) {
       case (#leaf(leafNode)) { return leafEntries(leafNode) };
@@ -700,7 +703,10 @@ module {
   /// ```
   /// Cost of iteration over all elements:
   /// Runtime: `O(n)`.
-  /// Space: `O(1)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
   public func reverseEntries<K, V>(map : Map<K, V>) : IterType.Iter<(K, V)> {
     switch (map.root) {
       case (#leaf(leafNode)) { return reverseLeafEntries(leafNode) };
@@ -2611,61 +2617,474 @@ module {
     }
   };
 
-  // public func fromIter<K, V>(iter : Iter.Iter<(K, V)>, compare : (K, K) -> Order.Order) : Map<K, V> {
-  //   todo()
-  // };
+  /// Create a mutable key-value map with the entries obtained from an iterator.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Iter "mo:base/Iter";
+  ///
+  /// persistent actor {
+  ///   let iterator = Iter.fromArray([(0, "Zero"), (1, "One"), (2, "Two")]);
+  ///   let map = Map.fromIter(iterator, Nat.compare);
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n * log(n))`.
+  /// Space: `O(n)`.
+  /// where `n` denotes the number of key-value entries returned by the iterator and
+  /// assuming that the `compare` function implements an `O(1)` comparison.
+  public func fromIter<K, V>(iter : IterType.Iter<(K, V)>, compare : (K, K) -> Order.Order) : Map<K, V> {
+    let map = empty<K, V>();
+    for ((key, value) in iter) {
+      add(map, compare, key, value);
+    };
+    map;
+  };
 
-  // public func forEach<K, V>(map : Map<K, V>, f : (K, V) -> ()) {
-  //   todo()
-  // };
+  /// Apply an operation for each key-value pair contained in the map.
+  /// The operation is applied in ascending order of the keys.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///   
+  ///   Map.forEach<Nat, Text>(map, func (key, value) {
+  ///     Debug.print("key=" # Nat.toText(key) # ", value='" # value # "'");
+  ///   })
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func forEach<K, V>(map : Map<K, V>, operation : (K, V) -> ()) {
+    for (entry in entries(map)) {
+      operation(entry);
+    }
+  };
 
-  // public func filter<K, V>(map : Map<K, V>, f : (K, V) -> Bool) : Map<K, V> {
-  //   todo()
-  // };
+  /// Filter entries in a new map.
+  /// Create a copy of the mutable map that only contains the key-value pairs
+  /// that fulfil the criterion function.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let numberNames = Map.empty<Nat, Text>();
+  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
+  ///   Map.add(numberNames, Nat.compare, 1, "One");
+  ///   Map.add(numberNames, Nat.compare, 2, "Two");
+  ///   
+  ///   let evenNumbers = Map.filter<Nat, Text>(numberNames, Nat.compare, func (key, value) {
+  ///     key % 2 == 0
+  ///   });
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(n)`.
+  /// where `n` denotes the number of key-value entries stored in the map and
+  /// assuming that the `compare` function implements an `O(1)` comparison.
+  public func filter<K, V>(map : Map<K, V>, compare: (K, K) -> Order.Order, criterion : (K, V) -> Bool) : Map<K, V> {
+    let result = empty<K, V>();
+    for ((key, value) in entries(map)) {
+      if (criterion(key, value)) {
+        add(result, compare, key, value);
+      }
+    };
+    result
+  };
 
-  // public func map<K, V1, V2>(map : Map<K, V1>, f : (K, V1) -> V2) : Map<K, V2> {
-  //   todo()
-  // };
+  /// Project all values of the map in a new map.
+  /// Apply a mapping function to all entries of a map and collect the mapped entries
+  /// in a new mutable key-value map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let numberNames = Map.empty<Nat, Text>();
+  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
+  ///   Map.add(numberNames, Nat.compare, 1, "One");
+  ///   Map.add(numberNames, Nat.compare, 2, "Two");
+  ///   
+  ///   let lowerCaseNames = Map.map<Nat, Text>(numberNames, Nat.compare, func (key, value) {
+  ///     (key, Text.toLowerCase(value))
+  ///   });
+  ///   Debug.print(debug_show(lowerCaseNames));
+  ///   // prints `[(0, "zero"), (1, "one"), (2, "two")]`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n * log(n))`.
+  /// Space: `O(n)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map and
+  /// assuming that the `compare` function implements an `O(1)` comparison.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func map<K, V1, V2>(map : Map<K, V1>, compare: (K, K) -> Order.Order, project : (K, V1) -> V2) : Map<K, V2> {
+    let result = empty<K, V2>();
+    for ((key, value1) in entries(map)) {
+      let value2 = project(key, value1);
+      add(result, compare, key, value2);
+    };
+    result
+  };
 
-  // public func foldLeft<K, V, A>(
-  //   map : Map<K, V>,
-  //   base : A,
-  //   combine : (A, K, V) -> A
-  // ) : A {
-  //   todo()
-  // };
+  /// Iterate all entries in ascending order of the keys,
+  /// and accumulate the entries by applying the combine function, starting from a base value.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///   
+  ///   let text = Map.foldLeft<Nat, Text, Text>(
+  ///      map,
+  ///      "",
+  ///      func (accumulator, key, value) {
+  ///        let separator = if (accumulator == "") { ", " } else { "" };
+  ///        accumulator #= separator # Nat.toText(key) # " is " # value
+  ///      }
+  ///   );
+  ///   Debug.print(text);
+  ///   // prints `"0 is zero, 1 is one, 2 is two"`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func foldLeft<K, V, A>(
+    map : Map<K, V>,
+    base : A,
+    combine : (A, K, V) -> A
+  ) : A {
+    var accumulator = base;
+    for ((key, value) in entries(map)) {
+      accumulator := combine(accumulator, key, value);
+    };
+    accumulator;
+  };
 
-  // public func foldRight<K, V, A>(
-  //   map : Map<K, V>,
-  //   base : A,
-  //   combine : (K, V, A) -> A
-  // ) : A {
-  //   todo()
-  // };
+  /// Iterate all entries in descending order of the keys,
+  /// and accumulate the entries by applying the combine function, starting from a base value.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///   
+  ///   let text = Map.foldLeft<Nat, Text, Text>(
+  ///      map,
+  ///      "",
+  ///      func (key, value, accumulator) {
+  ///        let separator = if (accumulator == "") { ", " } else { "" };
+  ///        accumulator #= separator # Nat.toText(key) # " is " # value
+  ///      }
+  ///   );
+  ///   Debug.print(text);
+  ///   // prints `"2 is two, 1 is one, 0 is zero"`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func foldRight<K, V, A>(
+    map : Map<K, V>,
+    base : A,
+    combine : (K, V, A) -> A
+  ) : A {
+    var accumulator = base;
+    for ((key, value) in reverseEntries(map)) {
+      accumulator := combine(key, value, accumulator);
+    };
+    accumulator
+  };
 
-  // public func all<K, V>(map : Map<K, V>, pred : (K, V) -> Bool) : Bool {
-  //   todo()
-  // };
+  /// Check whether all entries in the map fulfil a predicate function, i.e.
+  /// the predicate function returns `true` for all entries in the map.
+  /// Returns `true` for an empty map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///   
+  ///   let belowTen = Map.all<Nat, Text>(map, func (key, _) {
+  ///     key < 10
+  ///   }); // `true`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func all<K, V>(map : Map<K, V>, predicate : (K, V) -> Bool) : Bool {
+    for (entry in entries(map)) {
+      if (not predicate(entry)) {
+        return false;
+      }
+    };
+    return true;
+  };
 
-  // public func any<K, V>(map : Map<K, V>, pred : (K, V) -> Bool) : Bool {
-  //   todo()
-  // };
+  /// Check whether at least one entry in the map fulfils the predicate function, i.e.
+  /// the predicate function returns `true` for at least one entry in the map.
+  /// Returns `false` for an empty map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///   
+  ///   let aboveTen = Map.any<Nat, Text>(map, func (key, _) {
+  ///     key > 10
+  ///   }); // `false`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func any<K, V>(map : Map<K, V>, predicate : (K, V) -> Bool) : Bool {
+    for (entry in entries(map)) {
+      if (predicate(entry)) {
+        return true;
+      }
+    };
+    return false;
+  };
 
-  // public func filterMap<K, V1, V2>(map : Map<K, V1>, f : (K, V1) -> ?V2) : Map<K, V2> {
-  //   todo()
-  // };
+  /// Filter all entries in the map by also applying a projection to the value.
+  /// Apply a mapping function `project` to all entries in the map and collect all
+  /// entries, for which the function returns a non-null new value. Collect all 
+  /// non-discarded entries with the key and new value in a new mutable map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let numberNames = Map.empty<Nat, Text>();
+  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
+  ///   Map.add(numberNames, Nat.compare, 1, "One");
+  ///   Map.add(numberNames, Nat.compare, 2, "Two");
+  ///   
+  ///   let evenNumbers = Map.filterMap<Nat, Text>(numberNames, func (key, value) {
+  ///     if (key % 2 = 0) {
+  ///        ?(key, Text.toLowerCase(value))
+  ///     } else {
+  ///        null // discard odd numbers
+  ///     }
+  ///   });
+  ///   Debug.print(debug_show(evenNumbers));
+  ///   // prints `[(0, "zero"), (2, "two")]`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n * log(n))`.
+  /// Space: `O(n)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func filterMap<K, V1, V2>(map : Map<K, V1>, compare: (K, K) -> Order.Order, project : (K, V1) -> ?V2) : Map<K, V2> {
+    let result = empty<K, V2>();
+    for ((key, value1) in entries(map)) {
+      switch (project(key, value1)) {
+        case null {};
+        case (?value2) add(result, compare, key, value2);
+      }
+    };
+    result
+  };
 
-  // public func assertValid<K>(map : Map<K, Any>, compare : (K, K) -> Order.Order) : () {
-  //   todo()
-  // };
+  /// Internal sanity check function.
+  public func assertValid<K>(map : Map<K, Any>, compare : (K, K) -> Order.Order) : () {
+    func checkIteration(iterator: IterType.Iter<(K, Any)>, order: Order.Order) {
+      switch (iterator.next()) {
+        case null {};
+        case (?first) {
+          var previous = first;
+          loop {
+            switch (iterator.next()) {
+              case null return;
+              case (?next) {
+                if (compare(previous.0, next.0) != order) {
+                  Runtime.trap("Invalid order");
+                };
+                previous := next;
+              }
+            }
+          }
+        }
+      }
+    };
+    checkIteration(entries(map), #less);
+    checkIteration(reverseEntries(map), #greater);
+  };
 
-  // public func toText<K, V>(map : Map<K, V>, kf : K -> Text, vf : V -> Text) : Text {
-  //   todo()
-  // };
+  /// Generate a textual representation of all the entries in the map.
+  /// Primarily to be used for testing and debugging.
+  /// The keys and values are formatted according to `keyFormat` and `valueFormat`.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///   
+  ///   let text = Map.toText<Nat, Text(map, Nat.toText, func (value) { value }));
+  ///   // `"(0, Zero), (1, One), (2, Two)"`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(n)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map and 
+  /// assuming that `keyFormat` and `valueFormat` have runtime and space costs of `O(1)`.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func toText<K, V>(map : Map<K, V>, keyFormat : K -> Text, valueFormat : V -> Text) : Text {
+    var text = "";
+    for ((key, value) in entries(map)) {
+      if (text == "") {
+        text #= ", ";
+      };
+      text #= "(" # keyFormat(key) # ", " # valueFormat(value) # ")";
+    };
+    text
+  };
 
-  // public func compare<K, V>(map1 : Map<K, V>, map2 : Map<K, V>, compareKey : (K, K) -> Order.Order, compareValue : (V, V) -> Order.Order) : Order.Order {
-  //   todo()
-  // };
+  /// Compare two maps by primarily comparing keys and secondarily values.
+  /// Both maps are iterated by the ascending order of their creation and 
+  /// order is determined by the following rules:
+  /// Less:
+  /// `map1` is less than `map2` if:
+  ///  * the pairwise iteration hits a entry pair `entry1` and `entry2` where 
+  ///    `entry1` is less than `entry2` and all preceding entry pairs are equal, or,
+  ///  * `map1` is  a strict prefix of `map2`, i.e. `map2` has more entries than `map1` 
+  ///     and all entries of `map1` occur at the beginning of iteration `map2`.
+  /// `entry1` is less than `entry2` if:
+  ///  * the key of `entry1` is less than the key of `entry2`, or
+  ///  * `entry1` and `entry2` have equal keys and the value of `entry1` is less than 
+  ///    the value of `entry2`.
+  /// Equal:
+  /// `map1` and `map2` have same series of equal entries by pairwise iteration.
+  /// Greater:
+  /// `map1` is neither less nor equal `map2`.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map1 = Map.empty<Nat, Text>();
+  ///   Map.add(map1, Nat.compare, 0, "Zero");
+  ///   Map.add(map1, Nat.compare, 1, "One");
+  ///   
+  ///   let map2 = Map.empty<Nat, Text>();
+  ///   Map.add(map2, Nat.compare, 0, "Zero");
+  ///   Map.add(map2, Nat.compare, 2, "Two");
+  ///   
+  ///   let orderLess = Map.compare(map1, map2, Nat.compare, Text.compare);
+  ///   // `#less`
+  ///   let orderEqual = Map.compare(map1, map1, Nat.compare, Text.compare);
+  ///   // `#equal`
+  ///   let orderGreater = Map.compare(map2, map1, Nat.compare, Text.compare);
+  ///   // `#greater`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map and 
+  /// assuming that `compareKey` and `compareValue` have runtime and space costs of `O(1)`.
+  /// 
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func compare<K, V>(map1 : Map<K, V>, map2 : Map<K, V>, compareKey : (K, K) -> Order.Order, compareValue : (V, V) -> Order.Order) : Order.Order {
+    let iterator1 = entries(map1);
+    let iterator2 = entries(map2);
+    loop {
+      switch (iterator1.next(), iterator2.next()) {
+        case (null, null) return #equal;
+        case (null, _) return #less;
+        case (_, null) return #greater;
+        case (?(key1, value1), ?(key2, value2)) {
+          let keyComparison = compareKey(key1, key2);
+          if (keyComparison != #equal) {
+            return keyComparison;
+          };
+          let valueComparison = compareValue(value1, value2);
+          if (valueComparison != #equal) {
+            return valueComparison;
+          }
+        }
+      }
+    }
+  };
 
   module ArrayUtil {
     /// Inserts an element into a mutable array at a specific index, shifting all other elements over

@@ -673,7 +673,7 @@ module {
   /// Runtime: `O(n)`.
   /// Space: `O(1)` retained memory plus garbage, see below.
   /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
+  ///
   /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
   public func entries<K, V>(map : Map<K, V>) : IterType.Iter<(K, V)> {
     switch (map.root) {
@@ -705,7 +705,7 @@ module {
   /// Runtime: `O(n)`.
   /// Space: `O(1)` retained memory plus garbage, see below.
   /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
+  ///
   /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
   public func reverseEntries<K, V>(map : Map<K, V>) : IterType.Iter<(K, V)> {
     switch (map.root) {
@@ -784,201 +784,474 @@ module {
     }
   };
 
-  // /// The direction of iteration
-  // /// \#fwd -> forward (ascending)
-  // /// \#bwd -> backwards (descending)
-  // public type Direction = { #fwd; #bwd };
+  /// Create a mutable key-value map with the entries obtained from an iterator.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Iter "mo:base/Iter";
+  ///
+  /// persistent actor {
+  ///   let iterator = Iter.fromArray([(0, "Zero"), (1, "One"), (2, "Two")]);
+  ///   let map = Map.fromIter(iterator, Nat.compare);
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n * log(n))`.
+  /// Space: `O(n)`.
+  /// where `n` denotes the number of key-value entries returned by the iterator and
+  /// assuming that the `compare` function implements an `O(1)` comparison.
+  public func fromIter<K, V>(iter : IterType.Iter<(K, V)>, compare : (K, K) -> Order.Order) : Map<K, V> {
+    let map = empty<K, V>();
+    for ((key, value) in iter) {
+      add(map, compare, key, value)
+    };
+    map
+  };
 
-  // /// The object returned from a scan contains:
-  // /// * results - a key value array of all results found (within the bounds and limit provided)
-  // /// * nextKey - an optional next key if there exist more results than the limit provided within the given bounds
-  // public type ScanLimitResult<K, V> = {
-  //   results : [(K, V)];
-  //   nextKey : ?K
-  // };
+  /// Apply an operation for each key-value pair contained in the map.
+  /// The operation is applied in ascending order of the keys.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///
+  ///   Map.forEach<Nat, Text>(map, func (key, value) {
+  ///     Debug.print("key=" # Nat.toText(key) # ", value='" # value # "'");
+  ///   })
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func forEach<K, V>(map : Map<K, V>, operation : (K, V) -> ()) {
+    for (entry in entries(map)) {
+      operation(entry)
+    }
+  };
 
-  // /// Performs a in-order scan of the Red-Black Tree between the provided key bounds, returning a number of matching entries in the direction specified (ascending/descending) limited by the limit parameter specified in an array formatted as (K, V) for each entry
-  // ///
-  // /// * tree - the BTree being scanned
-  // /// * compare - the comparison function used to compare (in terms of order) the provided bounds against the keys in the BTree
-  // /// * lowerBound - the lower bound used in the scan
-  // /// * upperBound - the upper bound used in the scan
-  // /// * dir - the direction of the scan
-  // /// * limit - the maximum possible number of items to scan (that are between the lower and upper bounds) before returning
-  // public func scanLimit<K, V>(tree : BTree<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, dir : Direction, limit : Nat) : ScanLimitResult<K, V> {
-  //   if (limit == 0) { return { results = []; nextKey = null } };
+  /// Filter entries in a new map.
+  /// Create a copy of the mutable map that only contains the key-value pairs
+  /// that fulfil the criterion function.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let numberNames = Map.empty<Nat, Text>();
+  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
+  ///   Map.add(numberNames, Nat.compare, 1, "One");
+  ///   Map.add(numberNames, Nat.compare, 2, "Two");
+  ///
+  ///   let evenNumbers = Map.filter<Nat, Text>(numberNames, Nat.compare, func (key, value) {
+  ///     key % 2 == 0
+  ///   });
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(n)`.
+  /// where `n` denotes the number of key-value entries stored in the map and
+  /// assuming that the `compare` function implements an `O(1)` comparison.
+  public func filter<K, V>(map : Map<K, V>, compare : (K, K) -> Order.Order, criterion : (K, V) -> Bool) : Map<K, V> {
+    let result = empty<K, V>();
+    for ((key, value) in entries(map)) {
+      if (criterion(key, value)) {
+        add(result, compare, key, value)
+      }
+    };
+    result
+  };
 
-  //   switch (compare(lowerBound, upperBound)) {
-  //     // return empty array if lower bound is greater than upper bound
-  //     case (#greater) { { results = []; nextKey = null } };
-  //     // return the single entry if exists if the lower and upper bounds are equivalent
-  //     case (#equal) {
-  //       switch (get<K, V>(tree, compare, lowerBound)) {
-  //         case null { { results = []; nextKey = null } };
-  //         case (?value) { { results = [(lowerBound, value)]; nextKey = null } }
-  //       }
-  //     };
-  //     case (#less) {
-  //       // add 1 to limit to allow additional space for next key without worrying about Nat underflow
-  //       let limitPlusNextKey = limit + 1;
-  //       let { resultBuffer; nextKey } = iterScanLimit<K, V>(tree.root, compare, lowerBound, upperBound, dir, limitPlusNextKey);
-  //       { results = Buffer.toArray(resultBuffer); nextKey = nextKey }
-  //     }
-  //   }
-  // };
+  /// Project all values of the map in a new map.
+  /// Apply a mapping function to all entries of a map and collect the mapped entries
+  /// in a new mutable key-value map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let numberNames = Map.empty<Nat, Text>();
+  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
+  ///   Map.add(numberNames, Nat.compare, 1, "One");
+  ///   Map.add(numberNames, Nat.compare, 2, "Two");
+  ///
+  ///   let lowerCaseNames = Map.map<Nat, Text>(numberNames, Nat.compare, func (key, value) {
+  ///     (key, Text.toLowerCase(value))
+  ///   });
+  ///   Debug.print(debug_show(lowerCaseNames));
+  ///   // prints `[(0, "zero"), (1, "one"), (2, "two")]`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n * log(n))`.
+  /// Space: `O(n)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map and
+  /// assuming that the `compare` function implements an `O(1)` comparison.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func map<K, V1, V2>(map : Map<K, V1>, compare : (K, K) -> Order.Order, project : (K, V1) -> V2) : Map<K, V2> {
+    let result = empty<K, V2>();
+    for ((key, value1) in entries(map)) {
+      let value2 = project(key, value1);
+      add(result, compare, key, value2)
+    };
+    result
+  };
 
-  // ///////////////////////////////////////
-  // /* Internal Library Helper functions*/
-  // /////////////////////////////////////
+  /// Iterate all entries in ascending order of the keys,
+  /// and accumulate the entries by applying the combine function, starting from a base value.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///
+  ///   let text = Map.foldLeft<Nat, Text, Text>(
+  ///      map,
+  ///      "",
+  ///      func (accumulator, key, value) {
+  ///        let separator = if (accumulator == "") { ", " } else { "" };
+  ///        accumulator #= separator # Nat.toText(key) # " is " # value
+  ///      }
+  ///   );
+  ///   Debug.print(text);
+  ///   // prints `"0 is zero, 1 is one, 2 is two"`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func foldLeft<K, V, A>(
+    map : Map<K, V>,
+    base : A,
+    combine : (A, K, V) -> A
+  ) : A {
+    var accumulator = base;
+    for ((key, value) in entries(map)) {
+      accumulator := combine(accumulator, key, value)
+    };
+    accumulator
+  };
 
-  // // gets the max key value pair in the leaf node
-  // func getLeafMin<K, V>({ data } : Leaf<K, V>) : ?(K, V) {
-  //   if (data.count == 0) null else { data.kvs[0] }
-  // };
+  /// Iterate all entries in descending order of the keys,
+  /// and accumulate the entries by applying the combine function, starting from a base value.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///
+  ///   let text = Map.foldLeft<Nat, Text, Text>(
+  ///      map,
+  ///      "",
+  ///      func (key, value, accumulator) {
+  ///        let separator = if (accumulator == "") { ", " } else { "" };
+  ///        accumulator #= separator # Nat.toText(key) # " is " # value
+  ///      }
+  ///   );
+  ///   Debug.print(text);
+  ///   // prints `"2 is two, 1 is one, 0 is zero"`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func foldRight<K, V, A>(
+    map : Map<K, V>,
+    base : A,
+    combine : (K, V, A) -> A
+  ) : A {
+    var accumulator = base;
+    for ((key, value) in reverseEntries(map)) {
+      accumulator := combine(key, value, accumulator)
+    };
+    accumulator
+  };
 
-  // // gets the min key value pair in the internal node
-  // func getInternalMin<K, V>(internal : Internal<K, V>) : ?(K, V) {
-  //   var currentInternal = internal;
-  //   var minKV : ?(K, V) = null;
-  //   label l loop {
-  //     let child = switch (currentInternal.children[0]) {
-  //       case (?child) { child };
-  //       case null {
-  //         Runtime.trap("UNREACHABLE_ERROR: file a bug report! In BTree.internalmin(), null child error")
-  //       }
-  //     };
+  /// Check whether all entries in the map fulfil a predicate function, i.e.
+  /// the predicate function returns `true` for all entries in the map.
+  /// Returns `true` for an empty map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///
+  ///   let belowTen = Map.all<Nat, Text>(map, func (key, _) {
+  ///     key < 10
+  ///   }); // `true`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func all<K, V>(map : Map<K, V>, predicate : (K, V) -> Bool) : Bool {
+    for (entry in entries(map)) {
+      if (not predicate(entry)) {
+        return false
+      }
+    };
+    return true
+  };
 
-  //     switch (child) {
-  //       case (#leaf(leafNode)) {
-  //         minKV := getLeafMin<K, V>(leafNode);
-  //         break l
-  //       };
-  //       case (#internal(internalNode)) { currentInternal := internalNode }
-  //     }
-  //   };
-  //   minKV
-  // };
+  /// Check whether at least one entry in the map fulfils the predicate function, i.e.
+  /// the predicate function returns `true` for at least one entry in the map.
+  /// Returns `false` for an empty map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///
+  ///   let aboveTen = Map.any<Nat, Text>(map, func (key, _) {
+  ///     key > 10
+  ///   }); // `false`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func any<K, V>(map : Map<K, V>, predicate : (K, V) -> Bool) : Bool {
+    for (entry in entries(map)) {
+      if (predicate(entry)) {
+        return true
+      }
+    };
+    return false
+  };
 
-  // // gets the max key value pair in the leaf node
-  // func getLeafMax<K, V>({ data } : Leaf<K, V>) : ?(K, V) {
-  //   if (data.count == 0) null else { data.kvs[data.count - 1] }
-  // };
+  /// Filter all entries in the map by also applying a projection to the value.
+  /// Apply a mapping function `project` to all entries in the map and collect all
+  /// entries, for which the function returns a non-null new value. Collect all
+  /// non-discarded entries with the key and new value in a new mutable map.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  /// import Debug "mo:base/Debug";
+  ///
+  /// persistent actor {
+  ///   let numberNames = Map.empty<Nat, Text>();
+  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
+  ///   Map.add(numberNames, Nat.compare, 1, "One");
+  ///   Map.add(numberNames, Nat.compare, 2, "Two");
+  ///
+  ///   let evenNumbers = Map.filterMap<Nat, Text>(numberNames, func (key, value) {
+  ///     if (key % 2 = 0) {
+  ///        ?(key, Text.toLowerCase(value))
+  ///     } else {
+  ///        null // discard odd numbers
+  ///     }
+  ///   });
+  ///   Debug.print(debug_show(evenNumbers));
+  ///   // prints `[(0, "zero"), (2, "two")]`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n * log(n))`.
+  /// Space: `O(n)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func filterMap<K, V1, V2>(map : Map<K, V1>, compare : (K, K) -> Order.Order, project : (K, V1) -> ?V2) : Map<K, V2> {
+    let result = empty<K, V2>();
+    for ((key, value1) in entries(map)) {
+      switch (project(key, value1)) {
+        case null {};
+        case (?value2) add(result, compare, key, value2)
+      }
+    };
+    result
+  };
 
-  // // gets the max key value pair in the internal node
-  // func getInternalMax<K, V>(internal : Internal<K, V>) : ?(K, V) {
-  //   var currentInternal = internal;
-  //   var maxKV : ?(K, V) = null;
-  //   label l loop {
-  //     let child = switch (currentInternal.children[currentInternal.data.count]) {
-  //       case (?child) { child };
-  //       case null {
-  //         Runtime.trap("UNREACHABLE_ERROR: file a bug report! In BTree.internalGetMax(), null child error")
-  //       }
-  //     };
+  /// Internal sanity check function.
+  public func assertValid<K>(map : Map<K, Any>, compare : (K, K) -> Order.Order) : () {
+    func checkIteration(iterator : IterType.Iter<(K, Any)>, order : Order.Order) {
+      switch (iterator.next()) {
+        case null {};
+        case (?first) {
+          var previous = first;
+          loop {
+            switch (iterator.next()) {
+              case null return;
+              case (?next) {
+                if (compare(previous.0, next.0) != order) {
+                  Runtime.trap("Invalid order")
+                };
+                previous := next
+              }
+            }
+          }
+        }
+      }
+    };
+    checkIteration(entries(map), #less);
+    checkIteration(reverseEntries(map), #greater)
+  };
 
-  //     switch (child) {
-  //       case (#leaf(leafNode)) {
-  //         maxKV := getLeafMax<K, V>(leafNode);
-  //         break l
-  //       };
-  //       case (#internal(internalNode)) { currentInternal := internalNode }
-  //     }
-  //   };
-  //   maxKV
-  // };
+  /// Generate a textual representation of all the entries in the map.
+  /// Primarily to be used for testing and debugging.
+  /// The keys and values are formatted according to `keyFormat` and `valueFormat`.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map = Map.empty<Nat, Text>();
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
+  ///
+  ///   let text = Map.toText<Nat, Text(map, Nat.toText, func (value) { value }));
+  ///   // `"(0, Zero), (1, One), (2, Two)"`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(n)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map and
+  /// assuming that `keyFormat` and `valueFormat` have runtime and space costs of `O(1)`.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func toText<K, V>(map : Map<K, V>, keyFormat : K -> Text, valueFormat : V -> Text) : Text {
+    var text = "";
+    for ((key, value) in entries(map)) {
+      if (text == "") {
+        text #= ", "
+      };
+      text #= "(" # keyFormat(key) # ", " # valueFormat(value) # ")"
+    };
+    text
+  };
 
-  // // Appends all kvs in the leaf to the entriesAccumulator buffer
-  // func appendLeafKVs<K, V>({ data } : Leaf<K, V>, entriesAccumulator : Buffer.Buffer<(K, V)>) : () {
-  //   var i = 0;
-  //   while (i < data.count) {
-  //     switch (data.kvs[i]) {
-  //       case (?kv) { entriesAccumulator.add(kv) };
-  //       case null {
-  //         Debug.trap("UNREACHABLE_ERROR: file a bug report! In appendLeafEntries data.kvs[i] is null with data.count=" # Nat.toText(data.count) # " and i=" # Nat.toText(i))
-  //       }
-  //     };
-  //     i += 1
-  //   }
-  // };
-
-  // // Iterates through the entire internal node, appending all kvs to the entriesAccumulator buffer
-  // func appendInternalKVs<K, V>(internal : Internal<K, V>, entriesAccumulator : Buffer.Buffer<(K, V)>) : () {
-  //   // Holds an internal node stack cursor for iterating through the BTree
-  //   let internalNodeStack = initializeInternalNodeStack(internal, entriesAccumulator);
-  //   var internalCursor = internalNodeStack.pop();
-
-  //   label l loop {
-  //     switch (internalCursor) {
-  //       case (?{ internal; kvIndex }) {
-  //         switch (internal.data.kvs[kvIndex]) {
-  //           case (?kv) { entriesAccumulator.add(kv) };
-  //           case null {
-  //             Debug.trap("UNREACHABLE_ERROR: file a bug report! In internalEntries internal.data.kvs[kvIndex] is null with internal.data.count=" # Nat.toText(internal.data.count) # " and kvIndex=" # Nat.toText(kvIndex))
-  //           }
-  //         };
-  //         let lastKV = (internal.data.count - 1 : Nat);
-  //         if (kvIndex > lastKV) {
-  //           Debug.trap("UNREACHABLE_ERROR: file a bug report! In internalEntries kvIndex=" # Nat.toText(kvIndex) # " is greater than internal.data.count=" # Nat.toText(internal.data.count))
-  //         };
-
-  //         // push the new internalCursor onto the stack, and traverse the left child of the internal node
-  //         // increment the kvIndex of the internalCursor,
-  //         let nextCursor = { internal = internal; kvIndex = kvIndex + 1 };
-  //         // if the kvIndex is less than the number of keys in the internal node, push the new internalCursor onto the stack,
-  //         if (kvIndex < lastKV) {
-  //           internalNodeStack.push(nextCursor)
-  //         };
-
-  //         // traverse the next child's min subtree and push the resulting internal cursors to the stack
-  //         traverseInternalMinSubtree(internalNodeStack, nextCursor, entriesAccumulator);
-  //         // pop the next internalCursor off the stack and continue
-  //         internalCursor := internalNodeStack.pop()
-  //       };
-  //       // nothing left in the internalNodeStack, signalling that we have traversed the entire BTree and added all kv pairs to the entriesAccumulator
-  //       case null { return }
-  //     }
-  //   }
-  // };
-
-  // func initializeInternalNodeStack<K, V>(internal : Internal<K, V>, entriesAccumulator : Buffer.Buffer<(K, V)>) : Stack.Stack<InternalCursor<K, V>> {
-  //   let internalNodeStack = Stack.Stack<InternalCursor<K, V>>();
-  //   let internalCursor : InternalCursor<K, V> = {
-  //     internal;
-  //     kvIndex = 0
-  //   };
-  //   internalNodeStack.push(internalCursor);
-  //   traverseInternalMinSubtree(internalNodeStack, internalCursor, entriesAccumulator);
-
-  //   internalNodeStack
-  // };
-
-  // // traverse the min subtree of the current internal cursor, passing each new element to the node cursor stack
-  // // once a leaf node is hit, appends all the leaf entries to the entriesAccumulator buffer and returns
-  // func traverseInternalMinSubtree<K, V>(internalNodeStack : Stack.Stack<InternalCursor<K, V>>, internalCursor : InternalCursor<K, V>, entriesAccumulator : Buffer.Buffer<(K, V)>) : () {
-  //   var currentNode = internalCursor.internal;
-  //   var childIndex = internalCursor.kvIndex;
-  //   label l loop {
-  //     switch (currentNode.children[childIndex]) {
-  //       // If hit a leaf, have hit the bottom of the min subtree, so can just append all leaf entries to the accumulator and return (no need to push to the stack)
-  //       case (?#leaf(leafChild)) {
-  //         appendLeafKVs(leafChild, entriesAccumulator);
-  //         return
-  //       };
-  //       // If hit an internal node, update the currentNode and childIndex, and push the min child index of that internal node onto the stack
-  //       case (?#internal(internalNode)) {
-  //         currentNode := internalNode;
-  //         childIndex := 0;
-  //         internalNodeStack.push({
-  //           internal = internalNode;
-  //           kvIndex = childIndex
-  //         })
-  //       };
-  //       case null {
-  //         Debug.trap("UNREACHABLE_ERROR: file a bug report! In dfsTraverse, currentNode.children[childIndex] is null with currentNode.data.count=" # Nat.toText(currentNode.data.count) # " and childIndex=" # Nat.toText(childIndex))
-  //       }
-  //     }
-  //   }
-  // };
+  /// Compare two maps by primarily comparing keys and secondarily values.
+  /// Both maps are iterated by the ascending order of their creation and
+  /// order is determined by the following rules:
+  /// Less:
+  /// `map1` is less than `map2` if:
+  ///  * the pairwise iteration hits a entry pair `entry1` and `entry2` where
+  ///    `entry1` is less than `entry2` and all preceding entry pairs are equal, or,
+  ///  * `map1` is  a strict prefix of `map2`, i.e. `map2` has more entries than `map1`
+  ///     and all entries of `map1` occur at the beginning of iteration `map2`.
+  /// `entry1` is less than `entry2` if:
+  ///  * the key of `entry1` is less than the key of `entry2`, or
+  ///  * `entry1` and `entry2` have equal keys and the value of `entry1` is less than
+  ///    the value of `entry2`.
+  /// Equal:
+  /// `map1` and `map2` have same series of equal entries by pairwise iteration.
+  /// Greater:
+  /// `map1` is neither less nor equal `map2`.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import Map "mo:base/Map";
+  /// import Nat "mo:base/Nat";
+  ///
+  /// persistent actor {
+  ///   let map1 = Map.empty<Nat, Text>();
+  ///   Map.add(map1, Nat.compare, 0, "Zero");
+  ///   Map.add(map1, Nat.compare, 1, "One");
+  ///
+  ///   let map2 = Map.empty<Nat, Text>();
+  ///   Map.add(map2, Nat.compare, 0, "Zero");
+  ///   Map.add(map2, Nat.compare, 2, "Two");
+  ///
+  ///   let orderLess = Map.compare(map1, map2, Nat.compare, Text.compare);
+  ///   // `#less`
+  ///   let orderEqual = Map.compare(map1, map1, Nat.compare, Text.compare);
+  ///   // `#equal`
+  ///   let orderGreater = Map.compare(map2, map1, Nat.compare, Text.compare);
+  ///   // `#greater`
+  /// }
+  /// ```
+  ///
+  /// Runtime: `O(n)`.
+  /// Space: `O(1)` retained memory plus garbage, see below.
+  /// where `n` denotes the number of key-value entries stored in the map and
+  /// assuming that `compareKey` and `compareValue` have runtime and space costs of `O(1)`.
+  ///
+  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
+  public func compare<K, V>(map1 : Map<K, V>, map2 : Map<K, V>, compareKey : (K, K) -> Order.Order, compareValue : (V, V) -> Order.Order) : Order.Order {
+    let iterator1 = entries(map1);
+    let iterator2 = entries(map2);
+    loop {
+      switch (iterator1.next(), iterator2.next()) {
+        case (null, null) return #equal;
+        case (null, _) return #less;
+        case (_, null) return #greater;
+        case (?(key1, value1), ?(key2, value2)) {
+          let keyComparison = compareKey(key1, key2);
+          if (keyComparison != #equal) {
+            return keyComparison
+          };
+          let valueComparison = compareValue(value1, value2);
+          if (valueComparison != #equal) {
+            return valueComparison
+          }
+        }
+      }
+    }
+  };
 
   func leafEntries<K, V>({ data } : Leaf<K, V>) : IterType.Iter<(K, V)> {
     var i : Nat = 0;
@@ -1271,540 +1544,6 @@ module {
       }
     }
   };
-
-  // // Intermediate result used during the scanning of different BTree node types
-  // type IntermediateScanResult<K, V> = {
-  //   // the buffer scan result from a specific node
-  //   resultBuffer : Buffer.Buffer<(K, V)>;
-  //   // the remaining limit
-  //   limit : Nat;
-  //   // the next key (applicable if limit was hit, but more entries exist)
-  //   nextKey : ?K
-  // };
-
-  // func iterScanLimit<K, V>(node : Node<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, dir : Direction, limit : Nat) : IntermediateScanResult<K, V> {
-  //   switch (dir, node) {
-  //     case (#fwd, #leaf(leafNode)) {
-  //       iterScanLimitLeafForward<K, V>(leafNode, compare, lowerBound, upperBound, limit)
-  //     };
-  //     case (#bwd, #leaf(leafNode)) {
-  //       iterScanLimitLeafReverse<K, V>(leafNode, compare, lowerBound, upperBound, limit)
-  //     };
-  //     case (#fwd, #internal(internalNode)) {
-  //       iterScanLimitInternalForward<K, V>(internalNode, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, limit : Nat)
-  //     };
-  //     case (#bwd, #internal(internalNode)) {
-  //       iterScanLimitInternalReverse<K, V>(internalNode, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, limit : Nat)
-  //     }
-  //   }
-  // };
-
-  // func iterScanLimitLeafForward<K, V>({ data } : Leaf<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, limit : Nat) : IntermediateScanResult<K, V> {
-  //   let resultBuffer : Buffer.Buffer<(K, V)> = Buffer.Buffer(0);
-  //   var remainingLimit = limit;
-  //   var elementIndex = switch (BS.binarySearchNode(data.kvs, compare, lowerBound, data.count)) {
-  //     case (#keyFound(idx)) { idx };
-  //     case (#notFound(idx)) {
-  //       // skip this leaf if lower bound is greater than all elements in the leaf
-  //       if (idx >= data.count) {
-  //         return {
-  //           resultBuffer;
-  //           limit = remainingLimit;
-  //           nextKey = null
-  //         }
-  //       };
-  //       idx
-  //     }
-  //   };
-
-  //   label l while (remainingLimit > 1) {
-  //     switch (data.kvs[elementIndex]) {
-  //       case (?(k, v)) {
-  //         switch (compare(k, upperBound)) {
-  //           // iterating forward and key is greater than the upper bound
-  //           // Set the limit to 0 and return the buffer to signal stopping the scan in the calling context. There is no next key
-  //           case (#greater) {
-  //             return {
-  //               resultBuffer;
-  //               limit = 0;
-  //               nextKey = null
-  //             }
-  //           };
-  //           // Key is equal to the upper bound. Add the element to the buffer, then set the limit to 0 and return the buffer to signal stopping the scan in the calling context. There is no next key
-  //           case (#equal) {
-  //             resultBuffer.add((k, v));
-  //             return {
-  //               resultBuffer;
-  //               limit = 0;
-  //               nextKey = null
-  //             }
-  //           };
-  //           // Iterating forward and key is less than the upper bound. Add the element to the buffer, decrement from the limit, and increase the element index
-  //           case (#less) {
-  //             resultBuffer.add((k, v));
-  //             remainingLimit -= 1;
-  //             elementIndex += 1;
-  //             if (elementIndex >= data.count) { break l }
-  //           }
-  //         }
-  //       };
-  //       case null {
-  //         Debug.trap("UNREACHABLE_ERROR: file a bug report! In iterScanLimitLeafForward, attemmpted to add a null element to the result buffer")
-  //       }
-  //     }
-  //   };
-
-  //   // if added all elements in the leaf, return the buffer and remaining limit
-  //   if (elementIndex == data.count) {
-  //     return {
-  //       resultBuffer;
-  //       limit = remainingLimit;
-  //       nextKey = null
-  //     }
-  //   };
-
-  //   // otherwise, the remaining limit must equal 1 and we haven't gone through all of the elements in the leaf, set the next key and limit to 0, and return the buffer to signal stopping the scan in the calling context
-  //   if (remainingLimit == 1) {
-  //     return {
-  //       resultBuffer;
-  //       limit = 0;
-  //       nextKey = switch (data.kvs[elementIndex]) {
-  //         case null { null };
-  //         case (?kv) {
-  //           switch (compare(kv.0, upperBound)) {
-  //             // if the next key is greater than the upper bound, have hit the upper bound, so return null
-  //             case (#greater) { null };
-  //             // otherwise less or equal to the upper bound, so return the next key
-  //             case _ { ?kv.0 }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   };
-
-  //   Debug.trap("UNREACHABLE_ERROR: file a bug report! In iterScanLimitLeafForward, reached a catch-all case that should not happen with a remaining limit =" # Nat.toText(remainingLimit))
-  // };
-
-  // func iterScanLimitLeafReverse<K, V>({ data } : Leaf<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, limit : Nat) : IntermediateScanResult<K, V> {
-  //   let resultBuffer : Buffer.Buffer<(K, V)> = Buffer.Buffer(0);
-  //   var remainingLimit = limit;
-  //   var elementIndex = switch (BS.binarySearchNode(data.kvs, compare, upperBound, data.count)) {
-  //     case (#keyFound(idx)) { idx };
-  //     case (#notFound(idx)) {
-  //       // skip this leaf if upper bound is less than all elements in the leaf
-  //       if (idx == 0) {
-  //         return {
-  //           resultBuffer;
-  //           limit = remainingLimit;
-  //           nextKey = null
-  //         }
-  //       };
-
-  //       // We are iterating in reverse and did not find the upper bound, choose the previous element
-  //       // idx is not 0, so we can safely subtract 1
-  //       idx - 1 : Nat
-  //     }
-  //   };
-
-  //   label l while (remainingLimit > 1) {
-  //     switch (data.kvs[elementIndex]) {
-  //       case (?(k, v)) {
-  //         switch (compare(k, lowerBound)) {
-  //           // Iterating in reverse and key is less than the lower bound.
-  //           // Set the limit to 0 and return the buffer to signal stopping the scan in the calling context. There is no next key
-  //           case (#less) {
-  //             return {
-  //               resultBuffer;
-  //               limit = 0;
-  //               nextKey = null
-  //             }
-  //           };
-  //           // Key is equal to the lower bound. Add the element to the buffer, then set the limit to 0 and return the buffer to signal stopping the scan in the calling context. There is no next key
-  //           case (#equal) {
-  //             resultBuffer.add((k, v));
-  //             return {
-  //               resultBuffer;
-  //               limit = 0;
-  //               nextKey = null
-  //             }
-  //           };
-  //           // Iterating in reverse and key is greater than the lower bound. Add the element to the buffer, decrement from the limit, and decrement the element index
-  //           case (#greater) {
-  //             resultBuffer.add((k, v));
-  //             remainingLimit -= 1;
-  //             // if this was the last element of the leaf, return the buffer and remaining limit)
-  //             if (elementIndex == 0) {
-  //               return {
-  //                 resultBuffer;
-  //                 limit = remainingLimit;
-  //                 nextKey = null
-  //               }
-  //             };
-  //             elementIndex -= 1
-  //           }
-  //         }
-  //       };
-  //       case null {
-  //         Debug.trap("UNREACHABLE_ERROR: file a bug report! In iterScanLimitLeafReverse, attemmpted to add a null element to the result buffer")
-  //       }
-  //     }
-  //   };
-
-  //   if (remainingLimit > 1) {
-  //     return {
-  //       resultBuffer;
-  //       limit = remainingLimit;
-  //       nextKey = null
-  //     }
-  //   };
-
-  //   // otherwise, the remaining limit must equal 1 and we haven't gone through all of the elements in the leaf, set the next key and limit to 0, and return the buffer to signal stopping the scan in the calling context
-  //   if (remainingLimit == 1) {
-  //     return {
-  //       resultBuffer;
-  //       limit = 0;
-  //       nextKey = switch (data.kvs[elementIndex]) {
-  //         case null { null };
-  //         case (?kv) { ?kv.0 }
-  //       }
-  //     }
-  //   };
-
-  //   Debug.trap("UNREACHABLE_ERROR: file a bug report! In iterScanLimitLeafReverse, reached a catch-all case that should not happen with a remaining limit =" # Nat.toText(remainingLimit))
-  // };
-
-  // // Cursor of the next key value pair in the internal node to explore from
-  // type ScanCursor<K, V> = {
-  //   #leafCursor : Leaf<K, V>;
-  //   #internalCursor : InternalCursor<K, V>
-  // };
-  // // An Internal Cursor used to keep track of the kv index being iterated upon within an internal node
-  // type InternalCursor<K, V> = {
-  //   internal : Internal<K, V>;
-  //   kvIndex : Nat
-  // };
-
-  // func iterScanLimitInternalForward<K, V>(internal : Internal<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, limit : Nat) : IntermediateScanResult<K, V> {
-  //   // keep in mind that the limit has a + 1; (this additional 1 is for the nextKey)
-  //   var remainingLimit = limit;
-  //   // result buffer being appended to
-  //   let resultBuffer : Buffer.Buffer<(K, V)> = Buffer.Buffer(0);
-  //   // the next key to be returned
-  //   var nextKey : ?K = null;
-  //   // seed the initial node stack used to iterate throught the BTree
-  //   let nodeStack = seedInitialCursorStack<K, V>(internal, compare, lowerBound, upperBound, #fwd, remainingLimit);
-
-  //   label l while (remainingLimit > 0) {
-  //     switch (nodeStack.pop()) {
-  //       case (?#leafCursor(leaf)) {
-  //         let intermediateScanResult = iterScanLimitLeafForward(leaf, compare, lowerBound, upperBound, remainingLimit);
-  //         resultBuffer.append(intermediateScanResult.resultBuffer);
-  //         remainingLimit := intermediateScanResult.limit;
-  //         nextKey := intermediateScanResult.nextKey
-  //       };
-  //       case (?#internalCursor(internalCursor)) {
-  //         let poppedInternalKV = switch (internalCursor.internal.data.kvs[internalCursor.kvIndex]) {
-  //           case (?kv) { kv };
-  //           case null {
-  //             Debug.trap(
-  //               "UNREACHABLE_ERROR: file a bug report! In iterScanLimitInternalForward, a popped #internalCursor has an invalid kvIndex. the internal returned has internal node count=" # Nat.toText(internalCursor.internal.data.count) #
-  //               " and index=" # Nat.toText(internalCursor.kvIndex)
-  //             )
-  //           }
-  //         };
-  //         switch (
-  //           compare(
-  //             poppedInternalKV.0,
-  //             upperBound
-  //           )
-  //         ) {
-  //           case (#less) {
-  //             if (remainingLimit == 1) {
-  //               return {
-  //                 resultBuffer;
-  //                 limit = 0;
-  //                 nextKey = ?poppedInternalKV.0
-  //               }
-  //             };
-
-  //             resultBuffer.add(poppedInternalKV);
-  //             remainingLimit -= 1;
-
-  //             // move the cursor to the kv to the right (greater)
-  //             let childCursor = {
-  //               internal = internalCursor.internal;
-  //               kvIndex = internalCursor.kvIndex + 1
-  //             };
-
-  //             // if not at the end of the internal node's kvs, push the next internal cursor kv to the stack
-  //             if (internalCursor.kvIndex < (internalCursor.internal.data.count - 1 : Nat)) {
-  //               nodeStack.push(#internalCursor(childCursor))
-  //             };
-
-  //             // Then traverse from the new cursor's child predecessor
-  //             traverse<K, V>(nodeStack, childCursor, compare, lowerBound, upperBound, #fwd, remainingLimit)
-  //           };
-  //           // add this kv and then are done
-  //           case (#equal) {
-  //             if (remainingLimit == 1) {
-  //               return {
-  //                 resultBuffer;
-  //                 limit = 0;
-  //                 nextKey = ?poppedInternalKV.0
-  //               }
-  //             };
-
-  //             resultBuffer.add(poppedInternalKV);
-  //             remainingLimit -= 1;
-  //             return {
-  //               resultBuffer;
-  //               limit = remainingLimit;
-  //               nextKey = null
-  //             }
-  //           };
-  //           // have reached the end, we are done
-  //           case (#greater) {
-  //             return {
-  //               resultBuffer;
-  //               limit = remainingLimit;
-  //               nextKey = null
-  //             }
-  //           }
-  //         }
-  //       };
-  //       // if no more nodes left in the stack to pop, return the result
-  //       case null {
-  //         return {
-  //           resultBuffer;
-  //           limit = remainingLimit;
-  //           nextKey = null
-  //         }
-  //       }
-  //     }
-  //   };
-
-  //   return {
-  //     resultBuffer;
-  //     limit = remainingLimit;
-  //     nextKey
-  //   };
-
-  //   Debug.trap("UNREACHABLE_ERROR: file a bug report! In iterScanLimitInternalForward, breached the scan loop without first returning a result.")
-  // };
-
-  // func iterScanLimitInternalReverse<K, V>(internal : Internal<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, limit : Nat) : IntermediateScanResult<K, V> {
-  //   // keep in mind that the limit has a + 1; (this additional 1 is for the nextKey)
-  //   var remainingLimit = limit;
-  //   // result buffer being appended to
-  //   let resultBuffer : Buffer.Buffer<(K, V)> = Buffer.Buffer(0);
-  //   // the next key to be returned
-  //   var nextKey : ?K = null;
-  //   // seed the initial node stack used to iterate throught the BTree
-  //   let nodeStack = seedInitialCursorStack<K, V>(internal, compare, lowerBound, upperBound, #bwd, remainingLimit);
-
-  //   label l while (remainingLimit > 0) {
-  //     // pop the next node "cursor" from the stack
-  //     switch (nodeStack.pop()) {
-  //       case (?#leafCursor(leaf)) {
-  //         let intermediateScanResult = iterScanLimitLeafReverse(leaf, compare, lowerBound, upperBound, remainingLimit);
-  //         resultBuffer.append(intermediateScanResult.resultBuffer);
-  //         remainingLimit := intermediateScanResult.limit;
-  //         nextKey := intermediateScanResult.nextKey
-  //       };
-  //       case (?#internalCursor(internalCursor)) {
-  //         let poppedInternalKV = switch (internalCursor.internal.data.kvs[internalCursor.kvIndex]) {
-  //           case (?kv) { kv };
-  //           case null {
-  //             Debug.trap(
-  //               "UNREACHABLE_ERROR: file a bug report! In iterScanLimitInternalReverse, a popped #internalCursor has an invalid kvIndex. the internal returned has internal node count=" # Nat.toText(internalCursor.internal.data.count) #
-  //               " and index=" # Nat.toText(internalCursor.kvIndex)
-  //             )
-  //           }
-  //         };
-
-  //         switch (
-  //           compare(
-  //             poppedInternalKV.0,
-  //             lowerBound
-  //           )
-  //         ) {
-  //           case (#greater) {
-  //             // if one spot left, the popped kv contains the next key
-  //             if (remainingLimit == 1) {
-  //               return {
-  //                 resultBuffer;
-  //                 limit = 0;
-  //                 nextKey = ?poppedInternalKV.0
-  //               }
-  //             };
-
-  //             resultBuffer.add(poppedInternalKV);
-  //             remainingLimit -= 1;
-  //             let childCursor = {
-  //               internal = internalCursor.internal;
-  //               kvIndex = internalCursor.kvIndex
-  //             };
-  //             // if not at the last kv of this internal node, move the cursor to the left (less) and push it to the stack
-  //             if (internalCursor.kvIndex > 0) {
-  //               nodeStack.push(#internalCursor({ childCursor with kvIndex = internalCursor.kvIndex - 1 : Nat }))
-  //             };
-
-  //             // traverse the childCursor
-  //             traverse<K, V>(nodeStack, childCursor, compare, lowerBound, upperBound, #bwd, remainingLimit)
-  //           };
-  //           // add this kv and then are done
-  //           case (#equal) {
-  //             if (remainingLimit == 1) {
-  //               return {
-  //                 resultBuffer;
-  //                 limit = 0;
-  //                 nextKey = ?poppedInternalKV.0
-  //               }
-  //             };
-
-  //             resultBuffer.add(poppedInternalKV);
-  //             remainingLimit -= 1;
-  //             return {
-  //               resultBuffer;
-  //               limit = remainingLimit;
-  //               nextKey = null
-  //             }
-  //           };
-  //           // have reached the end, we are done
-  //           case (#less) {
-  //             return {
-  //               resultBuffer;
-  //               limit = remainingLimit;
-  //               nextKey = null
-  //             }
-  //           }
-  //         }
-  //       };
-  //       // if no more nodes left in the stack to pop, return the result
-  //       case null {
-  //         return {
-  //           resultBuffer;
-  //           limit = remainingLimit;
-  //           nextKey = null
-  //         }
-  //       }
-  //     }
-  //   };
-
-  //   return {
-  //     resultBuffer;
-  //     limit = remainingLimit;
-  //     nextKey
-  //   };
-
-  //   Debug.trap("UNREACHABLE_ERROR: file a bug report! In iterScanLimitInternalReverse, breached the scan loop without first returning a result.")
-  // };
-
-  // func seedInitialCursorStack<K, V>(internal : Internal<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, dir : Direction, limit : Nat) : Stack.Stack<ScanCursor<K, V>> {
-  //   // stack of internal nodes coupled with the next node index
-  //   var nodeStack = Stack.Stack<ScanCursor<K, V>>();
-  //   // the bound to compare against when traversing
-  //   let traversalBound = switch (dir) {
-  //     case (#fwd) { lowerBound };
-  //     case (#bwd) { upperBound }
-  //   };
-  //   // child index closest to bound
-  //   let childIndex = switch (BS.binarySearchNode(internal.data.kvs, compare, traversalBound, internal.data.count)) {
-  //     // if found the lower bound key, then add the node and return the node stack (to be the next node popped)
-  //     case (#keyFound(kvIndex)) {
-  //       nodeStack.push(#internalCursor({ internal; kvIndex }));
-  //       return nodeStack
-  //     };
-  //     // otherwise, the index returned is that of the child
-  //     case (#notFound(childIdx)) { childIdx }
-  //   };
-
-  //   var childCursor = {
-  //     internal;
-  //     kvIndex = childIndex
-  //   };
-
-  //   switch (dir) {
-  //     case (#fwd) {
-  //       // if child index is not the last child, push the internal and next kv index onto the stack (to be popped later)
-  //       // Note: the child index is equal to the internal node's next kv index in this case, so we can use that here
-  //       if (childIndex < internal.data.count) {
-  //         nodeStack.push(#internalCursor(childCursor))
-  //       }
-  //     };
-  //     case (#bwd) {
-  //       // if child index is not the first child, push the internal and previous kv index onto the stack (to be popped later)
-  //       // Note: the child index - 1 is equal to the internal node's previous kv index in this case, so we can use that here
-  //       if (childIndex > 0) {
-  //         nodeStack.push(#internalCursor({ childCursor with kvIndex = (childIndex - 1 : Nat) }))
-  //       }
-  //     }
-  //   };
-
-  //   // continue traversing the BTree and adding cursors to the stack until the node with the element closest to the lower bound is pushed
-  //   traverse(nodeStack, childCursor, compare, lowerBound, upperBound, dir, limit);
-  //   nodeStack
-  // };
-
-  // func traverse<K, V>(nodeStack : Stack.Stack<ScanCursor<K, V>>, internalCursor : InternalCursor<K, V>, compare : (K, K) -> O.Order, lowerBound : K, upperBound : K, dir : Direction, limit : Nat) : () {
-  //   // the current internal node being explored
-  //   var currentNode = internalCursor.internal;
-  //   // the kv index of the current internal node being explored
-  //   var childIndex = internalCursor.kvIndex;
-  //   // the bound to compare against when traversing
-  //   let traversalBound = switch (dir) {
-  //     case (#fwd) { lowerBound };
-  //     case (#bwd) { upperBound }
-  //   };
-
-  //   label l loop {
-  //     switch (currentNode.children[childIndex]) {
-  //       // if the child is an internal node, update the current node for the next traversal loop
-  //       case (?#internal(internalNode)) { currentNode := internalNode };
-  //       // if the child is a leaf node, push it to the stack and return the stack (reached the end of this path)
-  //       case (?#leaf(leafNode)) {
-  //         nodeStack.push(#leafCursor(leafNode));
-  //         return
-  //       };
-  //       case null {
-  //         Debug.trap(
-  //           "UNREACHABLE_ERROR: file a bug report! In BTree.traverse(), encountered a null and invalid childIndex=" # Nat.toText(childIndex) #
-  //           "for an internal node with count=" # Nat.toText(currentNode.data.count)
-  //         )
-  //       }
-  //     };
-
-  //     // update the child index (for the next node to traverse)
-  //     childIndex := switch (BS.binarySearchNode(currentNode.data.kvs, compare, traversalBound, currentNode.data.count)) {
-  //       // if found the bound key, then add the node and return the node stack (to be the next node popped)
-  //       case (#keyFound(kvIndex)) {
-  //         nodeStack.push(#internalCursor({ internal = currentNode; kvIndex }));
-  //         return
-  //       };
-  //       // otherwise, the index returned is that of the child
-  //       case (#notFound(childIdx)) { childIdx }
-  //     };
-
-  //     // depending on the order of traversal, push the appropriate internal cursor to the stack
-  //     // (as long as the cursor is not at the end of that current internal node)
-  //     switch (dir) {
-  //       case (#fwd) {
-  //         // if child index is not the last child, push the internal and next kv index onto the stack (to be popped later)
-  //         // Note: the child index is equal to the internal node's next kv index in this case, so we can use that here
-  //         if (childIndex < currentNode.data.count) {
-  //           nodeStack.push(#internalCursor({ internal = currentNode; kvIndex = childIndex }))
-  //         }
-  //       };
-  //       case (#bwd) {
-  //         // if child index is not the last child, push the internal and next kv index onto the stack (to be popped later)
-  //         // Note: the child index is equal to the internal node's next kv index in this case, so we can use that here
-  //         if (childIndex > 0) {
-  //           nodeStack.push(#internalCursor({ internal = currentNode; kvIndex = childIndex - 1 }))
-  //         }
-  //       }
-  //     }
-  //   }
-  // };
 
   // This type is used to signal to the parent calling context what happened in the level below
   type IntermediateInternalDeleteResult<K, V> = {
@@ -2295,138 +2034,6 @@ module {
     }
   };
 
-  // // TODO: Think if want to combine this with the leafInsertHelper
-  // // Helper for updating an element in a leaf node
-  // func leafUpdateHelper<K, V>(leafNode : Leaf<K, V>, order : Nat, compare : (K, K) -> O.Order, key : K, updateFunction : (?V) -> V) : (IntermediateInsertResult<K, V>) {
-  //   // Perform binary search to see if the element exists in the node
-  //   switch (NU.getKeyIndex<K, V>(leafNode.data, compare, key)) {
-  //     case (#keyFound(insertIndex)) {
-  //       let previous = leafNode.data.kvs[insertIndex];
-  //       switch (previous) {
-  //         case (?ov) {
-  //           leafNode.data.kvs[insertIndex] := ?(key, updateFunction(?ov.1));
-  //           #insert(?ov.1)
-  //         };
-  //         // the binary search has already found an element, so this case should never happen
-  //         case null {
-  //           Debug.trap("UNREACHABLE_ERROR: file a bug report! In leafUpdateHelper, when matching on a #keyFound previous value, the previous kv turned out to be null")
-  //         }
-  //       }
-  //     };
-  //     case (#notFound(insertIndex)) {
-  //       // Note: BTree will always have an order >= 4, so this will never have negative Nat overflow
-  //       let maxKeys : Nat = order - 1;
-  //       // If the leaf is full, insert, split the node, and promote the middle element
-  //       if (leafNode.data.count >= maxKeys) {
-  //         let (leftKVs, promotedParentElement, rightKVs) = AU.insertOneAtIndexAndSplitArray(
-  //           leafNode.data.kvs,
-  //           (key, updateFunction(null)),
-  //           insertIndex
-  //         );
-
-  //         let leftCount = order / 2;
-  //         let rightCount : Nat = if (order % 2 == 0) { leftCount - 1 } else {
-  //           leftCount
-  //         };
-
-  //         (
-  //           #promote({
-  //             kv = promotedParentElement;
-  //             leftChild = createLeaf<K, V>(leftKVs, leftCount);
-  //             rightChild = createLeaf<K, V>(rightKVs, rightCount)
-  //           })
-  //         )
-  //       }
-  //       // Otherwise, insert at the specified index (shifting elements over if necessary)
-  //       else {
-  //         NU.insertAtIndexOfNonFullNodeData<K, V>(leafNode.data, ?(key, updateFunction(null)), insertIndex);
-  //         #insert(null)
-  //       }
-  //     }
-  //   }
-  // };
-
-  // // TODO: Think if want to combine this with the internalInsertHelper
-  // // Helper for inserting into an internal node
-  // func internalUpdateHelper<K, V>(internalNode : Internal<K, V>, order : Nat, compare : (K, K) -> O.Order, key : K, updateFunction : (?V) -> V) : IntermediateInsertResult<K, V> {
-  //   switch (NU.getKeyIndex<K, V>(internalNode.data, compare, key)) {
-  //     case (#keyFound(insertIndex)) {
-  //       let previous = internalNode.data.kvs[insertIndex];
-  //       switch (previous) {
-  //         case (?ov) {
-  //           internalNode.data.kvs[insertIndex] := ?(key, updateFunction(?ov.1));
-  //           #insert(?ov.1)
-  //         };
-  //         // the binary search has already found an element, so this case should never happen
-  //         case null {
-  //           Debug.trap("UNREACHABLE_ERROR: file a bug report! In internalUpdateHelper, when matching on a #keyFound previous value, the previous kv turned out to be null")
-  //         }
-  //       }
-  //     };
-  //     case (#notFound(insertIndex)) {
-  //       let updateResult = switch (internalNode.children[insertIndex]) {
-  //         case null { assert false; #insert(null) };
-  //         case (?#leaf(leafNode)) {
-  //           leafUpdateHelper(leafNode, order, compare, key, updateFunction)
-  //         };
-  //         case (?#internal(internalChildNode)) {
-  //           internalUpdateHelper(internalChildNode, order, compare, key, updateFunction)
-  //         }
-  //       };
-
-  //       switch (updateResult) {
-  //         case (#insert(ov)) { #insert(ov) };
-  //         case (#promote({ kv; leftChild; rightChild })) {
-  //           // Note: BTree will always have an order >= 4, so this will never have negative Nat overflow
-  //           let maxKeys : Nat = order - 1;
-  //           // if current internal node is full, need to split the internal node
-  //           if (internalNode.data.count >= maxKeys) {
-  //             // insert and split internal kvs, determine new promotion target kv
-  //             let (leftKVs, promotedParentElement, rightKVs) = AU.insertOneAtIndexAndSplitArray(
-  //               internalNode.data.kvs,
-  //               (kv),
-  //               insertIndex
-  //             );
-
-  //             // calculate the element count in the left KVs and the element count in the right KVs
-  //             let leftCount = order / 2;
-  //             let rightCount : Nat = if (order % 2 == 0) { leftCount - 1 } else {
-  //               leftCount
-  //             };
-
-  //             // split internal children
-  //             let (leftChildren, rightChildren) = NU.splitChildrenInTwoWithRebalances<K, V>(
-  //               internalNode.children,
-  //               insertIndex,
-  //               leftChild,
-  //               rightChild
-  //             );
-
-  //             // send the kv to be promoted, as well as the internal children left and right split
-  //             #promote({
-  //               kv = promotedParentElement;
-  //               leftChild = #internal({
-  //                 data = { kvs = leftKVs; var count = leftCount };
-  //                 children = leftChildren
-  //               });
-  //               rightChild = #internal({
-  //                 data = { kvs = rightKVs; var count = rightCount };
-  //                 children = rightChildren
-  //               })
-  //             })
-  //           } else {
-  //             // insert the new kvs into the internal node
-  //             NU.insertAtIndexOfNonFullNodeData(internalNode.data, ?kv, insertIndex);
-  //             // split and re-insert the single child that needs rebalancing
-  //             NU.insertRebalancedChild(internalNode.children, insertIndex, leftChild, rightChild);
-  //             #insert(null)
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  // };
-
   func createLeaf<K, V>(kvs : [var ?(K, V)], count : Nat) : Node<K, V> {
     #leaf({
       data = {
@@ -2435,160 +2042,6 @@ module {
       }
     })
   };
-
-  // /// Opinionated version of generating a textual representation of a BTree. Primarily to be used
-  // /// for testing and debugging
-  // public func toText<K, V>(t : BTree<K, V>, keyToText : K -> Text, valueToText : V -> Text) : Text {
-  //   var textOutput = "BTree={";
-  //   textOutput #= "root=" # rootToText<K, V>(t.root, keyToText, valueToText) # "; ";
-  //   textOutput #= "size=" # Nat.toText(t.size) # "; ";
-  //   textOutput #= "order=" # Nat.toText(t.order) # "; ";
-  //   textOutput # "}"
-  // };
-
-  // /// Determines if two BTrees are equivalent
-  // public func equals<K, V>(
-  //   t1 : BTree<K, V>,
-  //   t2 : BTree<K, V>,
-  //   keyEquals : (K, K) -> Bool,
-  //   valueEquals : (V, V) -> Bool
-  // ) : Bool {
-  //   if (t1.order != t2.order or t1.size != t2.size) return false;
-
-  //   nodeEquals(t1.root, t2.root, keyEquals, valueEquals)
-  // };
-
-  // func rootToText<K, V>(node : Node<K, V>, keyToText : K -> Text, valueToText : V -> Text) : Text {
-  //   var rootText = "{";
-  //   switch (node) {
-  //     case (#leaf(leafNode)) {
-  //       rootText #= "#leaf=" # leafToText(leafNode, keyToText, valueToText)
-  //     };
-  //     case (#internal(internalNode)) {
-  //       rootText #= "#internal=" # internalToText(internalNode, keyToText, valueToText)
-  //     }
-  //   };
-
-  //   rootText
-  // };
-
-  // func leafToText<K, V>(leaf : Leaf<K, V>, keyToText : K -> Text, valueToText : V -> Text) : Text {
-  //   var leafText = "{data=";
-  //   leafText #= dataToText(leaf.data, keyToText, valueToText);
-  //   leafText # "}"
-  // };
-
-  // func internalToText<K, V>(internal : Internal<K, V>, keyToText : K -> Text, valueToText : V -> Text) : Text {
-  //   var internalText = "{";
-  //   internalText #= "data=" # dataToText(internal.data, keyToText, valueToText) # "; ";
-  //   internalText #= "children=[";
-
-  //   var i = 0;
-  //   while (i < internal.children.size()) {
-  //     switch (internal.children[i]) {
-  //       case null { internalText #= "null" };
-  //       case (?(#leaf(leafNode))) {
-  //         internalText #= "#leaf=" # leafToText(leafNode, keyToText, valueToText)
-  //       };
-  //       case (?(#internal(internalNode))) {
-  //         internalText #= "#internal=" # internalToText(internalNode, keyToText, valueToText)
-  //       }
-  //     };
-  //     internalText #= ", ";
-  //     i += 1
-  //   };
-
-  //   internalText # "]}"
-  // };
-
-  // func dataToText<K, V>(data : Data<K, V>, keyToText : K -> Text, valueToText : V -> Text) : Text {
-  //   var dataText = "{kvs=[";
-  //   var i = 0;
-  //   while (i < data.kvs.size()) {
-  //     switch (data.kvs[i]) {
-  //       case null { dataText #= "null, " };
-  //       case (?(k, v)) {
-  //         dataText #= "(key={" # keyToText(k) # "}, value={" # valueToText(v) # "}), "
-  //       }
-  //     };
-
-  //     i += 1
-  //   };
-
-  //   dataText #= "]; count=" # Nat.toText(data.count) # ";}";
-  //   dataText
-  // };
-
-  // func nodeEquals<K, V>(
-  //   n1 : Node<K, V>,
-  //   n2 : Node<K, V>,
-  //   keyEquals : (K, K) -> Bool,
-  //   valueEquals : (V, V) -> Bool
-  // ) : Bool {
-  //   switch (n1, n2) {
-  //     case (#leaf(l1), #leaf(l2)) {
-  //       dataEquals(l1.data, l2.data, keyEquals, valueEquals)
-  //     };
-  //     case (#internal(i1), #internal(i2)) {
-  //       dataEquals(i1.data, i2.data, keyEquals, valueEquals) and childrenEquals(i1.children, i2.children, keyEquals, valueEquals)
-  //     };
-  //     case _ { false }
-  //   }
-  // };
-
-  // func childrenEquals<K, V>(
-  //   c1 : [var ?Node<K, V>],
-  //   c2 : [var ?Node<K, V>],
-  //   keyEquals : (K, K) -> Bool,
-  //   valueEquals : (V, V) -> Bool
-  // ) : Bool {
-  //   if (c1.size() != c2.size()) { return false };
-
-  //   var i = 0;
-  //   while (i < c1.size()) {
-  //     switch (c1[i], c2[i]) {
-  //       case (null, null) {};
-  //       case (?n1, ?n2) {
-  //         if (not nodeEquals(n1, n2, keyEquals, valueEquals)) {
-  //           return false
-  //         }
-  //       };
-  //       case _ { return false }
-  //     };
-
-  //     i += 1
-  //   };
-
-  //   true
-  // };
-
-  // func dataEquals<K, V>(
-  //   d1 : Data<K, V>,
-  //   d2 : Data<K, V>,
-  //   keyEquals : (K, K) -> Bool,
-  //   valueEquals : (V, V) -> Bool
-  // ) : Bool {
-  //   if (d1.count != d2.count) { return false };
-  //   if (d1.kvs.size() != d2.kvs.size()) { return false };
-
-  //   var i = 0;
-  //   while (i < d1.kvs.size()) {
-  //     switch (d1.kvs[i], d2.kvs[i]) {
-  //       case (null, null) {};
-  //       case (?(k1, v1), ?(k2, v2)) {
-  //         if (
-  //           (not keyEquals(k1, k2)) or
-  //           (not valueEquals(v1, v2))
-  //         ) { return false }
-  //       };
-  //       case _ { return false }
-  //     };
-
-  //     i += 1
-  //   };
-
-  //   true
-  // };
 
   // Additional functionality compared to original source.
   func cloneNode<K, V>(node : Node<K, V>) : Node<K, V> {
@@ -2613,475 +2066,6 @@ module {
           data = clonedData;
           children = clonedChildren
         })
-      }
-    }
-  };
-
-  /// Create a mutable key-value map with the entries obtained from an iterator.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  /// import Iter "mo:base/Iter";
-  ///
-  /// persistent actor {
-  ///   let iterator = Iter.fromArray([(0, "Zero"), (1, "One"), (2, "Two")]);
-  ///   let map = Map.fromIter(iterator, Nat.compare);
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n * log(n))`.
-  /// Space: `O(n)`.
-  /// where `n` denotes the number of key-value entries returned by the iterator and
-  /// assuming that the `compare` function implements an `O(1)` comparison.
-  public func fromIter<K, V>(iter : IterType.Iter<(K, V)>, compare : (K, K) -> Order.Order) : Map<K, V> {
-    let map = empty<K, V>();
-    for ((key, value) in iter) {
-      add(map, compare, key, value);
-    };
-    map;
-  };
-
-  /// Apply an operation for each key-value pair contained in the map.
-  /// The operation is applied in ascending order of the keys.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
-  ///
-  /// persistent actor {
-  ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 0, "Zero");
-  ///   Map.add(map, Nat.compare, 1, "One");
-  ///   Map.add(map, Nat.compare, 2, "Two");
-  ///   
-  ///   Map.forEach<Nat, Text>(map, func (key, value) {
-  ///     Debug.print("key=" # Nat.toText(key) # ", value='" # value # "'");
-  ///   })
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(1)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func forEach<K, V>(map : Map<K, V>, operation : (K, V) -> ()) {
-    for (entry in entries(map)) {
-      operation(entry);
-    }
-  };
-
-  /// Filter entries in a new map.
-  /// Create a copy of the mutable map that only contains the key-value pairs
-  /// that fulfil the criterion function.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
-  ///
-  /// persistent actor {
-  ///   let numberNames = Map.empty<Nat, Text>();
-  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
-  ///   Map.add(numberNames, Nat.compare, 1, "One");
-  ///   Map.add(numberNames, Nat.compare, 2, "Two");
-  ///   
-  ///   let evenNumbers = Map.filter<Nat, Text>(numberNames, Nat.compare, func (key, value) {
-  ///     key % 2 == 0
-  ///   });
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(n)`.
-  /// where `n` denotes the number of key-value entries stored in the map and
-  /// assuming that the `compare` function implements an `O(1)` comparison.
-  public func filter<K, V>(map : Map<K, V>, compare: (K, K) -> Order.Order, criterion : (K, V) -> Bool) : Map<K, V> {
-    let result = empty<K, V>();
-    for ((key, value) in entries(map)) {
-      if (criterion(key, value)) {
-        add(result, compare, key, value);
-      }
-    };
-    result
-  };
-
-  /// Project all values of the map in a new map.
-  /// Apply a mapping function to all entries of a map and collect the mapped entries
-  /// in a new mutable key-value map.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
-  ///
-  /// persistent actor {
-  ///   let numberNames = Map.empty<Nat, Text>();
-  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
-  ///   Map.add(numberNames, Nat.compare, 1, "One");
-  ///   Map.add(numberNames, Nat.compare, 2, "Two");
-  ///   
-  ///   let lowerCaseNames = Map.map<Nat, Text>(numberNames, Nat.compare, func (key, value) {
-  ///     (key, Text.toLowerCase(value))
-  ///   });
-  ///   Debug.print(debug_show(lowerCaseNames));
-  ///   // prints `[(0, "zero"), (1, "one"), (2, "two")]`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n * log(n))`.
-  /// Space: `O(n)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map and
-  /// assuming that the `compare` function implements an `O(1)` comparison.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func map<K, V1, V2>(map : Map<K, V1>, compare: (K, K) -> Order.Order, project : (K, V1) -> V2) : Map<K, V2> {
-    let result = empty<K, V2>();
-    for ((key, value1) in entries(map)) {
-      let value2 = project(key, value1);
-      add(result, compare, key, value2);
-    };
-    result
-  };
-
-  /// Iterate all entries in ascending order of the keys,
-  /// and accumulate the entries by applying the combine function, starting from a base value.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
-  ///
-  /// persistent actor {
-  ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 0, "Zero");
-  ///   Map.add(map, Nat.compare, 1, "One");
-  ///   Map.add(map, Nat.compare, 2, "Two");
-  ///   
-  ///   let text = Map.foldLeft<Nat, Text, Text>(
-  ///      map,
-  ///      "",
-  ///      func (accumulator, key, value) {
-  ///        let separator = if (accumulator == "") { ", " } else { "" };
-  ///        accumulator #= separator # Nat.toText(key) # " is " # value
-  ///      }
-  ///   );
-  ///   Debug.print(text);
-  ///   // prints `"0 is zero, 1 is one, 2 is two"`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(1)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func foldLeft<K, V, A>(
-    map : Map<K, V>,
-    base : A,
-    combine : (A, K, V) -> A
-  ) : A {
-    var accumulator = base;
-    for ((key, value) in entries(map)) {
-      accumulator := combine(accumulator, key, value);
-    };
-    accumulator;
-  };
-
-  /// Iterate all entries in descending order of the keys,
-  /// and accumulate the entries by applying the combine function, starting from a base value.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
-  ///
-  /// persistent actor {
-  ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 0, "Zero");
-  ///   Map.add(map, Nat.compare, 1, "One");
-  ///   Map.add(map, Nat.compare, 2, "Two");
-  ///   
-  ///   let text = Map.foldLeft<Nat, Text, Text>(
-  ///      map,
-  ///      "",
-  ///      func (key, value, accumulator) {
-  ///        let separator = if (accumulator == "") { ", " } else { "" };
-  ///        accumulator #= separator # Nat.toText(key) # " is " # value
-  ///      }
-  ///   );
-  ///   Debug.print(text);
-  ///   // prints `"2 is two, 1 is one, 0 is zero"`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(1)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func foldRight<K, V, A>(
-    map : Map<K, V>,
-    base : A,
-    combine : (K, V, A) -> A
-  ) : A {
-    var accumulator = base;
-    for ((key, value) in reverseEntries(map)) {
-      accumulator := combine(key, value, accumulator);
-    };
-    accumulator
-  };
-
-  /// Check whether all entries in the map fulfil a predicate function, i.e.
-  /// the predicate function returns `true` for all entries in the map.
-  /// Returns `true` for an empty map.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  ///
-  /// persistent actor {
-  ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 0, "Zero");
-  ///   Map.add(map, Nat.compare, 1, "One");
-  ///   Map.add(map, Nat.compare, 2, "Two");
-  ///   
-  ///   let belowTen = Map.all<Nat, Text>(map, func (key, _) {
-  ///     key < 10
-  ///   }); // `true`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(1)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func all<K, V>(map : Map<K, V>, predicate : (K, V) -> Bool) : Bool {
-    for (entry in entries(map)) {
-      if (not predicate(entry)) {
-        return false;
-      }
-    };
-    return true;
-  };
-
-  /// Check whether at least one entry in the map fulfils the predicate function, i.e.
-  /// the predicate function returns `true` for at least one entry in the map.
-  /// Returns `false` for an empty map.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  ///
-  /// persistent actor {
-  ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 0, "Zero");
-  ///   Map.add(map, Nat.compare, 1, "One");
-  ///   Map.add(map, Nat.compare, 2, "Two");
-  ///   
-  ///   let aboveTen = Map.any<Nat, Text>(map, func (key, _) {
-  ///     key > 10
-  ///   }); // `false`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(1)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func any<K, V>(map : Map<K, V>, predicate : (K, V) -> Bool) : Bool {
-    for (entry in entries(map)) {
-      if (predicate(entry)) {
-        return true;
-      }
-    };
-    return false;
-  };
-
-  /// Filter all entries in the map by also applying a projection to the value.
-  /// Apply a mapping function `project` to all entries in the map and collect all
-  /// entries, for which the function returns a non-null new value. Collect all 
-  /// non-discarded entries with the key and new value in a new mutable map.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
-  ///
-  /// persistent actor {
-  ///   let numberNames = Map.empty<Nat, Text>();
-  ///   Map.add(numberNames, Nat.compare, 0, "Zero");
-  ///   Map.add(numberNames, Nat.compare, 1, "One");
-  ///   Map.add(numberNames, Nat.compare, 2, "Two");
-  ///   
-  ///   let evenNumbers = Map.filterMap<Nat, Text>(numberNames, func (key, value) {
-  ///     if (key % 2 = 0) {
-  ///        ?(key, Text.toLowerCase(value))
-  ///     } else {
-  ///        null // discard odd numbers
-  ///     }
-  ///   });
-  ///   Debug.print(debug_show(evenNumbers));
-  ///   // prints `[(0, "zero"), (2, "two")]`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n * log(n))`.
-  /// Space: `O(n)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func filterMap<K, V1, V2>(map : Map<K, V1>, compare: (K, K) -> Order.Order, project : (K, V1) -> ?V2) : Map<K, V2> {
-    let result = empty<K, V2>();
-    for ((key, value1) in entries(map)) {
-      switch (project(key, value1)) {
-        case null {};
-        case (?value2) add(result, compare, key, value2);
-      }
-    };
-    result
-  };
-
-  /// Internal sanity check function.
-  public func assertValid<K>(map : Map<K, Any>, compare : (K, K) -> Order.Order) : () {
-    func checkIteration(iterator: IterType.Iter<(K, Any)>, order: Order.Order) {
-      switch (iterator.next()) {
-        case null {};
-        case (?first) {
-          var previous = first;
-          loop {
-            switch (iterator.next()) {
-              case null return;
-              case (?next) {
-                if (compare(previous.0, next.0) != order) {
-                  Runtime.trap("Invalid order");
-                };
-                previous := next;
-              }
-            }
-          }
-        }
-      }
-    };
-    checkIteration(entries(map), #less);
-    checkIteration(reverseEntries(map), #greater);
-  };
-
-  /// Generate a textual representation of all the entries in the map.
-  /// Primarily to be used for testing and debugging.
-  /// The keys and values are formatted according to `keyFormat` and `valueFormat`.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  ///
-  /// persistent actor {
-  ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 0, "Zero");
-  ///   Map.add(map, Nat.compare, 1, "One");
-  ///   Map.add(map, Nat.compare, 2, "Two");
-  ///   
-  ///   let text = Map.toText<Nat, Text(map, Nat.toText, func (value) { value }));
-  ///   // `"(0, Zero), (1, One), (2, Two)"`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(n)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map and 
-  /// assuming that `keyFormat` and `valueFormat` have runtime and space costs of `O(1)`.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func toText<K, V>(map : Map<K, V>, keyFormat : K -> Text, valueFormat : V -> Text) : Text {
-    var text = "";
-    for ((key, value) in entries(map)) {
-      if (text == "") {
-        text #= ", ";
-      };
-      text #= "(" # keyFormat(key) # ", " # valueFormat(value) # ")";
-    };
-    text
-  };
-
-  /// Compare two maps by primarily comparing keys and secondarily values.
-  /// Both maps are iterated by the ascending order of their creation and 
-  /// order is determined by the following rules:
-  /// Less:
-  /// `map1` is less than `map2` if:
-  ///  * the pairwise iteration hits a entry pair `entry1` and `entry2` where 
-  ///    `entry1` is less than `entry2` and all preceding entry pairs are equal, or,
-  ///  * `map1` is  a strict prefix of `map2`, i.e. `map2` has more entries than `map1` 
-  ///     and all entries of `map1` occur at the beginning of iteration `map2`.
-  /// `entry1` is less than `entry2` if:
-  ///  * the key of `entry1` is less than the key of `entry2`, or
-  ///  * `entry1` and `entry2` have equal keys and the value of `entry1` is less than 
-  ///    the value of `entry2`.
-  /// Equal:
-  /// `map1` and `map2` have same series of equal entries by pairwise iteration.
-  /// Greater:
-  /// `map1` is neither less nor equal `map2`.
-  ///
-  /// Example:
-  /// ```motoko
-  /// import Map "mo:base/Map";
-  /// import Nat "mo:base/Nat";
-  ///
-  /// persistent actor {
-  ///   let map1 = Map.empty<Nat, Text>();
-  ///   Map.add(map1, Nat.compare, 0, "Zero");
-  ///   Map.add(map1, Nat.compare, 1, "One");
-  ///   
-  ///   let map2 = Map.empty<Nat, Text>();
-  ///   Map.add(map2, Nat.compare, 0, "Zero");
-  ///   Map.add(map2, Nat.compare, 2, "Two");
-  ///   
-  ///   let orderLess = Map.compare(map1, map2, Nat.compare, Text.compare);
-  ///   // `#less`
-  ///   let orderEqual = Map.compare(map1, map1, Nat.compare, Text.compare);
-  ///   // `#equal`
-  ///   let orderGreater = Map.compare(map2, map1, Nat.compare, Text.compare);
-  ///   // `#greater`
-  /// }
-  /// ```
-  ///
-  /// Runtime: `O(n)`.
-  /// Space: `O(1)` retained memory plus garbage, see below.
-  /// where `n` denotes the number of key-value entries stored in the map and 
-  /// assuming that `compareKey` and `compareValue` have runtime and space costs of `O(1)`.
-  /// 
-  /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
-  public func compare<K, V>(map1 : Map<K, V>, map2 : Map<K, V>, compareKey : (K, K) -> Order.Order, compareValue : (V, V) -> Order.Order) : Order.Order {
-    let iterator1 = entries(map1);
-    let iterator2 = entries(map2);
-    loop {
-      switch (iterator1.next(), iterator2.next()) {
-        case (null, null) return #equal;
-        case (null, _) return #less;
-        case (_, null) return #greater;
-        case (?(key1, value1), ?(key2, value2)) {
-          let keyComparison = compareKey(key1, key2);
-          if (keyComparison != #equal) {
-            return keyComparison;
-          };
-          let valueComparison = compareValue(value1, value2);
-          if (valueComparison != #equal) {
-            return valueComparison;
-          }
-        }
       }
     }
   };

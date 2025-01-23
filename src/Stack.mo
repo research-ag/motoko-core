@@ -18,13 +18,17 @@ module {
 
   public func empty<T>() : Stack<T> = { var immutable = Immutable.empty() };
 
+  public func clear<T>(stack : Stack<T>) {
+    stack.immutable := Immutable.empty();
+  };
+
   public func clone<T>(stack : Stack<T>) : Stack<T> = { var immutable = stack.immutable };
 
-  public func isEmpty(stack : Stack<Any>) : Bool {
+  public func isEmpty<T>(stack : Stack<T>) : Bool {
     todo()
   };
 
-  public func size(stack : Stack<Any>) : Nat {
+  public func size<T>(stack : Stack<T>) : Nat {
     todo()
   };
 

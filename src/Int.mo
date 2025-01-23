@@ -4,6 +4,7 @@ import Prim "mo:⛔";
 import Hash "Hash";
 import Iter "IterType";
 import { todo } "Debug";
+import Runtime "Runtime";
 
 module {
 
@@ -14,7 +15,37 @@ module {
   };
 
   public func toText(x : Int) : Text {
-    todo()
+    if (x == 0) {
+      return "0"
+    };
+
+    let isNegative = x < 0;
+    var int = if isNegative { -x } else { x };
+
+    var text = "";
+    let base = 10;
+
+    while (int > 0) {
+      let rem = int % base;
+      text := (
+        switch (rem) {
+          case 0 { "0" };
+          case 1 { "1" };
+          case 2 { "2" };
+          case 3 { "3" };
+          case 4 { "4" };
+          case 5 { "5" };
+          case 6 { "6" };
+          case 7 { "7" };
+          case 8 { "8" };
+          case 9 { "9" };
+          case _ { Runtime.unreachable() }
+        }
+      ) # text;
+      int := int / base
+    };
+
+    return if isNegative { "-" # text } else { text }
   };
 
   public func min(x : Int, y : Int) : Int {

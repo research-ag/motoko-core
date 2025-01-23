@@ -54,7 +54,8 @@ module {
   public func greaterOrEqual(t1 : Text, t2 : Text) : Bool { t1 >= t2 };
 
   public func compare(t1 : Text, t2 : Text) : Order.Order {
-    todo()
+    let c = Prim.textCompare(t1, t2);
+    if (c < 0) #less else if (c == 0) #equal else #greater
   };
 
   public func join(sep : Text, ts : Iter.Iter<Text>) : Text {

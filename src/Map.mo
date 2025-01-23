@@ -33,7 +33,6 @@ import VarArray "VarArray";
 import Runtime "Runtime";
 import Stack "Stack";
 import Option "Option";
-import Debug "Debug";
 
 module {
   let btreeOrder = 32; // Should be >= 4 and <= 512.
@@ -255,7 +254,7 @@ module {
   ///
   /// Runtime: `O(1)`.
   /// Space: `O(1)`.
-  public func isEmpty(map : Map<Any, Any>) : Bool {
+  public func isEmpty<K, V>(map : Map<K, V>) : Bool {
     map.size == 0
   };
 
@@ -737,7 +736,7 @@ module {
   /// Cost of iteration over all elements:
   /// Runtime: `O(n)`.
   /// Space: `O(1)`.
-  public func keys<K>(map : Map<K, Any>) : IterType.Iter<K> {
+  public func keys<K, V>(map : Map<K, V>) : IterType.Iter<K> {
     object {
       let iterator = entries(map);
 
@@ -772,7 +771,7 @@ module {
   /// Cost of iteration over all elements:
   /// Runtime: `O(n)`.
   /// Space: `O(1)`.
-  public func values<V>(map : Map<Any, V>) : IterType.Iter<V> {
+  public func values<K, V>(map : Map<K, V>) : IterType.Iter<V> {
     object {
       let iterator = entries(map);
 
@@ -1177,7 +1176,7 @@ module {
   public func toText<K, V>(map : Map<K, V>, keyFormat : K -> Text, valueFormat : V -> Text) : Text {
     var text = "";
     for ((key, value) in entries(map)) {
-      if (text == "") {
+      if (text != "") {
         text #= ", "
       };
       text #= "(" # keyFormat(key) # ", " # valueFormat(value) # ")"

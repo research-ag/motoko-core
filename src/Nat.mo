@@ -9,7 +9,9 @@ module {
 
   public type Nat = Prim.Types.Nat;
 
-  public func toText(n : Nat) : Text = Int.toText n;
+  public func toText(n : Nat) : Text {
+    Int.toText(n)
+  };
 
   public func fromText(text : Text) : ?Nat {
     todo()

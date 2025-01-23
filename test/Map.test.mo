@@ -8,18 +8,553 @@ import Iter "../src/Iter";
 import Nat "../src/Nat";
 import Runtime "../src/Runtime";
 import Debug "../src/Debug";
+import Text "../src/Text";
 
 let { run; test; suite } = Suite;
+
+let entryTestable = T.tuple2Testable(T.natTestable, T.textTestable);
 
 run(
   suite(
     "empty",
     [
       test(
-        "dummy",
-        0,
+        "size",
+        Map.size(Map.empty<Nat, Text>()),
         M.equals(T.nat(0))
-      )
+      ),
+      test(
+        "is empty",
+        Map.isEmpty(Map.empty<Nat, Text>()),
+        M.equals(T.bool(true))
+      ),
+      test(
+        "clone",
+        do {
+          let original = Map.empty<Nat, Text>();
+          let clone = Map.clone(original);
+          Map.size(clone)
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "iterate forward",
+        Iter.toArray(Map.entries(Map.empty<Nat, Text>())),
+        M.equals(T.array<(Nat, Text)>(entryTestable, []))
+      ),
+      test(
+        "iterate backward",
+        Iter.toArray(Map.reverseEntries(Map.empty<Nat, Text>())),
+        M.equals(T.array<(Nat, Text)>(entryTestable, []))
+      ),
+      test(
+        "contains key",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.containsKey(map, Nat.compare, 0)
+        },
+        M.equals(T.bool(false))
+      ),
+      test(
+        "get absent",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.get(map, Nat.compare, 0)
+        },
+        M.equals(T.optional(T.textTestable, null : ?Text))
+      ),
+      test(
+        "update absent",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.put(map, Nat.compare, 0, "0")
+        },
+        M.equals(T.optional(T.textTestable, null : ?Text))
+      ),
+      test(
+        "replace if exists",
+        do {
+          let map = Map.empty<Nat, Text>();
+          assert (Map.replaceIfExists(map, Nat.compare, 0, "0") == null);
+          Map.size(map)
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "clear",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.clear(map);
+          Map.isEmpty(map)
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "equal",
+        do {
+          let map1 = Map.empty<Nat, Text>();
+          let map2 = Map.empty<Nat, Text>();
+          Map.equal(map1, map2, Nat.compare, Text.equal)
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "maximum entry",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.maxEntry(map)
+        },
+        M.equals(T.optional(entryTestable, null : ?(Nat, Text)))
+      ),
+      test(
+        "minimum entry",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.minEntry(map)
+        },
+        M.equals(T.optional(entryTestable, null : ?(Nat, Text)))
+      ),
+      test(
+        "iterate keys",
+        Iter.toArray(Map.keys(Map.empty<Nat, Text>())),
+        M.equals(T.array<Nat>(T.natTestable, []))
+      ),
+      test(
+        "iterate values",
+        Iter.toArray(Map.values(Map.empty<Nat, Text>())),
+        M.equals(T.array<Text>(T.textTestable, []))
+      ),
+      test(
+        "from iterator",
+        do {
+          let map = Map.fromIter<Nat, Text>(Iter.fromArray<(Nat, Text)>([]), Nat.compare);
+          Map.size(map)
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "for each",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.forEach<Nat, Text>(map, func (_, _) {
+            assert false;
+          });
+          Map.size(map)
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "filter",
+        do {
+          let input = Map.empty<Nat, Text>();
+          let output = Map.filter<Nat, Text>(input, Nat.compare, func (_, _) {
+            Runtime.trap("test failed")
+          });
+          Map.size(output)
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "map",
+        do {
+          let input = Map.empty<Nat, Text>();
+          let output = Map.map<Nat, Text, Int>(input, Nat.compare, func (_, _) {
+            Runtime.trap("test failed")
+          });
+          Map.size(output)
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "filter map",
+        do {
+          let input = Map.empty<Nat, Text>();
+          let output = Map.filterMap<Nat, Text, Int>(input, Nat.compare, func (_, _) {
+            Runtime.trap("test failed")
+          });
+          Map.size(output)
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "fold left",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.foldLeft<Nat, Text, Nat>(map, 0, func (_, _, _) {
+            Runtime.trap("test failed")
+          })
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "fold right",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.foldRight<Nat, Text, Nat>(map, 0, func (_, _, _) {
+            Runtime.trap("test failed")
+          })
+        },
+        M.equals(T.nat(0))
+      ),
+      test(
+        "all",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.all<Nat, Text>(map, func (_, _) {
+            Runtime.trap("test failed")
+          })
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "any",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.any<Nat, Text>(map, func (_, _) {
+            Runtime.trap("test failed")
+          })
+        },
+        M.equals(T.bool(false))
+      ),
+      test(
+        "to text",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.toText<Nat, Text>(map, Nat.toText, func (value) { value });
+        },
+        M.equals(T.text(""))
+      ),
+      test(
+        "compare",
+        do {
+          let map1 = Map.empty<Nat, Text>();
+          let map2 = Map.empty<Nat, Text>();
+          assert(Map.compare(map1, map2, Nat.compare, Text.compare) == #equal);
+          true
+        },
+        M.equals(T.bool(true))
+      ),
+      // TODO: Test freeze and thaw
+    ]
+  )
+);
+
+run(
+  suite(
+    "singleton",
+    [
+      test(
+        "size",
+        Map.size<Nat, Text>(Map.singleton(0, "0")),
+        M.equals(T.nat(1))
+      ),
+      test(
+        "is empty",
+        Map.isEmpty<Nat, Text>(Map.singleton(0, "0")),
+        M.equals(T.bool(false))
+      ),
+      test(
+        "clone",
+        do {
+          let original = Map.singleton<Nat, Text>(0, "0");
+          let clone = Map.clone(original);
+          assert(Map.equal(original, clone, Nat.compare, Text.equal));
+          Map.size(clone)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "iterate forward",
+        Iter.toArray(Map.entries(Map.singleton<Nat, Text>(0, "0"))),
+        M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "0")]))
+      ),
+      test(
+        "iterate backward",
+        Iter.toArray(Map.reverseEntries(Map.singleton<Nat, Text>(0, "0"))),
+        M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "0")]))
+      ),
+      test(
+        "contains present key",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.containsKey(map, Nat.compare, 0)
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "contains absent key",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.containsKey(map, Nat.compare, 1)
+        },
+        M.equals(T.bool(false))
+      ),
+      test(
+        "get present",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.get(map, Nat.compare, 0)
+        },
+        M.equals(T.optional(T.textTestable, ?"0"))
+      ),
+      test(
+        "get absent",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.get(map, Nat.compare, 1)
+        },
+        M.equals(T.optional(T.textTestable, null : ?Text))
+      ),
+      test(
+        "update present",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.put(map, Nat.compare, 0, "Zero")
+        },
+        M.equals(T.optional(T.textTestable, ?"0"))
+      ),
+      test(
+        "update absent",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.put(map, Nat.compare, 1, "1")
+        },
+        M.equals(T.optional(T.textTestable, null : ?Text))
+      ),
+      test(
+        "replace if exists present",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          assert (Map.replaceIfExists(map, Nat.compare, 0, "Zero") == ?"0");
+          Map.size(map)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "replace if exists absent",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          assert (Map.replaceIfExists(map, Nat.compare, 1, "1") == null);
+          Map.size(map)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "clear",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.clear(map);
+          Map.isEmpty(map)
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "equal",
+        do {
+          let map1 = Map.singleton<Nat, Text>(0, "0");
+          let map2 = Map.singleton<Nat, Text>(0, "0");
+          Map.equal(map1, map2, Nat.compare, Text.equal)
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "not equal",
+        do {
+          let map1 = Map.singleton<Nat, Text>(0, "0");
+          let map2 = Map.singleton<Nat, Text>(1, "1");
+          Map.equal(map1, map2, Nat.compare, Text.equal)
+        },
+        M.equals(T.bool(false))
+      ),
+      test(
+        "maximum entry",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.maxEntry(map)
+        },
+        M.equals(T.optional(entryTestable, ?(0, "0")))
+      ),
+      test(
+        "minimum entry",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.minEntry(map)
+        },
+        M.equals(T.optional(entryTestable, ?(0, "0")))
+      ),
+      test(
+        "iterate keys",
+        Iter.toArray(Map.keys(Map.singleton<Nat, Text>(0, "0"))),
+        M.equals(T.array<Nat>(T.natTestable, [0]))
+      ),
+      test(
+        "iterate values",
+        Iter.toArray(Map.values(Map.singleton<Nat, Text>(0, "0"))),
+        M.equals(T.array<Text>(T.textTestable, ["0"]))
+      ),
+      test(
+        "from iterator",
+        do {
+          let map = Map.fromIter<Nat, Text>(Iter.fromArray<(Nat, Text)>([(0, "0")]), Nat.compare);
+          assert(Map.get(map, Nat.compare, 0) == ?"0");
+          assert(Map.equal(map, Map.singleton<Nat, Text>(0, "0"), Nat.compare, Text.equal));
+          Map.size(map)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "for each",
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.forEach<Nat, Text>(map, func (key, value) {
+            assert(key ==0);
+            assert(value == "0");
+          });
+          Map.size(map)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "filter",
+        do {
+          let input = Map.singleton<Nat, Text>(0, "0");
+          let output = Map.filter<Nat, Text>(input, Nat.compare, func (key, value) {
+            assert(key ==0);
+            assert(value == "0");
+            true
+          });
+          assert(Map.equal(input, output, Nat.compare, Text.equal));
+          Map.size(output)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "map",
+        do {
+          let input = Map.singleton<Nat, Text>(0, "0");
+          let output = Map.map<Nat, Text, Int>(input, Nat.compare, func (key, value) {
+            assert(key ==0);
+            assert(value == "0");
+            +key
+          });
+          assert(Map.get(output, Nat.compare, 0) == ?+0);
+          Map.size(output)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "filter map",
+        do {
+          let input = Map.singleton<Nat, Text>(0, "0");
+          let output = Map.filterMap<Nat, Text, Int>(input, Nat.compare, func (key, value) {
+            assert(key == 0);
+            assert(value == "0");
+            ?+key
+          });
+          assert(Map.get(output, Nat.compare, 0) == ?+0);
+          Map.size(output)
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "fold left",
+        do {
+          let map = Map.singleton<Nat, Text>(1, "1");
+          Map.foldLeft<Nat, Text, Nat>(map, 0, func (accumulator, key, value) {
+            accumulator + key
+          })
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "fold right",
+        do {
+          let map = Map.singleton<Nat, Text>(1, "1");
+          Map.foldRight<Nat, Text, Nat>(map, 0, func (key, value, accumulator) {
+            key + accumulator
+          })
+        },
+        M.equals(T.nat(1))
+      ),
+      test(
+        "all",
+        do {
+          let map = Map.singleton<Nat, Text>(1, "1");
+          Map.all<Nat, Text>(map, func (key, value) {
+            key == 1 and value == "1"
+          })
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "any",
+        do {
+          let map = Map.singleton<Nat, Text>(1, "1");
+          Map.any<Nat, Text>(map, func (key, value) {
+            key == 1 and value == "1"
+          })
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "to text",
+        do {
+          let map = Map.singleton<Nat, Text>(1, "1");
+          Map.toText<Nat, Text>(map, Nat.toText, func (value) { value });
+        },
+        M.equals(T.text("(1, 1)"))
+      ),
+      test(
+        "compare less key",
+        do {
+          let map1 = Map.singleton<Nat, Text>(0, "0");
+          let map2 = Map.singleton<Nat, Text>(1, "1");
+          assert(Map.compare(map1, map2, Nat.compare, Text.compare) == #less);
+          true
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "compare less value",
+        do {
+          let map1 = Map.singleton<Nat, Text>(0, "0");
+          let map2 = Map.singleton<Nat, Text>(0, "Zero");
+          assert(Map.compare(map1, map2, Nat.compare, Text.compare) == #less);
+          true
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "compare equal",
+        do {
+          let map1 = Map.singleton<Nat, Text>(0, "0");
+          let map2 = Map.singleton<Nat, Text>(0, "0");
+          assert(Map.compare(map1, map2, Nat.compare, Text.compare) == #equal);
+          true
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "compare greater key",
+        do {
+          let map1 = Map.singleton<Nat, Text>(1, "1");
+          let map2 = Map.singleton<Nat, Text>(0, "0");
+          assert(Map.compare(map1, map2, Nat.compare, Text.compare) == #greater);
+          true
+        },
+        M.equals(T.bool(true))
+      ),
+      test(
+        "compare greater value",
+        do {
+          let map1 = Map.singleton<Nat, Text>(0, "Zero");
+          let map2 = Map.singleton<Nat, Text>(0, "0");
+          assert(Map.compare(map1, map2, Nat.compare, Text.compare) == #greater);
+          true
+        },
+        M.equals(T.bool(true))
+      ),
+      // TODO: Test freeze and thaw
     ]
   )
 );
@@ -173,4 +708,4 @@ run(
       )
     ]
   )
-);
+)

@@ -3,6 +3,8 @@
 import Type "IterType";
 import Order "Order";
 import { todo } "Debug";
+import Prim "mo:prim";
+import Runtime "Runtime";
 
 module {
 
@@ -66,7 +68,18 @@ module {
   };
 
   public func fromArray<T>(array : [T]) : Iter<T> {
-    todo()
+    var index = 0;
+    object {
+      public func next() : ?T {
+        if (index >= array.size()) {
+          null;
+        } else {
+          let value = array[index];
+          index += 1;
+          ?value
+        }
+      }
+    }
   };
 
   public func fromVarArray<T>(array : [var T]) : Iter<T> {
@@ -74,7 +87,42 @@ module {
   };
 
   public func toArray<T>(iter : Iter<T>) : [T] {
-    todo()
+    // TODO: Replace implementation. This is just temporay.
+    type Node<T> = { value: T; var next: ?Node<T>};
+    var first: ?Node<T> = null;
+    var last: ?Node<T> = null;
+    var count = 0;
+
+    func add(value: T) {
+      let node : Node<T> = { value; var next = null };
+      switch (last) {
+        case null {
+          first := ?node;
+        };
+        case (?previous) {
+          previous.next := ?node;
+        }
+      };
+      last := ?node;
+      count += 1;
+    };
+
+    for (value in iter) {
+      add(value);
+    };
+    if (count == 0) {
+      return [];
+    };
+    var current = first;
+    Prim.Array_tabulate<T>(count, func (_) {
+      switch (current) {
+        case null Runtime.trap("Node must not be null");
+        case (?node) {
+          current := node.next;
+          node.value
+        }
+      }
+    });
   };
 
   public func toVarArray<T>(iter : Iter<T>) : [var T] {

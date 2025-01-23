@@ -33,6 +33,7 @@ import VarArray "VarArray";
 import Runtime "Runtime";
 import Stack "Stack";
 import Option "Option";
+import Debug "Debug";
 
 module {
   let btreeOrder = 32; // Should be >= 4 and <= 512.
@@ -278,7 +279,7 @@ module {
   ///
   /// Runtime: `O(1)`.
   /// Space: `O(1)`.
-  public func size(map : Map<Any, Any>) : Nat {
+  public func size<K, V>(map : Map<K, V>) : Nat {
     map.size
   };
 
@@ -1123,8 +1124,8 @@ module {
   };
 
   /// Internal sanity check function.
-  public func assertValid<K>(map : Map<K, Any>, compare : (K, K) -> Order.Order) : () {
-    func checkIteration(iterator : IterType.Iter<(K, Any)>, order : Order.Order) {
+  public func assertValid<K, V>(map : Map<K, V>, compare : (K, K) -> Order.Order) : () {
+    func checkIteration(iterator : IterType.Iter<(K, V)>, order : Order.Order) {
       switch (iterator.next()) {
         case null {};
         case (?first) {
@@ -1379,12 +1380,12 @@ module {
         switch (nodeCursor) {
           case null { return null };
           case (?{ node; kvIndex }) {
+            let firstKV = 0 : Nat;
+            assert (kvIndex > firstKV);
             switch (node) {
               // if a leaf node, reverse iterate through the leaf node's next key-value pair
               case (#leaf(leafNode)) {
-                let firstKV = 0 : Nat;
-
-                let currentKV = switch (leafNode.data.kvs[kvIndex]) {
+                let currentKV = switch (leafNode.data.kvs[kvIndex - 1]) {
                   case (?kv) { kv };
                   case null {
                     Runtime.trap(
@@ -1394,7 +1395,7 @@ module {
                   }
                 };
                 // if not at the last key-value pair, push the previous key-value index of the leaf onto the stack and return the current key-value pair
-                if (kvIndex > firstKV) {
+                if (kvIndex - 1 : Nat > firstKV) {
                   Stack.push(
                     nodeCursorStack,
                     {
@@ -1409,9 +1410,7 @@ module {
               };
               // if an internal node
               case (#internal(internalNode)) {
-                let firstKV = 0 : Nat;
-
-                let currentKV = switch (internalNode.data.kvs[kvIndex]) {
+                let currentKV = switch (internalNode.data.kvs[kvIndex - 1]) {
                   case (?kv) { kv };
                   case null {
                     Runtime.trap(
@@ -1426,7 +1425,7 @@ module {
                   kvIndex = kvIndex - 1 : Nat
                 };
                 // if not the first key-value pair, push the previous key-value index of the internal node onto the stack
-                if (kvIndex > firstKV) {
+                if (kvIndex - 1 : Nat > firstKV) {
                   Stack.push(nodeCursorStack, previousCursor)
                 };
                 // traverse the previous child's max subtree and push the resulting node cursors onto the stack
@@ -1459,7 +1458,7 @@ module {
     let nodeCursorStack = Stack.empty<NodeCursor<K, V>>();
     let nodeCursor : NodeCursor<K, V> = {
       node = #internal(internal);
-      kvIndex = internal.data.count - 1
+      kvIndex = internal.data.count
     };
 
     // push the initial cursor to the stack
@@ -1519,14 +1518,14 @@ module {
         };
         // If currentNode is internal, add it's right most child to the stack and continue traversing
         case (#internal(internalNode)) {
+          assert (childIndex <= internalNode.data.count); // children are one more than data entries
           switch (internalNode.children[childIndex]) {
             // Push the next max (right most) child node to the stack
             case (?childNode) {
-              let childDataCount = switch (childNode) {
+              childIndex := switch (childNode) {
                 case (#internal(internalNode)) internalNode.data.count;
                 case (#leaf(leafNode)) leafNode.data.count
               };
-              childIndex := childDataCount - 1;
               currentNode := childNode;
               Stack.push(
                 nodeCursorStack,

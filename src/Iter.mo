@@ -10,8 +10,19 @@ module {
 
   public func empty<T>() : Iter<T> = { next = func _ = null };
 
-  public class range(fromInclusive : Int, toExclusive : Int) {
-    todo()
+  public func natRange(fromInclusive : Nat, toExclusive : Nat) : Type.Iter<Nat> {
+    object {
+      var current = fromInclusive;
+
+      public func next() : ?Nat {
+        if (current >= toExclusive) {
+          return null;
+        };
+        let result = current;
+        current += 1;
+        ?result;
+      }
+    }
   };
 
   public class rangeRev(fromInclusive : Int, toExclusive : Int) {

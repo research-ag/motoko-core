@@ -1,9 +1,9 @@
 /// Mutable stack data structure.
 
-// import Immutable "immutable/Stack";
-import { todo } "Debug";
+import Immutable "immutable/Stack";
 import IterType "IterType";
 import Order "Order";
+import { todo } "Debug";
 
 module {
   type StackNode<T> = {
@@ -16,11 +16,11 @@ module {
     var size: Nat;
   };
 
-  // public func freeze<T>(stack : Stack<T>) : Immutable.Stack<T> = stack.immutable;
+  public func freeze<T>(stack : Stack<T>) : Immutable.Stack<T> = stack.immutable;
 
-  // public func thaw<T>(stack : Immutable.Stack<T>) : Stack<T> = {
-  //   var immutable = stack
-  // };
+  public func thaw<T>(stack : Immutable.Stack<T>) : Stack<T> = {
+    var immutable = stack
+  };
 
   public func empty<T>() : Stack<T> { 
     {

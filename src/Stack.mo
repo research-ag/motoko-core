@@ -7,25 +7,27 @@ import { todo } "Debug";
 
 module {
   type StackNode<T> = {
-    value: T;
-    next: ?StackNode<T>;
+    value : T;
+    next : ?StackNode<T>
   };
 
   public type Stack<T> = {
-    var top: ?StackNode<T>;
-    var size: Nat;
+    var top : ?StackNode<T>;
+    var size : Nat
   };
 
-  public func freeze<T>(stack : Stack<T>) : Immutable.Stack<T> = stack.immutable;
-
-  public func thaw<T>(stack : Immutable.Stack<T>) : Stack<T> = {
-    var immutable = stack
+  public func freeze<T>(stack : Stack<T>) : Immutable.Stack<T> {
+    todo()
   };
 
-  public func empty<T>() : Stack<T> { 
+  public func thaw<T>(stack : Immutable.Stack<T>) : Stack<T> {
+    todo()
+  };
+
+  public func empty<T>() : Stack<T> {
     {
       var top = null;
-      var size = 0;
+      var size = 0
     }
   };
 
@@ -46,10 +48,10 @@ module {
   public func push<T>(stack : Stack<T>, value : T) {
     let node = {
       value;
-      next = stack.top;
+      next = stack.top
     };
     stack.top := ?node;
-    stack.size += 1;
+    stack.size += 1
   };
 
   public func peek<T>(stack : Stack<T>) : ?T {

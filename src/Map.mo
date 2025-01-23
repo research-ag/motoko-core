@@ -298,7 +298,7 @@ module {
   ///   Map.add(map1, Nat.compare, 1, "One");
   ///   Map.add(map1, Nat.compare, 2, "Two");
   ///   let map2 = Map.clone(map1);
-  ///   
+  ///
   ///   assert(Map.equal(map1, map2, Nat.compare, Text.equal));
   /// }
   /// ```
@@ -535,7 +535,7 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Map.delete(map, Nat.compare, 0); 
+  ///   Map.delete(map, Nat.compare, 0);
   ///   Debug.print(debug_show(Map.containsKey(map, Nat.compare, 0))); // prints `false`.
   /// }
   /// ```
@@ -894,7 +894,7 @@ module {
   };
 
   /// Project all values of the map in a new map.
-  /// Apply a mapping function to the values of each entriy in the map and collect 
+  /// Apply a mapping function to the values of each entriy in the map and collect
   /// collect the mapped entries in a new mutable key-value map.
   ///
   /// Example:

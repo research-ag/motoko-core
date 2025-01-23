@@ -150,7 +150,7 @@ module {
   ///
   /// persistent actor {
   ///   let map = Map.empty<Nat, Text>();
-  ///   Debug.print(debug_show(Map.size(map))); // prints `0`
+  ///   Debug.print(Nat.toText(Map.size(map))); // prints `0`
   /// }
   /// ```
   ///
@@ -272,7 +272,7 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.size(map))); // prints `3`
+  ///   Debug.print(Nat.toText(Map.size(map))); // prints `3`
   /// }
   /// ```
   ///
@@ -290,15 +290,16 @@ module {
   /// import Map "mo:base/Map";
   /// import Nat "mo:base/Nat";
   /// import Debug "mo:base/Debug";
+  /// import Text "mo:base/Text";
   ///
   /// persistent actor {
-  ///   let map1 = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 0, "Zero");
-  ///   Map.add(map, Nat.compare, 1, "One");
-  ///   Map.add(map, Nat.compare, 2, "Two");
-  ///   let map2 = Map.clone(map1, Nat.compare);
-  ///
-  ///   assert(Map.equal(map1, map2, Nat.compare, Text.equal);
+  /// let map1 = Map.empty<Nat, Text>();
+  ///   Map.add(map1, Nat.compare, 0, "Zero");
+  ///   Map.add(map1, Nat.compare, 1, "One");
+  ///   Map.add(map1, Nat.compare, 2, "Two");
+  ///   let map2 = Map.clone(map1);
+  ///   
+  ///   assert(Map.equal(map1, map2, Nat.compare, Text.equal));
   /// }
   /// ```
   ///
@@ -330,6 +331,7 @@ module {
   /// ```motoko
   /// import Map "mo:base/Map";
   /// import Nat "mo:base/Nat";
+  /// import Bool "mo:base/Bool";
   /// import Debug "mo:base/Debug";
   ///
   /// persistent actor {
@@ -338,8 +340,8 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.containsKey(1))); // prints `true`
-  ///   Debug.print(debug_show(Map.containsKey(3))); // prints `false`
+  ///   Debug.print(Bool.toText(Map.containsKey(map, Nat.compare, 1))); // prints `true`
+  ///   Debug.print(Bool.toText(Map.containsKey(map, Nat.compare, 3))); // prints `false`
   /// }
   /// ```
   ///
@@ -365,8 +367,8 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.get(1))); // prints `?One`
-  ///   Debug.print(debug_show(Map.get(3))); // prints `null`
+  ///   Debug.print(debug_show(Map.get(map, Nat.compare, 1))); // prints `?"One"`
+  ///   Debug.print(debug_show(Map.get(map, Nat.compare, 3))); // prints `null`
   /// }
   /// ```
   ///
@@ -390,18 +392,12 @@ module {
   /// ```motoko
   /// import Map "mo:base/Map";
   /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
   ///
   /// persistent actor {
   ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 1, "Eins");
-  ///
-  ///   let oldZero = Map.put(0, "Zero"); // inserts new key-value pair.
-  ///   Debug.print(debug_show(oldZero)); // prints `null`, key was inserted.
-  ///
-  ///   let oldOne = Map.put(1, "One");   // overwrites value for existing key.
-  ///   Debug.print(debug_show(oldOne)); // prints `eins`, previous value.
-  ///   Debug.print(debug_show(Map.get(1))); // prints `One`, new value.
+  ///   Map.add(map, Nat.compare, 0, "Zero");
+  ///   Map.add(map, Nat.compare, 1, "One");
+  ///   Map.add(map, Nat.compare, 2, "Two");
   /// }
   /// ```
   ///
@@ -428,14 +424,14 @@ module {
   ///
   /// persistent actor {
   ///   let map = Map.empty<Nat, Text>();
-  ///   Map.add(map, Nat.compare, 1, "Eins");
+  ///   Map.add(map, Nat.compare, 1, "ONE");
   ///
-  ///   let oldZero = Map.put(0, "Zero"); // inserts new key-value pair.
+  ///   let oldZero = Map.put(map, Nat.compare, 0, "Zero"); // inserts new key-value pair.
   ///   Debug.print(debug_show(oldZero)); // prints `null`, key was inserted.
   ///
-  ///   let oldOne = Map.put(1, "One");   // overwrites value for existing key.
-  ///   Debug.print(debug_show(oldOne)); // prints `eins`, previous value.
-  ///   Debug.print(debug_show(Map.get(1))); // prints `One`, new value.
+  ///   let oldOne = Map.put(map, Nat.compare, 1, "One");   // overwrites value for existing key.
+  ///   Debug.print(debug_show(oldOne)); // prints `?"ONE"`, previous value.
+  ///   Debug.print(debug_show(Map.get(map, Nat.compare, 1))); // prints `?"One"`, new value.
   /// }
   /// ```
   ///
@@ -503,11 +499,11 @@ module {
   ///   let map = Map.empty<Nat, Text>();
   ///   Map.add(map, Nat.compare, 0, "Null");
   ///
-  ///   let oldZero = Map.replaceIfExists(0, "Zero"); // overwrites the value for existing key.
-  ///   Debug.print(debug_show(oldZero)); // prints `Null`, previous value.
-  ///   Debug.print(debug_show(Map.get(0))); // prints `Zero`, new value.
+  ///   let oldZero = Map.replaceIfExists(map, Nat.compare, 0, "Zero"); // overwrites the value for existing key.
+  ///   Debug.print(debug_show(oldZero)); // prints `?"Null"`, previous value.
+  ///   Debug.print(debug_show(Map.get(map, Nat.compare, 0))); // prints `?"Zero"`, new value.
   ///
-  ///   let oldOne = Map.replaceIfExists(1, "One");  // no effect, key is absent
+  ///   let oldOne = Map.replaceIfExists(map, Nat.compare, 1, "One");  // no effect, key is absent
   ///   Debug.print(debug_show(oldOne)); // prints `null`, key was absent.
   /// }
   /// ```
@@ -539,8 +535,8 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.delete(0)));
-  ///   Debug.print(debug_show(Map.containsKey(0))); // prints `false`.
+  ///   Map.delete(map, Nat.compare, 0); 
+  ///   Debug.print(debug_show(Map.containsKey(map, Nat.compare, 0))); // prints `false`.
   /// }
   /// ```
   ///
@@ -613,7 +609,7 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.maxEntry(map, Nat.compare))); // prints `?(2, "Two")`.
+  ///   Debug.print(debug_show(Map.maxEntry(map))); // prints `?(2, "Two")`.
   /// }
   /// ```
   ///
@@ -639,7 +635,7 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.maxEntry(map, Nat.compare))); // prints `?(2, "Two")`.
+  ///   Debug.print(debug_show(Map.minEntry(map))); // prints `?(0, "Zero")`.
   /// }
   /// ```
   ///
@@ -665,8 +661,13 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.entries(map)));
-  ///   // prints `[(0, "Zero"), (1, "One"), (2, "Two")]`.
+  ///   for (entry in Map.entries(map)) {
+  ///      Debug.print(debug_show(entry));
+  ///   }
+  ///   // prints:
+  ///   // `(0, "Zero")`
+  ///   // `(1, "One")`
+  ///   // `(2, "Two")`
   /// }
   /// ```
   /// Cost of iteration over all elements:
@@ -697,8 +698,13 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.reverseEntries(map)));
-  ///   // prints `[(2, "Two"), (1, "One"), (0, "Zero")]`.
+  ///   for (entry in Map.reverseEntries(map)) {
+  ///      Debug.print(debug_show(entry));
+  ///   }
+  ///   // prints:
+  ///   // `(2, "Two")`
+  ///   // `(1, "One")`
+  ///   // `(0, "Zero")`
   /// }
   /// ```
   /// Cost of iteration over all elements:
@@ -729,8 +735,13 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.keys(map)));
-  ///   // prints `[0, 1, 2]`.
+  ///   for (key in Map.keys(map)) {
+  ///      Debug.print(Nat.toText(key));
+  ///   }
+  ///   // prints:
+  ///   // `0`
+  ///   // `1`
+  ///   // `2`
   /// }
   /// ```
   /// Cost of iteration over all elements:
@@ -764,8 +775,13 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   Debug.print(debug_show(Map.values(map)));
-  ///   // prints `["Zero", "One", "Two"]`.
+  ///   for (value in Map.values(map)) {
+  ///      Debug.print(value);
+  ///   }
+  ///   // prints:
+  ///   // `Zero`
+  ///   // `One`
+  ///   // `Two`
   /// }
   /// ```
   /// Cost of iteration over all elements:
@@ -794,7 +810,7 @@ module {
   ///
   /// persistent actor {
   ///   let iterator = Iter.fromArray([(0, "Zero"), (1, "One"), (2, "Two")]);
-  ///   let map = Map.fromIter(iterator, Nat.compare);
+  ///   let map = Map.fromIter<Nat, Text>(iterator, Nat.compare);
   /// }
   /// ```
   ///
@@ -850,7 +866,6 @@ module {
   /// ```motoko
   /// import Map "mo:base/Map";
   /// import Nat "mo:base/Nat";
-  /// import Debug "mo:base/Debug";
   ///
   /// persistent actor {
   ///   let numberNames = Map.empty<Nat, Text>();
@@ -879,13 +894,14 @@ module {
   };
 
   /// Project all values of the map in a new map.
-  /// Apply a mapping function to all entries of a map and collect the mapped entries
-  /// in a new mutable key-value map.
+  /// Apply a mapping function to the values of each entriy in the map and collect 
+  /// collect the mapped entries in a new mutable key-value map.
   ///
   /// Example:
   /// ```motoko
   /// import Map "mo:base/Map";
   /// import Nat "mo:base/Nat";
+  /// import Text "mo:base/Text";
   /// import Debug "mo:base/Debug";
   ///
   /// persistent actor {
@@ -894,11 +910,16 @@ module {
   ///   Map.add(numberNames, Nat.compare, 1, "One");
   ///   Map.add(numberNames, Nat.compare, 2, "Two");
   ///
-  ///   let lowerCaseNames = Map.map<Nat, Text>(numberNames, Nat.compare, func (key, value) {
-  ///     (key, Text.toLowerCase(value))
+  ///   let lowerCaseNames = Map.map<Nat, Text, Text>(numberNames, Nat.compare, func (key, value) {
+  ///     Text.toLower(value)
   ///   });
-  ///   Debug.print(debug_show(lowerCaseNames));
-  ///   // prints `[(0, "zero"), (1, "one"), (2, "two")]`
+  ///   for (entry in Map.entries(lowerCaseNames)) {
+  ///      Debug.print(debug_show(entry));
+  ///   }
+  ///   // prints:
+  ///   // `(0, "zero")`
+  ///   // `(1, "one")`
+  ///   // `(2, "two")`
   /// }
   /// ```
   ///
@@ -936,12 +957,12 @@ module {
   ///      map,
   ///      "",
   ///      func (accumulator, key, value) {
-  ///        let separator = if (accumulator == "") { ", " } else { "" };
-  ///        accumulator #= separator # Nat.toText(key) # " is " # value
+  ///        let separator = if (accumulator != "") { ", " } else { "" };
+  ///        accumulator # separator # Nat.toText(key) # " is " # value
   ///      }
   ///   );
   ///   Debug.print(text);
-  ///   // prints `"0 is zero, 1 is one, 2 is two"`
+  ///   // prints `0 is Zero, 1 is One, 2 is Two`
   /// }
   /// ```
   ///
@@ -977,16 +998,16 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   let text = Map.foldLeft<Nat, Text, Text>(
+  ///   let text = Map.foldRight<Nat, Text, Text>(
   ///      map,
   ///      "",
   ///      func (key, value, accumulator) {
-  ///        let separator = if (accumulator == "") { ", " } else { "" };
-  ///        accumulator #= separator # Nat.toText(key) # " is " # value
+  ///        let separator = if (accumulator != "") { ", " } else { "" };
+  ///        accumulator # separator # Nat.toText(key) # " is " # value
   ///      }
   ///   );
   ///   Debug.print(text);
-  ///   // prints `"2 is two, 1 is one, 0 is zero"`
+  ///   // prints `2 is Two, 1 is One, 0 is Zero`
   /// }
   /// ```
   ///
@@ -1086,6 +1107,7 @@ module {
   /// ```motoko
   /// import Map "mo:base/Map";
   /// import Nat "mo:base/Nat";
+  /// import Text "mo:base/Text";
   /// import Debug "mo:base/Debug";
   ///
   /// persistent actor {
@@ -1094,15 +1116,19 @@ module {
   ///   Map.add(numberNames, Nat.compare, 1, "One");
   ///   Map.add(numberNames, Nat.compare, 2, "Two");
   ///
-  ///   let evenNumbers = Map.filterMap<Nat, Text>(numberNames, func (key, value) {
-  ///     if (key % 2 = 0) {
-  ///        ?(key, Text.toLowerCase(value))
+  ///   let evenNumbers = Map.filterMap<Nat, Text, Text>(numberNames, Nat.compare, func (key, value) {
+  ///     if (key % 2 == 0) {
+  ///        ?Text.toLower(value)
   ///     } else {
   ///        null // discard odd numbers
   ///     }
   ///   });
-  ///   Debug.print(debug_show(evenNumbers));
-  ///   // prints `[(0, "zero"), (2, "two")]`
+  ///   for (entry in Map.entries(evenNumbers)) {
+  ///      Debug.print(debug_show(entry));
+  ///   }
+  ///   // prints:
+  ///   // `(0, "zero")`
+  ///   // `(2, "two")`
   /// }
   /// ```
   ///
@@ -1123,6 +1149,8 @@ module {
   };
 
   /// Internal sanity check function.
+  /// Can be used to check that key/value pairs have been inserted with a consistent key comparison function.
+  /// Traps if the internal map structure is invalid.
   public func assertValid<K, V>(map : Map<K, V>, compare : (K, K) -> Order.Order) : () {
     func checkIteration(iterator : IterType.Iter<(K, V)>, order : Order.Order) {
       switch (iterator.next()) {
@@ -1162,8 +1190,8 @@ module {
   ///   Map.add(map, Nat.compare, 1, "One");
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
-  ///   let text = Map.toText<Nat, Text(map, Nat.toText, func (value) { value }));
-  ///   // `"(0, Zero), (1, One), (2, Two)"`
+  ///   let text = Map.toText<Nat, Text>(map, Nat.toText, func (value) { value });
+  ///   // `(0, Zero), (1, One), (2, Two)`
   /// }
   /// ```
   ///
@@ -1206,6 +1234,7 @@ module {
   /// ```motoko
   /// import Map "mo:base/Map";
   /// import Nat "mo:base/Nat";
+  /// import Text "mo:base/Text";
   ///
   /// persistent actor {
   ///   let map1 = Map.empty<Nat, Text>();

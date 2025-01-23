@@ -25,7 +25,7 @@ module {
   };
 
   public func toText(bool : Bool) : Text {
-    todo()
+    if bool { "true" } else { "false "}
   };
 
   public func allValues() : Iter.Iter<Bool> {

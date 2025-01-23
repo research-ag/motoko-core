@@ -60,7 +60,9 @@ module {
   };
 
   public func map<T, Y>(array : [var T], f : T -> Y) : [var Y] {
-    todo()
+    generate<Y>(array.size(), func (index) {
+      f(array[index])
+    })
   };
 
   public func filter<T>(array : [var T], f : T -> Bool) : [var T] {

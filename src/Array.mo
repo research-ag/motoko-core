@@ -37,7 +37,10 @@ module {
   };
 
   public func reverse<T>(array : [T]) : [T] {
-    todo()
+    let size = array.size();
+    generate<T>(size, func (index) {
+      array[size - index - 1: Nat]
+    })
   };
 
   public func forEach<T>(array : [T], f : T -> ()) {

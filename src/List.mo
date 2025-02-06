@@ -61,7 +61,7 @@ module {
     todo()
   };
 
-  public func hash<T>(list : List<T>, hash : T -> Nat32) : Nat32 {
+  public func hash<T>(list : List<T>, hash : T -> Nat32) : Types.Hash {
     todo()
   };
 

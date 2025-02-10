@@ -486,6 +486,16 @@ let suite = Suite.suite(
       "prevIndexOf not found",
       Array.prevIndexOf<Char>('g', ['c', 'o', 'f', 'f', 'e', 'e'], 6, Char.equal),
       M.equals(T.optional(T.natTestable, null : ?Nat))
+    ),
+    Suite.test(
+      "Iter conversions",
+      Array.fromIter<Nat>(Array.values([1, 2, 3])),
+      M.equals(T.array<Nat>(T.natTestable, [1, 2, 3]))
+    ),
+    Suite.test(
+      "Iter conversions empty",
+      Array.fromIter<Nat>(Array.values([])),
+      M.equals(T.array<Nat>(T.natTestable, []))
     )
   ]
 );

@@ -599,7 +599,42 @@ module {
 
   /// Converts an iterator to an array.
   public func fromIter<T>(iter : Types.Iter<T>) : [T] {
-    todo() // Pending `List` data structure
+    type List<T> = ?(T, List<T>);
+    var list : List<T> = null;
+    var size = 0;
+    label l loop {
+      switch (iter.next()) {
+        case (?element) {
+          list := ?(element, list);
+          size += 1
+        };
+        case null { break l }
+      }
+    };
+    if (size == 0) { return [] };
+    let array = Prim.Array_init<T>(
+      size,
+      switch list {
+        case (?(h, _)) h;
+        case null {
+          Prim.trap("Array.fromIter(): unreachable")
+        }
+      }
+    );
+    var i = size : Nat;
+    while (i > 0) {
+      i -= 1;
+      switch list {
+        case (?(h, t)) {
+          array[i] := h;
+          list := t
+        };
+        case null {
+          Prim.trap("Array.fromIter(): unreachable")
+        }
+      }
+    };
+    Prim.Array_tabulate<T>(size, func i = array[i])
   };
 
   /// Returns an iterator (`Iter`) over the indices of `array`.
@@ -729,7 +764,9 @@ module {
   ///
   /// Space: O(length)
   public func subArray<T>(array : [T], start : Nat, length : Nat) : [T] {
-    if (start + length > array.size()) { Prim.trap("Array.subArray(): 'start + length' is greater than 'array.size()'") };
+    if (start + length > array.size()) {
+      Prim.trap("Array.subArray(): 'start + length' is greater than 'array.size()'")
+    };
     Prim.Array_tabulate<T>(length, func i = array[start + i])
   };
 

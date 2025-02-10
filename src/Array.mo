@@ -3,8 +3,8 @@
 /// Note the difference between mutable and non-mutable arrays below.
 ///
 /// WARNING: If you are looking for a list that can grow and shrink in size,
-/// it is recommended you use either the Buffer class or the List class for
-/// those purposes. Arrays must be created with a fixed size.
+/// it is recommended you use `List` for those purposes.
+/// Arrays must be created with a fixed size.
 ///
 /// Import from the base library to use this module.
 /// ```motoko name=import

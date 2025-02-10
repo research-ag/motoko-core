@@ -17,7 +17,6 @@ import VarArray "VarArray";
 import Option "Option";
 import Types "Types";
 import Prim "mo:⛔";
-import { todo } "Debug";
 
 module {
 
@@ -729,7 +728,9 @@ module {
   ///
   /// Space: O(length)
   public func subArray<T>(array : [T], start : Nat, length : Nat) : [T] {
-    if (start + length > array.size()) { Prim.trap("Array.subArray(): 'start + length' is greater than 'array.size()'") };
+    if (start + length > array.size()) {
+      Prim.trap("Array.subArray(): 'start + length' is greater than 'array.size()'")
+    };
     Prim.Array_tabulate<T>(length, func i = array[start + i])
   };
 

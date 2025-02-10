@@ -416,6 +416,61 @@ module {
     }
   };
 
+  /// Returns an iterator over `Int` values from the first to second argument with an exclusive upper bound,
+  /// incrementing by the specified step size.
+  /// ```motoko
+  /// import Iter "mo:base/Iter";
+  ///
+  /// // Positive step
+  /// let iter1 = Int.rangeWithStep(1, 7, 2);
+  /// assert(?1 == iter1.next());
+  /// assert(?3 == iter1.next());
+  /// assert(?5 == iter1.next());
+  /// assert(null == iter1.next());
+  ///
+  /// // Negative step
+  /// let iter2 = Int.rangeWithStep(7, 1, -2);
+  /// assert(?7 == iter2.next());
+  /// assert(?5 == iter2.next());
+  /// assert(?3 == iter2.next());
+  /// assert(null == iter2.next());
+  /// ```
+  ///
+  /// If `step` is 0 or if the iteration would not progress towards the bound, returns an empty iterator.
+  public func rangeWithStep(fromInclusive : Int, toExclusive : Int, step : Int) : Iter.Iter<Int> {
+    if (step == 0) {
+      Iter.empty()
+    } else if (step > 0 and fromInclusive < toExclusive) {
+      object {
+        var n = fromInclusive;
+        public func next() : ?Int {
+          if (n >= toExclusive) {
+            null
+          } else {
+            let current = n;
+            n += step;
+            ?current
+          }
+        }
+      }
+    } else if (step < 0 and fromInclusive > toExclusive) {
+      object {
+        var n = fromInclusive;
+        public func next() : ?Int {
+          if (n <= toExclusive) {
+            null
+          } else {
+            let current = n;
+            n += step;
+            ?current
+          }
+        }
+      }
+    } else {
+      Iter.empty()
+    }
+  };
+
   /// Returns an iterator over the integers from the first to second argument, inclusive.
   /// ```motoko
   /// import Iter "mo:base/Iter";

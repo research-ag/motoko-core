@@ -689,8 +689,7 @@ module {
 
   /// Converts an iterator to a mutable array.
   public func fromIter<T>(iter : Types.Iter<T>) : [var T] {
-    type List<T> = ?(T, List<T>);
-    var list : List<T> = null;
+    var list : Types.Pure.List<T> = null;
     var size = 0;
     label l loop {
       switch (iter.next()) {

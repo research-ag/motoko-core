@@ -17,7 +17,6 @@ import VarArray "VarArray";
 import Option "Option";
 import Types "Types";
 import Prim "mo:⛔";
-import { todo } "Debug";
 
 module {
 
@@ -599,8 +598,7 @@ module {
 
   /// Converts an iterator to an array.
   public func fromIter<T>(iter : Types.Iter<T>) : [T] {
-    type List<T> = ?(T, List<T>);
-    var list : List<T> = null;
+    var list : Types.Pure.List<T> = null;
     var size = 0;
     label l loop {
       switch (iter.next()) {

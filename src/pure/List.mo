@@ -80,9 +80,14 @@ module {
     todo()
   };
 
-  public func partition<T>(list : List<T>, f : T -> Bool) : (List<T>, List<T>) {
-    todo()
-  };
+  public func partition<T>(list : List<T>, f : T -> Bool) : (List<T>, List<T>) =
+    switch list {
+      case null (null, null);
+      case (?(h, t)) {
+        let left = f h;
+        let (l, r) = partition(t, f);
+        if left else (l, ?(h, r))
+    };
 
   public func concat<T>(list1 : List<T>, list2 : List<T>) : List<T> =
     switch list1 {

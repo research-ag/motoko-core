@@ -102,7 +102,7 @@ module {
     if (n == 0) list
     else switch list {
       case null null;
-      case (?(h, t)) drop(t, n - 1))
+      case (?(h, t)) drop(t, n - 1)
     };
 
   public func foldLeft<T, A>(list : List<T>, base : A, combine : (A, T) -> A) : A {

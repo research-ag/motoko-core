@@ -117,17 +117,23 @@ module {
       case (?(h, t)) combine(h, foldRight(t, base, combine))
     };
 
-  public func find<T>(list : List<T>, f : T -> Bool) : ?T {
-    todo()
-  };
+  public func find<T>(list : List<T>, f : T -> Bool) : ?T =
+    switch list {
+      case null null;
+      case (?(h, t)) if (f h) ?h else find(t, f)
+    };
 
-  public func all<T>(list : List<T>, f : T -> Bool) : Bool {
-    todo()
-  };
+  public func all<T>(list : List<T>, f : T -> Bool) : Bool =
+    switch list {
+      case null true;
+      case (?(h, t)) f h and all(t, f)
+    };
 
-  public func any<T>(list : List<T>, f : T -> Bool) : Bool {
-    todo()
-  };
+  public func any<T>(list : List<T>, f : T -> Bool) : Bool =
+    switch list {
+      case null false;
+      case (?(h, t)) f h or any(t, f)
+    };
 
   public func merge<T>(list1 : List<T>, list2 : List<T>, lessThanOrEqual : (T, T) -> Bool) : List<T> {
     todo()

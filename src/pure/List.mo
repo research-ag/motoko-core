@@ -58,7 +58,7 @@ module {
   public func map<T1, T2>(list : List<T1>, f : T1 -> T2) : List<T2> =
     switch list {
       case null null;
-      case (?(h, t)) ?(f h, map(t, f)) }
+      case (?(h, t)) ?(f h, map(t, f))
     };
 
   public func filter<T>(list : List<T>, f : T -> Bool) : List<T> {

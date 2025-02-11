@@ -222,7 +222,11 @@ module {
 
   public func toVarArray<T>(list : List<T>) : [var T] = Array.toVarArray<T>(toArray<T>(list));
 
-  public func fromIter<T>(iter : Iter.Iter<T>) : List<T> = todo();
+  public func fromIter<T>(iter : Iter.Iter<T>) : List<T> =
+    switch (iter.next()) {
+      case null null;
+      case (?item) ?(item, fromIter iter)
+    };
 
   public func toText<T>(list : List<T>, f : T -> Text) : Text {
     var text = "[";

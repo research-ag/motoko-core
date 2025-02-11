@@ -212,7 +212,7 @@ module {
 
   public func fromArray<T>(array : [T]) : List<T> {
     func go(from : Nat) : List<T> =
-      if (from < array.size()) ?(array.get from, go(from + 1)) else null
+      if (from < array.size()) ?(array.get(from) from, go(from + 1)) else null
   };
 
   public func fromVarArray<T>(array : [var T]) : List<T> = fromArray<T>(Array.fromVarArray<T>(array));

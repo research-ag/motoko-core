@@ -84,9 +84,17 @@ module {
       }
     };
 
-  public func mapResult<T, R, E>(list : List<T>, f : T -> Result.Result<R, E>) : Result.Result<List<R>, E> {
-    todo()
-  };
+  public func mapResult<T, R, E>(list : List<T>, f : T -> Result.Result<R, E>) : Result.Result<List<R>, E> =
+    switch list {
+      case null #ok null;
+      case (?(h, t)) {
+        switch (f h, mapResult(t, f)) {
+          case (#ok r, #ok l) #ok ?(r, l);
+          case (#err e, _) #err e;
+          case (_, #err e) #err e
+        }
+      }
+    };
 
   public func partition<T>(list : List<T>, f : T -> Bool) : (List<T>, List<T>) =
     switch list {

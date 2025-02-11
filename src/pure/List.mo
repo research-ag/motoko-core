@@ -148,8 +148,7 @@ module {
       if (n == 0) null else ?(f at, go(at + 1, n - 1));
     go(0, n)
   }
-    if (n == 0) null else ?(f n, tabulate(item, n - 1));
-
+  
   public func singleton<T>(item : T) : List<T> = ?(item, null);
 
   public func repeat<T>(item : T, n : Nat) : List<T> =

@@ -64,12 +64,17 @@ module {
   public func filter<T>(list : List<T>, f : T -> Bool) : List<T> =
     switch list {
       case null null;
-      case (?(h, t)) if (f h) ?(h, filter(t, f)) else filter(t, f)
+      case (?(h, t)) if (f h) else filter(t, f)
     };
 
-  public func filterMap<T, R>(list : List<T>, f : T -> ?R) : List<R> {
-    todo()
-  };
+  public func filterMap<T, R>(list : List<T>, f : T -> ?R) : List<R> =
+    switch list {
+      case null null;
+      case (?(h, t)) {
+        let ?v = f h else return filterMap(t, f);
+        ?(v, filterMap(t, f))
+      }
+    };
 
   public func mapResult<T, R, E>(list : List<T>, f : T -> Result.Result<R, E>) : Result.Result<List<R>, E> {
     todo()

@@ -54,7 +54,7 @@ module {
         case (?(h, t)) go(?(h, acc), t)
       };
     go(null, list)
-  ;
+  };
 
   public func forEach<T>(list : List<T>, f : T -> ()) =
     switch list {

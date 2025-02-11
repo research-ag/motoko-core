@@ -3,8 +3,8 @@
 /// Note the difference between mutable and non-mutable arrays below.
 ///
 /// WARNING: If you are looking for a list that can grow and shrink in size,
-/// it is recommended you use either the Buffer class or the List class for
-/// those purposes. Arrays must be created with a fixed size.
+/// it is recommended you use `List` for those purposes.
+/// Arrays must be created with a fixed size.
 ///
 /// Import from the base library to use this module.
 /// ```motoko name=import
@@ -598,7 +598,41 @@ module {
 
   /// Converts an iterator to an array.
   public func fromIter<T>(iter : Types.Iter<T>) : [T] {
-    todo() // Pending `List` data structure
+    var list : Types.Pure.List<T> = null;
+    var size = 0;
+    label l loop {
+      switch (iter.next()) {
+        case (?element) {
+          list := ?(element, list);
+          size += 1
+        };
+        case null { break l }
+      }
+    };
+    if (size == 0) { return [] };
+    let array = Prim.Array_init<T>(
+      size,
+      switch list {
+        case (?(h, _)) h;
+        case null {
+          Prim.trap("Array.fromIter(): unreachable")
+        }
+      }
+    );
+    var i = size : Nat;
+    while (i > 0) {
+      i -= 1;
+      switch list {
+        case (?(h, t)) {
+          array[i] := h;
+          list := t
+        };
+        case null {
+          Prim.trap("Array.fromIter(): unreachable")
+        }
+      }
+    };
+    Prim.Array_tabulate<T>(size, func i = array[i])
   };
 
   /// Returns an iterator (`Iter`) over the indices of `array`.

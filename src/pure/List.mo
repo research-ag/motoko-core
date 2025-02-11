@@ -155,9 +155,15 @@ module {
       case (?(h, t)) f h or any(t, f)
     };
 
-  public func merge<T>(list1 : List<T>, list2 : List<T>, lessThanOrEqual : (T, T) -> Bool) : List<T> {
-    todo()
-  };
+  public func merge<T>(list1 : List<T>, list2 : List<T>, lessThanOrEqual : (T, T) -> Bool) : List<T> =
+    switch (list1, list2) {
+      case (?(h1, t1), ?(h2, t2))
+        if (lessThanOrEqual(h1, h2)) ?(h1, merge(t1, list2, lessThanOrEqual))
+        else if (lessThanOrEqual(h2, h1)) ?(h1, merge(t2, list1, lessThanOrEqual))
+        else ?(h1, ?(h2, merge(list1, list2, lessThanOrEqual));
+      case (null, _) list2;
+      case (_, null) list1
+    };
 
   public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order {
     todo()

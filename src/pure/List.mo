@@ -1,5 +1,6 @@
 /// Immutable singly-linked list
 
+import { Array_tabulate } "mo:⛔";
 import Array "../Array";
 import Iter "../Iter";
 import Order "../Order";
@@ -225,7 +226,8 @@ module {
   public func fromVarArray<T>(array : [var T]) : List<T> = fromArray<T>(Array.fromVarArray<T>(array));
 
   public func toArray<T>(list : List<T>) : [T] {
-    todo()
+    var l = list;
+    Array_tabulate<T>(length list, func _ { let ?(h, t) = l else loop(); l := t; h })
   };
 
   public func toVarArray<T>(list : List<T>) : [var T] = Array.toVarArray<T>(toArray<T>(list));

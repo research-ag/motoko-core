@@ -36,7 +36,7 @@ module {
 
   public func last<T>(list : List<T>) : ?T =
     switch list {
-      case (?(h, null)) ?h
+      case (?(h, null)) ?h;
       case null null;
       case (?(_, t)) last t
     };
@@ -47,17 +47,19 @@ module {
       case (?(h, t)) (?h, t)
     };
 
-  public func reverse<T>(list : List<T>) : List<T> {
-    todo()
-  };
+  public func reverse<T>(list : List<T>) : List<T> = todo();
 
-  public func forEach<T>(list : List<T>, f : T -> ()) {
-    todo()
-  };
+  public func forEach<T>(list : List<T>, f : T -> ()) =
+    switch list {
+      case null ();
+      case (?(h, t)) { f h; forEach(t, f) }
+    };
 
-  public func map<T1, T2>(list : List<T1>, f : T1 -> T2) : List<T2> {
-    todo()
-  };
+  public func map<T1, T2>(list : List<T1>, f : T1 -> T2) : List<T2> =
+    switch list {
+      case null null;
+      case (?(h, t)) ?(f h, map(t, f)) }
+    };
 
   public func filter<T>(list : List<T>, f : T -> Bool) : List<T> {
     todo()
@@ -75,9 +77,11 @@ module {
     todo()
   };
 
-  public func concat<T>(list1 : List<T>, list2 : List<T>) : List<T> {
-    todo()
-  };
+  public func concat<T>(list1 : List<T>, list2 : List<T>) : List<T> =
+    switch list1 {
+      case null list2;
+      case (?(h, t)) ?(h, concat(t, list2))
+    };
 
   public func join<T>(list : Iter.Iter<List<T>>) : List<T> {
     todo()

@@ -86,7 +86,7 @@ module {
       case (?(h, t)) {
         let left = f h;
         let (l, r) = partition(t, f);
-        if left (?(h, l), r)else (l, ?(h, r))
+        if left (?(h, l), r) else (l, ?(h, r))
       }
     };
 

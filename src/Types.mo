@@ -86,9 +86,9 @@ module {
   public type Stack<T> = Stack.Stack<T>;
 
   public module Pure {
+    public type List<T> = ?(T, List<T>);
     public type Map<K, V> = (); // Placeholder
     public type Queue<T> = (Stack.Stack<T>, Stack.Stack<T>);
-    public type Set<T> = (); // Placeholder
-    public type Stack<T> = ?(Stack<T>, T)
+    public type Set<T> = () // Placeholder
   }
 }

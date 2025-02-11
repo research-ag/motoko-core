@@ -160,7 +160,7 @@ module {
       case (?(h1, t1), ?(h2, t2))
         if (lessThanOrEqual(h1, h2)) ?(h1, merge(t1, list2, lessThanOrEqual))
         else if (lessThanOrEqual(h2, h1)) ?(h2, merge(list1, t2, lessThanOrEqual))
-        else ?(h1, ?(h2, merge(list1, list2, lessThanOrEqual));
+        else ?(h1, ?(h2, merge(list1, list2, lessThanOrEqual)));
       case (null, _) list2;
       case (_, null) list1
     };

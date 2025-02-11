@@ -53,7 +53,7 @@ module {
         case null acc;
         case (?(h, t)) go(?(h, acc), t)
       };
-      go(null, list)
+    go(null, list)
   ;
 
   public func forEach<T>(list : List<T>, f : T -> ()) =

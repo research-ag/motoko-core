@@ -154,11 +154,13 @@ module {
   public func repeat<T>(item : T, n : Nat) : List<T> =
     if (n == 0) null else ?(item, repeat(item, n - 1));
 
-  public func zip<T, U>(list1 : List<T>, list2 : List<U>) : List<(T, U)> = zipWith<T, U, (T, U)>(list1, list2, func(x, y) { (x, y) });
+  public func zip<T, U>(list1 : List<T>, list2 : List<U>) : List<(T, U)> = zipWith<T, U, (T, U)>(list1, list2, func(x, y) = (x, y));
 
-  public func zipWith<T, U, V>(list1 : List<T>, list2 : List<U>, f : (T, U) -> V) : List<V> {
-    todo()
-  };
+  public func zipWith<T, U, V>(list1 : List<T>, list2 : List<U>, f : (T, U) -> V) : List<V> =
+    switch (list1, list2) {
+      case (?(h1, t1), ?(h2, t2)) ?(f(h1, h2), zipWith(t1, t2, f));
+      case _ null
+    };
 
   public func split<T>(list : List<T>, n : Nat) : (List<T>, List<T>) =
     if (n == 0) (null, list)

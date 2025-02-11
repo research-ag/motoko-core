@@ -9,6 +9,9 @@ import Nat32 "../src/Nat32";
 import Nat "../src/Nat";
 import Order "../src/Order";
 import List "../src/List";
+import Runtime "../src/Runtime";
+import Int "../src/Int";
+import Debug "../src/Debug";
 
 let { run; test; suite } = Suite;
 
@@ -756,4 +759,294 @@ while (i < locate_n) {
   assert (locate_readable(2_000_000_000 + i) == locate_optimal(2_000_000_000 + i));
   assert (locate_readable(2 ** 32 - 1 - i : Nat) == locate_optimal(2 ** 32 - 1 - i : Nat));
   i += 1
-}
+};
+
+// Claude tests (from original Mops package)
+
+// Helper function to run tests
+func runTest(name : Text, test : (Nat) -> Bool) {
+  let testSizes = [0, 1, 10, 100];
+  for (n in testSizes.vals()) {
+    if (test(n)) {
+      Debug.print("✅ " # name # " passed for n = " # Nat.toText(n))
+    } else {
+      Runtime.trap("❌ " # name # " failed for n = " # Nat.toText(n))
+    }
+  }
+};
+
+// Test cases
+func testNew(n : Nat) : Bool {
+  let vec = List.empty<Nat>();
+  List.size(vec) == 0
+};
+
+func testInit(n : Nat) : Bool {
+  let vec = List.repeat<Nat>(1, n);
+  List.size(vec) == n and (n == 0 or (List.get(vec, 0) == 1 and List.get(vec, n - 1 : Nat) == 1))
+};
+
+func testAdd(n : Nat) : Bool {
+  if (n == 0) return true;
+  let vec = List.empty<Nat>();
+  for (i in Nat.range(0, n)) {
+    List.add(vec, i)
+  };
+
+  if (List.size(vec) != n) {
+    Debug.print("Size mismatch: expected " # Nat.toText(n) # ", got " # Nat.toText(List.size(vec)));
+    return false
+  };
+
+  for (i in Nat.range(0, n)) {
+    let value = List.get(vec, i);
+    if (value != i) {
+      Debug.print("Value mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(value));
+      return false
+    }
+  };
+
+  true
+};
+
+func testAddAll(n : Nat) : Bool {
+  if (n == 0) return true;
+  let vec = List.repeat<Nat>(0, n);
+  List.addRepeat(vec, 1, n);
+  if (List.size(vec) != 2 * n) {
+    Debug.print("Size mismatch: expected " # Nat.toText(2 * n) # ", got " # Nat.toText(List.size(vec)));
+    return false
+  };
+  for (i in Nat.range(0, n)) {
+    let value = List.get(vec, n + i);
+    if (value != 1) {
+      Debug.print("Value mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(1) # ", got " # Nat.toText(value));
+      return false
+    }
+  };
+  true
+};
+
+func testRemoveLast(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  var i = n;
+
+  while (i > 0) {
+    i -= 1;
+    let last = List.removeLast(vec);
+    if (last != ?i) {
+      Debug.print("Unexpected value removed: expected ?" # Nat.toText(i) # ", got " # debug_show (last));
+      return false
+    };
+    if (List.size(vec) != i) {
+      Debug.print("Unexpected size after removal: expected " # Nat.toText(i) # ", got " # Nat.toText(List.size(vec)));
+      return false
+    }
+  };
+
+  // Try to remove from empty vector
+  if (List.removeLast(vec) != null) {
+    Debug.print("Expected null when removing from empty vector, but got a value");
+    return false
+  };
+
+  if (List.size(vec) != 0) {
+    Debug.print("List should be empty, but has size " # Nat.toText(List.size(vec)));
+    return false
+  };
+
+  true
+};
+
+func testGet(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+
+  for (i in Nat.range(1, n + 1)) {
+    let value = List.get(vec, i - 1 : Nat);
+    if (value != i) {
+      Debug.print("get: Mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(value));
+      return false
+    }
+  };
+
+  true
+};
+
+func testGetOpt(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+
+  for (i in Nat.range(1, n + 1)) {
+    switch (List.getOpt(vec, i - 1 : Nat)) {
+      case (?value) {
+        if (value != i) {
+          Debug.print("getOpt: Mismatch at index " # Nat.toText(i) # ": expected ?" # Nat.toText(i) # ", got ?" # Nat.toText(value));
+          return false
+        }
+      };
+      case (null) {
+        Debug.print("getOpt: Unexpected null at index " # Nat.toText(i));
+        return false
+      }
+    }
+  };
+
+  // Test out-of-bounds access
+  switch (List.getOpt(vec, n)) {
+    case (null) {
+      // This is expected
+    };
+    case (?value) {
+      Debug.print("getOpt: Expected null for out-of-bounds access, got ?" # Nat.toText(value));
+      return false
+    }
+  };
+
+  true
+};
+
+func testPut(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  if (n == 0) {
+    true
+  } else {
+    List.put(vec, n - 1 : Nat, 100);
+    List.get(vec, n - 1 : Nat) == 100
+  }
+};
+
+func testClear(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  List.clear(vec);
+  List.size(vec) == 0
+};
+
+func testClone(n : Nat) : Bool {
+  let vec1 = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  let vec2 = List.clone(vec1);
+  List.equal(vec1, vec2, Nat.equal)
+};
+
+func testMap(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  let mapped = List.map<Nat, Nat>(vec, func(x) = x * 2);
+  List.equal(mapped, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i * 2)), Nat.equal)
+};
+
+func testIndexOf(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(2 * n, func(i) = i % n));
+  if (n == 0) {
+    List.indexOf(vec, Nat.equal, 0) == null
+  } else {
+    var allCorrect = true;
+    for (i in Nat.range(0, n)) {
+      let index = List.indexOf(vec, Nat.equal, i);
+      if (index != ?i) {
+        allCorrect := false;
+        Debug.print("indexOf failed for i = " # Nat.toText(i) # ", expected ?" # Nat.toText(i) # ", got " # debug_show (index))
+      }
+    };
+    allCorrect and List.indexOf(vec, Nat.equal, n) == null
+  }
+};
+
+func testLastIndexOf(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(2 * n, func(i) = i % n));
+  if (n == 0) {
+    List.lastIndexOf(vec, Nat.equal, 0) == null
+  } else {
+    var allCorrect = true;
+    for (i in Nat.range(0, n)) {
+      let index = List.lastIndexOf(vec, Nat.equal, i);
+      if (index != ?(n + i)) {
+        allCorrect := false;
+        Debug.print("lastIndexOf failed for i = " # Nat.toText(i) # ", expected ?" # Nat.toText(n + i) # ", got " # debug_show (index))
+      }
+    };
+    allCorrect and List.lastIndexOf(vec, Nat.equal, n) == null
+  }
+};
+
+func testContains(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+
+  // Check if it contains all elements from 0 to n-1
+  for (i in Nat.range(1, n + 1)) {
+    if (not List.contains(vec, Nat.equal, i)) {
+      Debug.print("List should contain " # Nat.toText(i) # " but it doesn't");
+      return false
+    }
+  };
+
+  // Check if it doesn't contain n (which should be out of range)
+  if (List.contains(vec, Nat.equal, n + 1)) {
+    Debug.print("List shouldn't contain " # Nat.toText(n + 1) # " but it does");
+    return false
+  };
+
+  // Check if it doesn't contain n+1 (another out of range value)
+  if (List.contains(vec, Nat.equal, n + 2)) {
+    Debug.print("List shouldn't contain " # Nat.toText(n + 2) # " but it does");
+    return false
+  };
+
+  true
+};
+func testReverse(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  List.reverseInPlace(vec);
+  List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal)
+};
+
+func testSort(n : Nat) : Bool {
+  let vec = List.fromArray<Int>(Array.tabulate<Int>(n, func(i) = (i * 123) % 100 - 50));
+  List.sort(vec, Int.compare);
+  List.equal(vec, List.fromArray<Int>(Array.sort(Array.tabulate<Int>(n, func(i) = (i * 123) % 100 - 50), Int.compare)), Int.equal)
+};
+
+func testToArray(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  Array.equal(List.toArray(vec), Array.tabulate<Nat>(n, func(i) = i), Nat.equal)
+};
+
+func testFromIter(n : Nat) : Bool {
+  let iter = Nat.range(1, n + 1);
+  let vec = List.fromIter<Nat>(iter);
+  List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1)), Nat.equal)
+};
+
+func testFoldLeft(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  List.foldLeft<Text, Nat>(vec, "", func(acc, x) = acc # Nat.toText(x)) == Array.foldLeft<Nat, Text>(Array.tabulate<Nat>(n, func(i) = i + 1), "", func(acc, x) = acc # Nat.toText(x))
+};
+
+func testFoldRight(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  List.foldRight<Nat, Text>(vec, "", func(x, acc) = Nat.toText(x) # acc) == Array.foldRight<Nat, Text>(Array.tabulate<Nat>(n, func(i) = i + 1), "", func(x, acc) = Nat.toText(x) # acc)
+};
+
+// Run all tests
+func runAllTests() {
+  runTest("testNew", testNew);
+  runTest("testInit", testInit);
+  runTest("testAdd", testAdd);
+  runTest("testAddAll", testAddAll);
+  runTest("testRemoveLast", testRemoveLast);
+  runTest("testGet", testGet);
+  runTest("testGetOpt", testGetOpt);
+  runTest("testPut", testPut);
+  runTest("testClear", testClear);
+  runTest("testClone", testClone);
+  runTest("testMap", testMap);
+  runTest("testIndexOf", testIndexOf);
+  runTest("testLastIndexOf", testLastIndexOf);
+  runTest("testContains", testContains);
+  runTest("testReverse", testReverse);
+  runTest("testSort", testSort);
+  runTest("testToArray", testToArray);
+  runTest("testFromIter", testFromIter);
+  runTest("testFoldLeft", testFoldLeft);
+  runTest("testFoldRight", testFoldRight)
+};
+
+// Run all tests
+runAllTests()

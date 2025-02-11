@@ -461,6 +461,8 @@
       "public func infinite<T>(item : T) : Iter<T>",
       "public type Iter<T>",
       "public func map<T, R>(iter : Iter<T>, f : T -> R) : Iter<R>",
+      "public func repeat<T>(item : T, count : Nat) : Iter<T>",
+      "public func reverse<T>(iter : Iter<T>) : Iter<T>",
       "public func singleton<T>(value : T) : Iter<T>",
       "public func size<T>(iter : Iter<T>) : Nat",
       "public func sort<T>(iter : Iter<T>, compare : (T, T) -> Order.Order) : Iter<T>",
@@ -474,7 +476,7 @@
     "exports": [
       "public func add<T>(list : List<T>, element : T)",
       "public func addAll<T>(list : List<T>, iter : Iter.Iter<T>)",
-      "public func addMany<T>(list : List<T>, count : Nat, initValue : T)",
+      "public func addRepeat<T>(list : List<T>, initValue : T, count : Nat)",
       "public func all<T>(list : List<T>, predicate : T -> Bool) : Bool",
       "public func any<T>(list : List<T>, predicate : T -> Bool) : Bool",
       "public func clear<T>(list : List<T>)",

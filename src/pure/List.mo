@@ -176,7 +176,7 @@ module {
     switch (split(list, n)) {
       case (null, _) null;
       case (pre, null) ?(pre, null);
-      case (pre, pos) ?(pre, chunks(post, n));
+      case (pre, post) ?(pre, chunks(post, n));
     };
 
   public func values<T>(list : List<T>) : Iter.Iter<T> = object {

@@ -167,14 +167,22 @@ module {
       case (?(h, t)) {
         let (l1, l2) = split(t, n - 1);
         (?(h, l1), l2)
+      }
     };
 
   public func chunks<T>(list : List<T>, n : Nat) : List<List<T>> {
     todo()
   };
 
-  public func values<T>(list : List<T>) : Iter.Iter<T> {
-    todo()
+  public func values<T>(list : List<T>) : Iter.Iter<T> = object {
+    var l = list;
+    public func next() : ?T = switch l {
+      case null null;
+      case (?(h, t)) {
+        l := t;
+        ?h
+      }
+    }
   };
 
   public func fromArray<T>(array : [T]) : List<T> {

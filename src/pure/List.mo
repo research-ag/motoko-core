@@ -177,7 +177,7 @@ module {
   public func compare<T>(list1 : List<T>, list2 : List<T>, comp : (T, T) -> Order.Order) : Order.Order =
     switch (list1, list2) {
       case (?(h1, t1), ?(h2, t2)) switch (comp(h1, h2)) {
-        case (#equal) compare(t1, t2);
+        case (#equal) compare(t1, t2, comp);
         case o o
       };
       case (null, null) #equal;

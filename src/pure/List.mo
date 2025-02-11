@@ -148,7 +148,7 @@ module {
       if (n == 0) null else ?(f at, go(at + 1, n - 1));
     go(0, n)
   }
-  
+
   public func singleton<T>(item : T) : List<T> = ?(item, null);
 
   public func repeat<T>(item : T, n : Nat) : List<T> =
@@ -160,9 +160,14 @@ module {
     todo()
   };
 
-  public func split<T>(list : List<T>, n : Nat) : (List<T>, List<T>) {
-    todo()
-  };
+  public func split<T>(list : List<T>, n : Nat) : (List<T>, List<T>) =
+    if (n == 0) (null, list)
+    else switch list {
+      case null (null, null);
+      case (?(h, t)) {
+        let (l1, l2) = split(t, n - 1);
+        (?(h, l1), l2)
+    };
 
   public func chunks<T>(list : List<T>, n : Nat) : List<List<T>> {
     todo()

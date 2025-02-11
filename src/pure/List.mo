@@ -147,7 +147,7 @@ module {
     func go(at : Nat, n : Nat) : List<T> =
       if (n == 0) null else ?(f at, go(at + 1, n - 1));
     go(0, n)
-  }
+  };
 
   public func singleton<T>(item : T) : List<T> = ?(item, null);
 

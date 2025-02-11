@@ -87,6 +87,7 @@ module {
         let left = f h;
         let (l, r) = partition(t, f);
         if left else (l, ?(h, r))
+      }
     };
 
   public func concat<T>(list1 : List<T>, list2 : List<T>) : List<T> =

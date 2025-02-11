@@ -974,7 +974,7 @@ do {
   assert Array.fromIter(Int.rangeWithStep(3, 1, -1)) == [3, 2];
   assert Array.fromIter(Int.rangeWithStep(3, 0, -2)) == [3, 1];
   assert Array.fromIter(Int.rangeWithStep(3, 1, -2)) == [3];
-  assert Array.fromIter(Int.rangeWithStep(1, 3, -1)) == [0];
+  assert Array.fromIter(Int.rangeWithStep(1, 3, -1)) == [];
   assert Array.fromIter(Int.rangeWithStep(0, 1, 0)) == [];
   assert Array.fromIter(Int.rangeWithStep(1, 0, 0)) == []
 }

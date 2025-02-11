@@ -51,7 +51,7 @@ do {
   assert Array.fromIter(Nat.rangeWithStep(3, 1, -1)) == [3, 2];
   assert Array.fromIter(Nat.rangeWithStep(3, 0, -2)) == [3, 1];
   assert Array.fromIter(Nat.rangeWithStep(3, 1, -2)) == [3];
-  assert Array.fromIter(Nat.rangeWithStep(1, 3, -1)) == [0];
+  assert Array.fromIter(Nat.rangeWithStep(1, 3, -1)) == [];
   assert Array.fromIter(Nat.rangeWithStep(0, 1, 0)) == [];
   assert Array.fromIter(Nat.rangeWithStep(1, 0, 0)) == [];
 }

@@ -172,9 +172,12 @@ module {
       }
     };
 
-  public func chunks<T>(list : List<T>, n : Nat) : List<List<T>> {
-    todo()
-  };
+  public func chunks<T>(list : List<T>, n : Nat) : List<List<T>> =
+    switch (split(list, n)) {
+      case (null, _) null;
+      case (pre, null) ?(pre, null);
+      case (pre, pos) ?(pre, chunks(post, n));
+    };
 
   public func values<T>(list : List<T>) : Iter.Iter<T> = object {
     var l = list;

@@ -386,7 +386,7 @@ module {
   ///
   /// Space: O(n) where n is the number of elements in the iterator
   public func reverse<T>(iter : Iter<T>) : Iter<T> {
-    fromArray(Array.reverse(toArray(iter)))
+    fromArray(Array.reverse(toArray(iter))) // TODO: optimize
   };
 
 }

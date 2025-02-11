@@ -227,7 +227,7 @@ module {
 
   public func toArray<T>(list : List<T>) : [T] {
     var l = list;
-    Array_tabulate<T>(length list, func _ { let ?(h, t) = l else loop(); l := t; h })
+    Array_tabulate<T>(size list, func _ { let ?(h, t) = l else loop(); l := t; h })
   };
 
   public func toVarArray<T>(list : List<T>) : [var T] = Array.toVarArray<T>(toArray<T>(list));

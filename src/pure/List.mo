@@ -61,9 +61,11 @@ module {
       case (?(h, t)) ?(f h, map(t, f))
     };
 
-  public func filter<T>(list : List<T>, f : T -> Bool) : List<T> {
-    todo()
-  };
+  public func filter<T>(list : List<T>, f : T -> Bool) : List<T> =
+    switch list {
+      case null null;
+      case (?(h, t)) if (f h) ?(h, filter(t, f)) else filter(t, f)
+    };
 
   public func filterMap<T, R>(list : List<T>, f : T -> ?R) : List<R> {
     todo()

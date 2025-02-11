@@ -13,17 +13,24 @@ module {
 
   public func empty<T>() : List<T> = null;
 
-  public func isEmpty<T>(list : List<T>) : Bool = todo();
+  public func isEmpty<T>(list : List<T>) : Bool =
+    switch list { case null true; case _ false };
 
-  public func size<T>(list : List<T>) : Nat = todo();
+  public func size<T>(list : List<T>) : Nat =
+    switch list {
+      case null 0;
+      case (?(_, t)) 1 + size t
+    };
 
   public func contains<T>(list : List<T>, item : T) : Bool {
     todo()
   };
 
-  public func get<T>(list : List<T>, n : Nat) : ?T {
-    todo()
-  };
+  public func get<T>(list : List<T>, n : Nat) : ?T =
+    switch list {
+      case null null;
+      case (?(h, t)) if (n == 0) h else get(t, n - 1)
+    };
 
   public func push<T>(list : List<T>, item : T) : List<T> = ?(item, list);
 

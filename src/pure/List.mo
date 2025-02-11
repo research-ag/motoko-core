@@ -29,7 +29,7 @@ module {
   public func get<T>(list : List<T>, n : Nat) : ?T =
     switch list {
       case null null;
-      case (?(h, t)) if (n == 0) h else get(t, n - 1)
+      case (?(h, t)) if (n == 0) ?h else get(t, n - 1)
     };
 
   public func push<T>(list : List<T>, item : T) : List<T> = ?(item, list);

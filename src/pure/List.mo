@@ -34,13 +34,18 @@ module {
 
   public func push<T>(list : List<T>, item : T) : List<T> = ?(item, list);
 
-  public func last<T>(list : List<T>) : ?T {
-    todo()
-  };
+  public func last<T>(list : List<T>) : ?T =
+    switch list {
+      case (?(h, null)) ?h
+      case null null;
+      case (?(_, t)) last t
+    };
 
-  public func pop<T>(list : List<T>) : (?T, List<T>) {
-    todo()
-  };
+  public func pop<T>(list : List<T>) : (?T, List<T>) =
+    switch list {
+      case null (null, null);
+      case (?(h, t)) (?h, t)
+    };
 
   public func reverse<T>(list : List<T>) : List<T> {
     todo()

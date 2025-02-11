@@ -91,13 +91,19 @@ module {
     todo()
   };
 
-  public func take<T>(list : List<T>, n : Nat) : List<T> {
-    todo()
-  };
+  public func take<T>(list : List<T>, n : Nat) : List<T> =
+    if (n == 0) null
+    else switch list {
+      case null null;
+      case (?(h, t)) ?(h, take(t, n - 1))
+    };
 
-  public func drop<T>(list : List<T>, n : Nat) : List<T> {
-    todo()
-  };
+  public func drop<T>(list : List<T>, n : Nat) : List<T> =
+    if (n == 0) list
+    else switch list {
+      case null null;
+      case (?(h, t)) drop(t, n - 1))
+    };
 
   public func foldLeft<T, A>(list : List<T>, base : A, combine : (A, T) -> A) : A {
     todo()

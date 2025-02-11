@@ -105,13 +105,17 @@ module {
       case (?(h, t)) drop(t, n - 1)
     };
 
-  public func foldLeft<T, A>(list : List<T>, base : A, combine : (A, T) -> A) : A {
-    todo()
-  };
+  public func foldLeft<T, A>(list : List<T>, base : A, combine : (A, T) -> A) : A =
+    switch list {
+      case null base;
+      case (?(h, t)) foldLeft(t, combine(base, h), combine)
+    };
 
-  public func foldRight<T, A>(list : List<T>, base : A, combine : (T, A) -> A) : A {
-    todo()
-  };
+  public func foldRight<T, A>(list : List<T>, base : A, combine : (T, A) -> A) : A =
+    switch list {
+      case null base;
+      case (?(h, t)) combine(h, foldRight(t, base, combine))
+    };
 
   public func find<T>(list : List<T>, f : T -> Bool) : ?T {
     todo()

@@ -210,6 +210,7 @@
       "public func pow(x : Int, y : Int) : Int",
       "public func range(fromInclusive : Int, toExclusive : Int) : Iter.Iter<Int>",
       "public func rangeInclusive(from : Int, to : Int) : Iter.Iter<Int>",
+      "public func rangeWithStep(fromInclusive : Int, toExclusive : Int, step : Int) : Iter.Iter<Int>",
       "public func rem(x : Int, y : Int) : Int",
       "public func sub(x : Int, y : Int) : Int",
       "public func toNat(int : Int) : ?Nat",

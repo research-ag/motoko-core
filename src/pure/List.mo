@@ -47,7 +47,14 @@ module {
       case (?(h, t)) (?h, t)
     };
 
-  public func reverse<T>(list : List<T>) : List<T> = todo();
+  public func reverse<T>(list : List<T>) : List<T> {
+    func go(acc : List<T>, list : List<T>) : List<T> =
+      switch list {
+        case null acc;
+        case (?(h, t)) go(?(h, acc), t)
+      };
+      go(null, list)
+  ;
 
   public func forEach<T>(list : List<T>, f : T -> ()) =
     switch list {

@@ -144,14 +144,16 @@ module {
   };
 
   public func tabulate<T>(n : Nat, f : Nat -> T) : List<T> {
-    todo()
-  };
+    func go(at : Nat, n : Nat) : List<T> =
+      if (n == 0) null else ?(f at, go(at + 1, n - 1));
+    go(0, n)
+  }
+    if (n == 0) null else ?(f n, tabulate(item, n - 1));
 
   public func singleton<T>(item : T) : List<T> = ?(item, null);
 
-  public func repeat<T>(item : T, n : Nat) : List<T> {
-    todo()
-  };
+  public func repeat<T>(item : T, n : Nat) : List<T> =
+    if (n == 0) null else ?(item, repeat(item, n - 1));
 
   public func zip<T, U>(list1 : List<T>, list2 : List<U>) : List<(T, U)> = zipWith<T, U, (T, U)>(list1, list2, func(x, y) { (x, y) });
 

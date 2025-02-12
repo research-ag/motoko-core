@@ -1604,7 +1604,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func compare<T>(list1 : List<T>, list2 : List<T>, compare_fn : (T, T) -> Order.Order) : Order.Order {
+  public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order {
     let size1 = size(list1);
     let size2 = size(list2);
     let minSize = if (size1 < size2) { size1 } else { size2 };
@@ -1613,7 +1613,7 @@ module {
     let next2 = values_(list2).unsafe_next;
     var i = 0;
     while (i < minSize) {
-      switch (compare_fn(next1(), next2())) {
+      switch (compare(next1(), next2())) {
         case (#less) return #less;
         case (#greater) return #greater;
         case _ {}
@@ -1642,18 +1642,18 @@ module {
   /// Space: `O(size)`
   ///
   /// *Runtime and space assumes that `toText` runs in O(1) time and space.
-  public func toText<T>(list : List<T>, toText_fn : T -> Text) : Text {
+  public func toText<T>(list : List<T>, f : T -> Text) : Text {
     let vsize : Int = size(list);
     let next = values_(list).unsafe_next;
     var i = 0;
     var text = "";
     while (i < vsize - 1) {
-      text := text # toText_fn(next()) # ", "; // Text implemented as rope
+      text := text # f(next()) # ", "; // Text implemented as rope
       i += 1
     };
     if (vsize > 0) {
       // avoid the trailing comma
-      text := text # toText_fn(get<T>(list, i))
+      text := text # f(get<T>(list, i))
     };
 
     "[" # text # "]"

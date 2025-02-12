@@ -481,7 +481,7 @@
       "public func any<T>(list : List<T>, predicate : T -> Bool) : Bool",
       "public func clear<T>(list : List<T>)",
       "public func clone<T>(list : List<T>) : List<T>",
-      "public func compare<T>(list1 : List<T>, list2 : List<T>, compare_fn : (T, T) -> Order.Order) : Order.Order",
+      "public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order",
       "public func contains<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : Bool",
       "public func empty<T>() : List<T>",
       "public func entries<T>(list : List<T>) : Iter.Iter<(T, Nat)>",
@@ -523,7 +523,7 @@
       "public func sort<T>(list : List<T>, compare : (T, T) -> Order.Order)",
       "public func toArray<T>(list : List<T>) : [T]",
       "public func toPure<T>(list : List<T>) : PureList.List<T>",
-      "public func toText<T>(list : List<T>, toText_fn : T -> Text) : Text",
+      "public func toText<T>(list : List<T>, f : T -> Text) : Text",
       "public func toVarArray<T>(list : List<T>) : [var T]",
       "public func values<T>(list : List<T>) : Iter.Iter<T>",
       "public func valuesRev<T>(list : List<T>) : Iter.Iter<T>"

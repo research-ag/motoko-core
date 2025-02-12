@@ -104,7 +104,7 @@ module {
   ///
   /// Space: `O(size)`
   public func toPure<T>(list : List<T>) : PureList.List<T> {
-    PureList.fromIter(values(list))
+    PureList.fromIter(values(list)) // TODO: optimize
   };
 
   /// Converts a purely functional `List` to a mutable `List`.
@@ -112,7 +112,7 @@ module {
   /// Example:
   /// ```motoko
   /// import PureList "mo:base/pure/List";
-  /// 
+  ///
   /// let pureList = PureList.fromArray<Nat>([1, 2, 3]);
   /// let list = List.fromPure<Nat>(pureList); // converts to mutable List
   /// ```
@@ -120,8 +120,10 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(size)`
-  public func fromPure<T>(list : PureList.List<T>) : List<T> {
-    fromIter(PureList.values(list))
+  public func fromPure<T>(pure : PureList.List<T>) : List<T> {
+    let list = empty<T>();
+    PureList.forEach<T>(pure, func(x) = add(list, x));
+    list
   };
 
   /// Add to list `count` copies of the initial value.
@@ -233,12 +235,12 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
-  public func map<T1, T2>(list : List<T1>, f : T1 -> T2) : List<T2> = {
-    var blocks = VarArray.tabulate<[var ?T2]>(
+  public func map<T, R>(list : List<T>, f : T -> R) : List<R> = {
+    var blocks = VarArray.tabulate<[var ?R]>(
       list.blocks.size(),
       func(i) {
         let db = list.blocks[i];
-        VarArray.tabulate<?T2>(
+        VarArray.tabulate<?R>(
           db.size(),
           func(j) = switch (db[j]) {
             case (?item) ?f(item);
@@ -249,6 +251,60 @@ module {
     );
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex
+  };
+
+  /// Returns a new list containing only the elements from `list` for which the predicate returns true.
+  ///
+  /// Example:
+  /// ```motoko
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4]);
+  /// let evenNumbers = List.filter<Nat>(list, func x = x % 2 == 0);
+  /// List.toArray(evenNumbers); // => [2, 4]
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
+  ///
+  /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
+  public func filter<T>(list : List<T>, predicate : T -> Bool) : List<T> {
+    let filtered = empty<T>();
+    forEach<T>(
+      list,
+      func(x) {
+        if (predicate(x)) add(filtered, x)
+      }
+    );
+    filtered
+  };
+
+  /// Returns a new list containing all elements from `list` for which the function returns ?element.
+  /// Discards all elements for which the function returns null.
+  ///
+  /// Example:
+  /// ```motoko
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4]);
+  /// let doubled = List.filterMap<Nat, Nat>(list, func x = if (x % 2 == 0) ?x * 2 else null);
+  /// List.toArray(doubled); // => [4, 8]
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
+  public func filterMap<T, R>(list : List<T>, f : T -> ?R) : List<R> {
+    let filtered = empty<R>();
+    forEach<T>(
+      list,
+      func(x) {
+        switch (f(x)) {
+          case (?y) add(filtered, y);
+          case null {}
+        }
+      }
+    );
+    filtered
   };
 
   /// Returns the current number of elements in the list.

@@ -116,9 +116,8 @@ module {
     todo()
   };
 
-  public func flatten<T>(list : List<List<T>>) : List<T> {
-    foldRight(list, empty<T>(), concat)
-  };
+  public func flatten<T>(list : List<List<T>>) : List<T> =
+    foldRight<List<T>, List<T>>(list, null, func(list1, list2) = concat(list1, list2));
 
   public func take<T>(list : List<T>, n : Nat) : List<T> =
     if (n == 0) null

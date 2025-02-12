@@ -92,10 +92,34 @@ module {
     }
   };
 
+  /// Converts a mutable `List` to a purely functional `PureList`.
+  ///
+  /// Example:
+  /// ```motoko
+  /// let list = List.fromArray<Nat>([1, 2, 3]);
+  /// let pureList = List.toPure<Nat>(list); // converts to immutable PureList
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func toPure<T>(list : List<T>) : PureList.List<T> {
     PureList.fromIter(values(list))
   };
 
+  /// Converts a purely functional `List` to a mutable `List`.
+  ///
+  /// Example:
+  /// ```motoko
+  /// import PureList "mo:base/pure/List";
+  /// 
+  /// let pureList = PureList.fromArray<Nat>([1, 2, 3]);
+  /// let list = List.fromPure<Nat>(pureList); // converts to mutable List
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func fromPure<T>(list : PureList.List<T>) : List<T> {
     fromIter(PureList.values(list))
   };

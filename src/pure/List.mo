@@ -117,7 +117,7 @@ module {
   };
 
   public func flatten<T>(list : List<List<T>>) : List<T> {
-    todo()
+    foldRight(list, null, concat)
   };
 
   public func take<T>(list : List<T>, n : Nat) : List<T> =

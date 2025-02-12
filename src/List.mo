@@ -8,6 +8,7 @@
 /// Main author: Andrii Stepanov
 /// Contributors: Timo Hanke (timohanke), Andy Gura (andygura), react0r-com
 
+import PureList "pure/List";
 import Prim "mo:⛔";
 import { bitcountLeadingZero = leadingZeros; fromNat = Nat32; toNat = Nat } "Nat32";
 import Array "Array";
@@ -89,6 +90,14 @@ module {
       var blockIndex = blockIndex;
       var elementIndex = elementIndex
     }
+  };
+
+  public func toPure<T>(list : List<T>) : PureList.List<T> {
+    PureList.fromIter(values(list))
+  };
+
+  public func fromPure<T>(list : PureList.List<T>) : List<T> {
+    fromIter(PureList.values(list))
   };
 
   /// Add to list `count` copies of the initial value.

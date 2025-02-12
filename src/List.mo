@@ -10,10 +10,10 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
-import { bitcountLeadingZero = leadingZeros; fromNat = Nat32; toNat = Nat } "Nat32";
+import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
-import { min = natMin; compare = natCompare; range } "Nat";
+import Nat "Nat";
 import Order "Order";
 import Option "Option";
 import VarArray "VarArray";
@@ -68,7 +68,7 @@ module {
   public func repeat<T>(initValue : T, size : Nat) : List<T> {
     let (blockIndex, elementIndex) = locate(size);
 
-    let blocks = new_index_block_length(Nat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let blocks = new_index_block_length(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let data_blocks = VarArray.repeat<[var ?T]>([var], blocks);
     var i = 1;
     while (i < blockIndex) {
@@ -136,7 +136,7 @@ module {
   /// Runtime: `O(count)`
   public func addRepeat<T>(list : List<T>, initValue : T, count : Nat) {
     let (blockIndex, elementIndex) = locate(size(list) + count);
-    let blocks = new_index_block_length(Nat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let blocks = new_index_block_length(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
 
     let old_blocks = list.blocks.size();
     if (old_blocks < blocks) {
@@ -161,7 +161,7 @@ module {
           list.blocks[list.blockIndex] := VarArray.repeat<?T>(null, db_size)
         };
         let from = list.elementIndex;
-        let to = natMin(list.elementIndex + cnt, db_size);
+        let to = Nat.min(list.elementIndex + cnt, db_size);
 
         let block = list.blocks[list.blockIndex];
         var i = from;
@@ -317,8 +317,8 @@ module {
   ///
   /// Runtime: `O(1)` (with some internal calculations)
   public func size<T>(list : List<T>) : Nat {
-    let d = Nat32(list.blockIndex);
-    let i = Nat32(list.elementIndex);
+    let d = Nat32.fromNat(list.blockIndex);
+    let i = Nat32.fromNat(list.elementIndex);
 
     // We call all data blocks of the same capacity an "epoch". We number the epochs 0,1,2,...
     // A data block is in epoch e iff the data block has capacity 2 ** e.
@@ -327,7 +327,7 @@ module {
 
     // epoch of last data block
     // e = 32 - lz
-    let lz = leadingZeros(d / 3);
+    let lz = Nat32.bitcountLeadingZero(d / 3);
 
     // capacity of all prior epochs combined
     // capacity_before_e = 2 * 4 ** (e - 1) - 1
@@ -340,25 +340,25 @@ module {
 
     // there can be overflows, but the result is without overflows, so use addWrap and subWrap
     // we don't erase bits by >>, so to use <>> is ok
-    Nat((d -% (1 <>> lz)) <>> lz +% i)
+    Nat32.toNat((d -% (1 <>> lz)) <>> lz +% i)
   };
 
   func data_block_size(blockIndex : Nat) : Nat {
     // formula for the size of given blockIndex
     // don't call it for blockIndex == 0
-    Nat(1 <>> leadingZeros(Nat32(blockIndex) / 3))
+    Nat32.toNat(1 <>> Nat32.bitcountLeadingZero(Nat32.fromNat(blockIndex) / 3))
   };
 
   func new_index_block_length(blockIndex : Nat32) : Nat {
     if (blockIndex <= 1) 2 else {
-      let s = 30 - leadingZeros(blockIndex);
-      Nat(((blockIndex >> s) +% 1) << s)
+      let s = 30 - Nat32.bitcountLeadingZero(blockIndex);
+      Nat32.toNat(((blockIndex >> s) +% 1) << s)
     }
   };
 
   func grow_index_block_if_needed<T>(list : List<T>) {
     if (list.blocks.size() == list.blockIndex) {
-      let new_blocks = VarArray.repeat<[var ?T]>([var], new_index_block_length(Nat32(list.blockIndex)));
+      let new_blocks = VarArray.repeat<[var ?T]>([var], new_index_block_length(Nat32.bitcountLeadingZero(Nat32.fromNat(list.blockIndex))));
       var i = 0;
       while (i < list.blockIndex) {
         new_blocks[i] := list.blocks[i];
@@ -369,9 +369,9 @@ module {
   };
 
   func shrink_index_block_if_needed<T>(list : List<T>) {
-    let blockIndex = Nat32(list.blockIndex);
+    let blockIndex = Nat32.fromNat(list.blockIndex);
     // kind of index of the first block in the super block
-    if ((blockIndex << leadingZeros(blockIndex)) << 2 == 0) {
+    if ((blockIndex << Nat32.bitcountLeadingZero(blockIndex)) << 2 == 0) {
       let new_length = new_index_block_length(blockIndex);
       if (new_length < list.blocks.size()) {
         let new_blocks = VarArray.repeat<[var ?T]>([var], new_length);
@@ -474,13 +474,13 @@ module {
 
   func locate(index : Nat) : (Nat, Nat) {
     // see comments in tests
-    let i = Nat32(index);
-    let lz = leadingZeros(i);
+    let i = Nat32.fromNat(index);
+    let lz = Nat32.bitcountLeadingZero(i);
     let lz2 = lz >> 1;
     if (lz & 1 == 0) {
-      (Nat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat(i & (0xFFFF >> lz2)))
+      (Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat32.toNat(i & (0xFFFF >> lz2)))
     } else {
-      (Nat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat(i & (0x7FFF >> lz2)))
+      (Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat32.toNat(i & (0x7FFF >> lz2)))
     }
   };
 
@@ -503,14 +503,14 @@ module {
     //     case (?element) element;
     //     case (null) Prim.trap "";
     //   };
-    let i = Nat32(index);
-    let lz = leadingZeros(i);
+    let i = Nat32.fromNat(index);
+    let lz = Nat32.bitcountLeadingZero(i);
     let lz2 = lz >> 1;
     switch (
       if (lz & 1 == 0) {
-        list.blocks[Nat(((i << lz2) >> 16) ^ (0x10000 >> lz2))][Nat(i & (0xFFFF >> lz2))]
+        list.blocks[Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2))][Nat32.toNat(i & (0xFFFF >> lz2))]
       } else {
-        list.blocks[Nat(((i << lz2) >> 15) ^ (0x18000 >> lz2))][Nat(i & (0x7FFF >> lz2))]
+        list.blocks[Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2))][Nat32.toNat(i & (0x7FFF >> lz2))]
       }
     ) {
       case (?result) return result;
@@ -953,7 +953,7 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
-  public func keys<T>(list : List<T>) : Iter.Iter<Nat> = range(0, size(list));
+  public func keys<T>(list : List<T>) : Iter.Iter<Nat> = Nat.range(0, size(list));
 
   /// Creates a List containing elements from `iter`.
   ///
@@ -1101,7 +1101,7 @@ module {
   public func fromArray<T>(array : [T]) : List<T> {
     let (blockIndex, elementIndex) = locate(array.size());
 
-    let blocks = new_index_block_length(Nat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let blocks = new_index_block_length(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let data_blocks = VarArray.repeat<[var ?T]>([var], blocks);
     var i = 1;
     var pos = 0;
@@ -1177,7 +1177,7 @@ module {
   public func fromVarArray<T>(array : [var T]) : List<T> {
     let (blockIndex, elementIndex) = locate(array.size());
 
-    let blocks = new_index_block_length(Nat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let blocks = new_index_block_length(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let data_blocks = VarArray.repeat<[var ?T]>([var], blocks);
     var i = 1;
     var pos = 0;
@@ -1621,7 +1621,7 @@ module {
       i += 1
     };
 
-    return natCompare(size1, size2)
+    return Nat.compare(size1, size2)
   };
 
   /// Creates a textual representation of `list`, using `toText` to recursively

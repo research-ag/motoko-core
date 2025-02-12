@@ -667,6 +667,70 @@ run(
 
 /* --------------------------------------- */
 
+list := List.fromArray<Nat>([0, 1, 2, 3, 4, 5, 6]);
+
+run(
+  suite(
+    "filter",
+    [
+      test(
+        "filter evens",
+        List.toArray(List.filter<Nat>(list, func x = x % 2 == 0)),
+        M.equals(T.array(T.natTestable, [0, 2, 4, 6]))
+      ),
+      test(
+        "filter none",
+        List.toArray(List.filter<Nat>(list, func _ = false)),
+        M.equals(T.array(T.natTestable, [] : [Nat]))
+      ),
+      test(
+        "filter all",
+        List.toArray(List.filter<Nat>(list, func _ = true)),
+        M.equals(T.array(T.natTestable, [0, 1, 2, 3, 4, 5, 6]))
+      ),
+      test(
+        "filter empty",
+        List.isEmpty(List.filter<Nat>(List.empty<Nat>(), func _ = true)),
+        M.equals(T.bool(true))
+      )
+    ]
+  )
+);
+
+/* --------------------------------------- */
+
+list := List.fromArray<Nat>([0, 1, 2, 3, 4, 5, 6]);
+
+run(
+  suite(
+    "filterMap",
+    [
+      test(
+        "filterMap double evens",
+        List.toArray(List.filterMap<Nat, Nat>(list, func x = if (x % 2 == 0) ?(x * 2) else null)),
+        M.equals(T.array(T.natTestable, [0, 4, 8, 12]))
+      ),
+      test(
+        "filterMap none",
+        List.toArray(List.filterMap<Nat, Nat>(list, func _ = null)),
+        M.equals(T.array(T.natTestable, [] : [Nat]))
+      ),
+      test(
+        "filterMap all",
+        List.toArray(List.filterMap<Nat, Text>(list, func x = ?(Nat.toText(x)))),
+        M.equals(T.array(T.textTestable, ["0", "1", "2", "3", "4", "5", "6"]))
+      ),
+      test(
+        "filterMap empty",
+        List.isEmpty(List.filterMap<Nat, Nat>(List.empty<Nat>(), func x = ?x)),
+        M.equals(T.bool(true))
+      )
+    ]
+  )
+);
+
+/* --------------------------------------- */
+
 list := List.fromArray<Nat>([8, 6, 9, 10, 0, 4, 2, 3, 7, 1, 5]);
 
 run(
@@ -1024,6 +1088,56 @@ func testFoldRight(n : Nat) : Bool {
   List.foldRight<Nat, Text>(vec, "", func(x, acc) = Nat.toText(x) # acc) == Array.foldRight<Nat, Text>(Array.tabulate<Nat>(n, func(i) = i + 1), "", func(x, acc) = Nat.toText(x) # acc)
 };
 
+func testFilter(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  
+  let evens = List.filter<Nat>(vec, func x = x % 2 == 0);
+  let expectedEvens = List.fromArray<Nat>(Array.tabulate<Nat>((n + 1) / 2, func(i) = i * 2));
+  if (not List.equal<Nat>(evens, expectedEvens, Nat.equal)) {
+    Debug.print("Filter evens failed");
+    return false;
+  };
+
+  let none = List.filter<Nat>(vec, func _ = false);
+  if (not List.isEmpty(none)) {
+    Debug.print("Filter none failed");
+    return false;
+  };
+
+  let all = List.filter<Nat>(vec, func _ = true);
+  if (not List.equal<Nat>(all, vec, Nat.equal)) {
+    Debug.print("Filter all failed");
+    return false;
+  };
+
+  true
+};
+
+func testFilterMap(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  
+  let doubledEvens = List.filterMap<Nat, Nat>(vec, func x = if (x % 2 == 0) ?(x * 2) else null);
+  let expectedDoubledEvens = List.fromArray<Nat>(Array.tabulate<Nat>((n + 1) / 2, func(i) = i * 4));
+  if (not List.equal<Nat>(doubledEvens, expectedDoubledEvens, Nat.equal)) {
+    Debug.print("FilterMap doubled evens failed");
+    return false;
+  };
+
+  let none = List.filterMap<Nat, Nat>(vec, func _ = null);
+  if (not List.isEmpty(none)) {
+    Debug.print("FilterMap none failed");
+    return false;
+  };
+
+  let all = List.filterMap<Nat, Nat>(vec, func x = ?x);
+  if (not List.equal<Nat>(all, vec, Nat.equal)) {
+    Debug.print("FilterMap all failed");
+    return false;
+  };
+
+  true
+};
+
 // Run all tests
 func runAllTests() {
   runTest("testNew", testNew);
@@ -1045,7 +1159,9 @@ func runAllTests() {
   runTest("testToArray", testToArray);
   runTest("testFromIter", testFromIter);
   runTest("testFoldLeft", testFoldLeft);
-  runTest("testFoldRight", testFoldRight)
+  runTest("testFoldRight", testFoldRight);
+  runTest("testFilter", testFilter);
+  runTest("testFilterMap", testFilterMap)
 };
 
 // Run all tests

@@ -230,6 +230,22 @@ module {
       }
     };
 
+  /// Maps a `Result`-returning function `f` over a `List` and returns either
+  /// the first error or a list of successful values.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.mapResult<Nat, Nat, Text>(
+  ///   ?(1, ?(2, ?(3, null))),
+  ///   func n = if (n > 0) #ok(n * 2) else #err "Some element is zero"
+  /// ) // => #ok ?(2, ?(4, ?(6, null))
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func mapResult<T, R, E>(list : List<T>, f : T -> Result.Result<R, E>) : Result.Result<List<R>, E> =
     switch list {
       case null #ok null;
@@ -267,6 +283,19 @@ module {
       }
     };
 
+  /// Append the elements from one list to another list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.concat<Nat>(
+  ///   ?(0, ?(1, ?(2, null))),
+  ///   ?(3, ?(4, ?(5, null)))
+  /// ) // => ?(0, ?(1, ?(2, ?(3, ?(4, ?(5, null))))))
+  /// ```
+  ///
+  /// Runtime: O(size(l))
+  ///
+  /// Space: O(size(l))
   public func concat<T>(list1 : List<T>, list2 : List<T>) : List<T> =
     switch list1 {
       case null list2;
@@ -279,9 +308,38 @@ module {
     concat(l, ls)
   };
 
+  /// Flatten, or repatedly concatenate, a list of lists as a list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.flatten<Nat>(
+  ///   ?(?(0, ?(1, ?(2, null))),
+  ///     ?(?(3, ?(4, ?(5, null))),
+  ///       null))
+  /// ); // => ?(0, ?(1, ?(2, ?(3, ?(4, ?(5, null))))))
+  /// ```
+  ///
+  /// Runtime: O(size*size)
+  ///
+  /// Space: O(size*size)
   public func flatten<T>(list : List<List<T>>) : List<T> =
     foldRight<List<T>, List<T>>(list, null, func(list1, list2) = concat(list1, list2));
 
+  /// Returns the first `n` elements of the given list.
+  /// If the given list has fewer than `n` elements, this function returns
+  /// a copy of the full input list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.take<Nat>(
+  ///   ?(0, ?(1, ?(2, null))),
+  ///   2
+  /// ); // => ?(0, ?(1, null))
+  /// ```
+  ///
+  /// Runtime: O(n)
+  ///
+  /// Space: O(n)
   public func take<T>(list : List<T>, n : Nat) : List<T> =
     if (n == 0) null
     else switch list {
@@ -289,6 +347,19 @@ module {
       case (?(h, t)) ?(h, take(t, n - 1))
     };
 
+  /// Drop the first `n` elements from the given list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.drop<Nat>(
+  ///   ?(0, ?(1, ?(2, null))),
+  ///   2
+  /// ); // => ?(2, null)
+  /// ```
+  ///
+  /// Runtime: O(n)
+  ///
+  /// Space: O(1)
   public func drop<T>(list : List<T>, n : Nat) : List<T> =
     if (n == 0) list
     else switch list {
@@ -296,18 +367,75 @@ module {
       case (?(h, t)) drop(t, n - 1)
     };
 
+  /// Collapses the elements in `list` into a single value by starting with `base`
+  /// and progessively combining elements into `base` with `combine`. Iteration runs
+  /// left to right.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// import Nat "mo:base/Nat";
+  ///
+  /// List.foldLeft<Nat, Text>(
+  ///   ?(1, ?(2, ?(3, null))),
+  ///   "",
+  ///   func (acc, x) = acc # Nat.toText(x)
+  /// ) // => "123"
+  /// ```
+  ///
+  /// Runtime: O(size(list))
+  ///
+  /// Space: O(1) heap, O(1) stack
+  ///
+  /// *Runtime and space assumes that `combine` runs in O(1) time and space.
   public func foldLeft<T, A>(list : List<T>, base : A, combine : (A, T) -> A) : A =
     switch list {
       case null base;
       case (?(h, t)) foldLeft(t, combine(base, h), combine)
     };
 
+  /// Collapses the elements in `buffer` into a single value by starting with `base`
+  /// and progessively combining elements into `base` with `combine`. Iteration runs
+  /// right to left.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// import Nat "mo:base/Nat";
+  ///
+  /// List.foldRight<Nat, Text>(
+  ///   ?(1, ?(2, ?(3, null))),
+  ///   "",
+  ///   func (x, acc) = Nat.toText(x) # acc
+  /// ) // => "123"
+  /// ```
+  ///
+  /// Runtime: O(size(list))
+  ///
+  /// Space: O(1) heap, O(size(list)) stack
+  ///
+  /// *Runtime and space assumes that `combine` runs in O(1) time and space.
   public func foldRight<T, A>(list : List<T>, base : A, combine : (T, A) -> A) : A =
     switch list {
       case null base;
       case (?(h, t)) combine(h, foldRight(t, base, combine))
     };
 
+  /// Return the first element for which the given predicate `f` is true,
+  /// if such an element exists.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  ///
+  /// List.find<Nat>(
+  ///   ?(1, ?(2, ?(3, null))),
+  ///   func n = n > 1
+  /// ); // => ?2
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func find<T>(list : List<T>, f : T -> Bool) : ?T =
     switch list {
       case null null;

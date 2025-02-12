@@ -174,16 +174,20 @@ module {
       case (_, null) list1
     };
 
-  public func compare<T>(list1 : List<T>, list2 : List<T>, comp : (T, T) -> Order.Order) : Order.Order =
-    switch (list1, list2) {
-      case (?(h1, t1), ?(h2, t2)) switch (comp(h1, h2)) {
-        case (#equal) compare(t1, t2, comp);
-        case o o
+  public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order {
+    type Order = Order.Order;
+    func go(list1 : List<T>, list2 : List<T>, comp : (T, T) -> Order) : Order =
+      switch (list1, list2) {
+        case (?(h1, t1), ?(h2, t2)) switch (comp(h1, h2)) {
+          case (#equal) go(t1, t2, comp);
+          case o o
+        };
+        case (null, null) #equal;
+        case (null, _) #less;
+        case _ #greater
       };
-      case (null, null) #equal;
-      case (null, _) #less;
-      case _ #greater
-    };
+    go() // FIXME: only needed because of above shadowing
+  };
 
   public func tabulate<T>(n : Nat, f : Nat -> T) : List<T> {
     func go(at : Nat, n : Nat) : List<T> =

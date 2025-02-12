@@ -113,7 +113,9 @@ module {
     };
 
   public func join<T>(list : Iter.Iter<List<T>>) : List<T> {
-    todo()
+    let ?l = list.next() else return null;
+    let ls = join list;
+    concat(l, ls)
   };
 
   public func flatten<T>(list : List<List<T>>) : List<T> =

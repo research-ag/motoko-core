@@ -20,11 +20,41 @@ module {
 
   public type List<T> = Types.Pure.List<T>;
 
+  /// Create an empty list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.empty<Nat>() // => null
+  /// ```
+  ///
+  /// Runtime: O(1)
+  ///
+  /// Space: O(1)
   public func empty<T>() : List<T> = null;
 
+  /// Check whether a list is empty and return true if the list is empty.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.isEmpty<Nat>(null) // => true
+  /// ```
+  ///
+  /// Runtime: O(1)
+  ///
+  /// Space: O(1)
   public func isEmpty<T>(list : List<T>) : Bool =
     switch list { case null true; case _ false };
 
+  /// Return the length of the list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.size<Nat>(?(0, ?(1, null))) // => 2
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
   public func size<T>(list : List<T>) : Nat =
     switch list {
       case null 0;
@@ -35,14 +65,47 @@ module {
     todo()
   };
 
+  /// Access any item in a list, zero-based.
+  ///
+  /// NOTE: Indexing into a list is a linear operation, and usually an
+  /// indication that a list might not be the best data structure
+  /// to use.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.get<Nat>(?(0, ?(1, null)), 1) // => ?1
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
   public func get<T>(list : List<T>, n : Nat) : ?T =
     switch list {
       case null null;
       case (?(h, t)) if (n == 0) ?h else get(t, n - 1)
     };
 
+  /// Add `item` to the head of `list`, and return the new list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.push<Nat>(0, null) // => ?(0, null);
+  /// ```
+  ///
+  /// Runtime: O(1)
+  ///
+  /// Space: O(1)
   public func push<T>(list : List<T>, item : T) : List<T> = ?(item, list);
 
+  /// Return the last element of the list, if present.
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.last<Nat>(?(0, ?(1, null))) // => ?1
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
   public func last<T>(list : List<T>) : ?T =
     switch list {
       case (?(h, null)) ?h;
@@ -50,12 +113,33 @@ module {
       case (?(_, t)) last t
     };
 
+  /// Remove the head of the list, returning the optioned head and the tail of the list in a pair.
+  /// Returns `(null, null)` if the list is empty.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.pop<Nat>(?(0, ?(1, null))) // => (?0, ?(1, null))
+  /// ```
+  ///
+  /// Runtime: O(1)
+  ///
+  /// Space: O(1)
   public func pop<T>(list : List<T>) : (?T, List<T>) =
     switch list {
       case null (null, null);
       case (?(h, t)) (?h, t)
     };
 
+  /// Reverses the list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.reverse<Nat>(?(0, ?(1, ?(2, null)))) // => ?(2, ?(1, ?(0, null)))
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
   public func reverse<T>(list : List<T>) : List<T> {
     func go(acc : List<T>, list : List<T>) : List<T> =
       switch list {
@@ -65,24 +149,78 @@ module {
     go(null, list)
   };
 
+  /// Call the given function for its side effect, with each list element in turn.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// var sum = 0;
+  /// List.forEach<Nat>(?(0, ?(1, ?(2, null))), func n = sum += n);
+  /// sum // => 3
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func forEach<T>(list : List<T>, f : T -> ()) =
     switch list {
       case null ();
       case (?(h, t)) { f h; forEach(t, f) }
     };
 
+  /// Call the given function `f` on each list element and collect the results
+  /// in a new list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// import Nat = "mo:base/Nat"
+  /// List.map<Nat, Text>(?(0, ?(1, ?(2, null))), Nat.toText) // => ?("0", ?("1", ?("2", null))
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func map<T1, T2>(list : List<T1>, f : T1 -> T2) : List<T2> =
     switch list {
       case null null;
       case (?(h, t)) ?(f h, map(t, f))
     };
 
+  /// Create a new list with only those elements of the original list for which
+  /// the given function (often called the _predicate_) returns true.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.filter<Nat>(?(0, ?(1, ?(2, null))), func n = n != 1) // => ?(0, ?(2, null))
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
   public func filter<T>(list : List<T>, f : T -> Bool) : List<T> =
     switch list {
       case null null;
       case (?(h, t)) if (f h) ?(h, filter(t, f)) else filter(t, f)
     };
 
+  /// Call the given function on each list element, and collect the non-null results
+  /// in a new list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.filterMap<Nat, Nat>(
+  ///   ?(1, ?(2, ?(3, null))),
+  ///   func n = if (n > 1) ?(n * 2) else null
+  /// ) // => ?(4, ?(6, null))
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func filterMap<T, R>(list : List<T>, f : T -> ?R) : List<R> =
     switch list {
       case null null;
@@ -104,6 +242,21 @@ module {
       }
     };
 
+  /// Create two new lists from the results of a given function (`f`).
+  /// The first list only includes the elements for which the given
+  /// function `f` returns true and the second list only includes
+  /// the elements for which the function returns false.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// List.partition<Nat>(?(0, ?(1, ?(2, null))), func n { n != 1 }) // => (?(0, ?(2, null)), ?(1, null))
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func partition<T>(list : List<T>, f : T -> Bool) : (List<T>, List<T>) =
     switch list {
       case null (null, null);

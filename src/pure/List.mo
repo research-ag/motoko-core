@@ -186,7 +186,7 @@ module {
         case (null, _) #less;
         case _ #greater
       };
-    go() // FIXME: only needed because of above shadowing
+    go(list1, list2, compare) // FIXME: only needed because of above shadowing
   };
 
   public func tabulate<T>(n : Nat, f : Nat -> T) : List<T> {

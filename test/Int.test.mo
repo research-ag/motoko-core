@@ -963,18 +963,18 @@ do {
 };
 
 do {
-  Debug.print("rangeWithStep()");
+  Debug.print("rangeBy()");
 
-  assert Array.fromIter(Int.rangeWithStep(0, 3, 1)) == [0, 1, 2];
-  assert Array.fromIter(Int.rangeWithStep(0, 3, 2)) == [0, 2];
-  assert Array.fromIter(Int.rangeWithStep(0, 3, 3)) == [0];
-  assert Array.fromIter(Int.rangeWithStep(1, 4, 2)) == [1, 3];
-  assert Array.fromIter(Int.rangeWithStep(1, 3, 2)) == [1];
-  assert Array.fromIter(Int.rangeWithStep(3, 0, -1)) == [3, 2, 1];
-  assert Array.fromIter(Int.rangeWithStep(3, 1, -1)) == [3, 2];
-  assert Array.fromIter(Int.rangeWithStep(3, 0, -2)) == [3, 1];
-  assert Array.fromIter(Int.rangeWithStep(3, 1, -2)) == [3];
-  assert Array.fromIter(Int.rangeWithStep(1, 3, -1)) == [];
-  assert Array.fromIter(Int.rangeWithStep(0, 1, 0)) == [];
-  assert Array.fromIter(Int.rangeWithStep(1, 0, 0)) == []
+  assert Array.fromIter(Int.rangeBy(0, 3, 1)) == [0, 1, 2];
+  assert Array.fromIter(Int.rangeBy(0, 3, 2)) == [0, 2];
+  assert Array.fromIter(Int.rangeBy(0, 3, 3)) == [0];
+  assert Array.fromIter(Int.rangeBy(1, 4, 2)) == [1, 3];
+  assert Array.fromIter(Int.rangeBy(1, 3, 2)) == [1];
+  assert Array.fromIter(Int.rangeBy(3, 0, -1)) == [3, 2, 1];
+  assert Array.fromIter(Int.rangeBy(3, 1, -1)) == [3, 2];
+  assert Array.fromIter(Int.rangeBy(3, 0, -2)) == [3, 1];
+  assert Array.fromIter(Int.rangeBy(3, 1, -2)) == [3];
+  assert Array.fromIter(Int.rangeBy(1, 3, -1)) == [];
+  assert Array.fromIter(Int.rangeBy(0, 1, 0)) == [];
+  assert Array.fromIter(Int.rangeBy(1, 0, 0)) == []
 }

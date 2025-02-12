@@ -391,14 +391,14 @@ module {
   /// import Iter "mo:base/Iter";
   ///
   /// // Positive step
-  /// let iter1 = Nat.rangeWithStep(1, 7, 2);
+  /// let iter1 = Nat.rangeBy(1, 7, 2);
   /// assert(?1 == iter1.next());
   /// assert(?3 == iter1.next());
   /// assert(?5 == iter1.next());
   /// assert(null == iter1.next());
   ///
   /// // Negative step
-  /// let iter2 = Nat.rangeWithStep(7, 1, -2);
+  /// let iter2 = Nat.rangeBy(7, 1, -2);
   /// assert(?7 == iter2.next());
   /// assert(?5 == iter2.next());
   /// assert(?3 == iter2.next());
@@ -406,7 +406,7 @@ module {
   /// ```
   ///
   /// If `step` is 0 or if the iteration would not progress towards the bound, returns an empty iterator.
-  public func rangeWithStep(fromInclusive : Nat, toExclusive : Nat, step : Int) : Iter.Iter<Nat> {
+  public func rangeBy(fromInclusive : Nat, toExclusive : Nat, step : Int) : Iter.Iter<Nat> {
     if (step == 0) {
       Iter.empty()
     } else if (step > 0) {

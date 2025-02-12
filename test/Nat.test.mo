@@ -40,18 +40,18 @@ do {
 };
 
 do {
-  Debug.print("  rangeWithStep");
+  Debug.print("  rangeBy");
 
-  assert Array.fromIter(Nat.rangeWithStep(0, 3, 1)) == [0, 1, 2];
-  assert Array.fromIter(Nat.rangeWithStep(0, 3, 2)) == [0, 2];
-  assert Array.fromIter(Nat.rangeWithStep(0, 3, 3)) == [0];
-  assert Array.fromIter(Nat.rangeWithStep(1, 4, 2)) == [1, 3];
-  assert Array.fromIter(Nat.rangeWithStep(1, 3, 2)) == [1];
-  assert Array.fromIter(Nat.rangeWithStep(3, 0, -1)) == [3, 2, 1];
-  assert Array.fromIter(Nat.rangeWithStep(3, 1, -1)) == [3, 2];
-  assert Array.fromIter(Nat.rangeWithStep(3, 0, -2)) == [3, 1];
-  assert Array.fromIter(Nat.rangeWithStep(3, 1, -2)) == [3];
-  assert Array.fromIter(Nat.rangeWithStep(1, 3, -1)) == [];
-  assert Array.fromIter(Nat.rangeWithStep(0, 1, 0)) == [];
-  assert Array.fromIter(Nat.rangeWithStep(1, 0, 0)) == [];
+  assert Array.fromIter(Nat.rangeBy(0, 3, 1)) == [0, 1, 2];
+  assert Array.fromIter(Nat.rangeBy(0, 3, 2)) == [0, 2];
+  assert Array.fromIter(Nat.rangeBy(0, 3, 3)) == [0];
+  assert Array.fromIter(Nat.rangeBy(1, 4, 2)) == [1, 3];
+  assert Array.fromIter(Nat.rangeBy(1, 3, 2)) == [1];
+  assert Array.fromIter(Nat.rangeBy(3, 0, -1)) == [3, 2, 1];
+  assert Array.fromIter(Nat.rangeBy(3, 1, -1)) == [3, 2];
+  assert Array.fromIter(Nat.rangeBy(3, 0, -2)) == [3, 1];
+  assert Array.fromIter(Nat.rangeBy(3, 1, -2)) == [3];
+  assert Array.fromIter(Nat.rangeBy(1, 3, -1)) == [];
+  assert Array.fromIter(Nat.rangeBy(0, 1, 0)) == [];
+  assert Array.fromIter(Nat.rangeBy(1, 0, 0)) == [];
 }

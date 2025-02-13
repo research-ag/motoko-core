@@ -504,4 +504,63 @@ module {
     }
   };
 
+  /// Returns an iterator over the integers from the first to second argument, inclusive,
+  /// incrementing by the specified step size.
+  /// ```motoko
+  /// import Iter "mo:base/Iter";
+  ///
+  /// // Positive step
+  /// let iter1 = Int.rangeByInclusive(1, 7, 2);
+  /// assert(?1 == iter1.next());
+  /// assert(?3 == iter1.next());
+  /// assert(?5 == iter1.next());
+  /// assert(?7 == iter1.next());
+  /// assert(null == iter1.next());
+  ///
+  /// // Negative step
+  /// let iter2 = Int.rangeByInclusive(7, 1, -2);
+  /// assert(?7 == iter2.next());
+  /// assert(?5 == iter2.next());
+  /// assert(?3 == iter2.next());
+  /// assert(?1 == iter2.next());
+  /// assert(null == iter2.next());
+  /// ```
+  ///
+  /// If `from == to`, return an iterator which only returns that value.
+  ///
+  /// Otherwise, if `step` is 0 or if the iteration would not progress towards the bound, returns an empty iterator.
+  public func rangeByInclusive(from : Int, to : Int, step : Int) : Iter.Iter<Int> {
+    if (step == 0) {
+      Iter.empty()
+    } else if (step > 0 and from < to) {
+      object {
+        var n = from;
+        public func next() : ?Int {
+          if (n >= to + 1) {
+            null
+          } else {
+            let current = n;
+            n += step;
+            ?current
+          }
+        }
+      }
+    } else if (step < 0 and from > to) {
+      object {
+        var n = from;
+        public func next() : ?Int {
+          if (n + 1 <= to) {
+            null
+          } else {
+            let current = n;
+            n += step;
+            ?current
+          }
+        }
+      }
+    } else {
+      Iter.empty()
+    }
+  };
+
 }

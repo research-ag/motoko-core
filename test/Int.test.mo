@@ -977,4 +977,27 @@ do {
   assert Array.fromIter(Int.rangeBy(1, 3, -1)) == [];
   assert Array.fromIter(Int.rangeBy(0, 1, 0)) == [];
   assert Array.fromIter(Int.rangeBy(1, 0, 0)) == []
+};
+
+do {
+  Debug.print("rangeByInclusive()");
+
+  assert Array.fromIter(Int.rangeByInclusive(1, 7, 2)) == [1, 3, 5, 7];
+  assert Array.fromIter(Int.rangeByInclusive(1, 6, 2)) == [1, 3, 5];
+  assert Array.fromIter(Int.rangeByInclusive(1, 3, 1)) == [1, 2, 3];
+
+  assert Array.fromIter(Int.rangeByInclusive(7, 1, -2)) == [7, 5, 3, 1];
+  assert Array.fromIter(Int.rangeByInclusive(6, 1, -2)) == [6, 4, 2];
+  assert Array.fromIter(Int.rangeByInclusive(3, 1, -1)) == [3, 2, 1];
+
+  assert Array.fromIter(Int.rangeByInclusive(-3, 3, 2)) == [-3, -1, 1, 3];
+  assert Array.fromIter(Int.rangeByInclusive(3, -3, -2)) == [3, 1, -1, -3];
+  assert Array.fromIter(Int.rangeByInclusive(-7, -1, 2)) == [-7, -5, -3, -1];
+
+  assert Array.fromIter(Int.rangeByInclusive(1, 1, 1)) == [1];
+  assert Array.fromIter(Int.rangeByInclusive(1, 1, -1)) == [1];
+  assert Array.fromIter(Int.rangeByInclusive(-1, -1, 1)) == [-1];
+  assert Array.fromIter(Int.rangeByInclusive(1, 2, 0)) == [];
+  assert Array.fromIter(Int.rangeByInclusive(2, 1, 1)) == [];
+  assert Array.fromIter(Int.rangeByInclusive(1, 2, -1)) == []
 }

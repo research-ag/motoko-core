@@ -411,14 +411,14 @@ module {
       Iter.empty()
     } else if (step > 0) {
       object {
-        let stepNat = Int.abs(step); // Convert from positive Int to Nat
+        let stepMagnitude = Int.abs(step);
         var n = fromInclusive;
         public func next() : ?Nat {
           if (n >= toExclusive) {
             return null
           };
           let current = n;
-          n += stepNat;
+          n += stepMagnitude;
           ?current
         }
       }
@@ -469,6 +469,67 @@ module {
       let current = n;
       n += 1;
       ?current
+    }
+  };
+
+  /// Returns an iterator over the integers from the first to second argument, inclusive,
+  /// incrementing by the specified step size. The step can be positive or negative.
+  /// ```motoko include=import
+  /// import Iter "mo:base/Iter";
+  ///
+  /// // Positive step
+  /// let iter1 = Nat.rangeByInclusive(1, 7, 2);
+  /// assert(?1 == iter1.next());
+  /// assert(?3 == iter1.next());
+  /// assert(?5 == iter1.next());
+  /// assert(?7 == iter1.next());
+  /// assert(null == iter1.next());
+  ///
+  /// // Negative step
+  /// let iter2 = Nat.rangeByInclusive(7, 1, -2);
+  /// assert(?7 == iter2.next());
+  /// assert(?5 == iter2.next());
+  /// assert(?3 == iter2.next());
+  /// assert(?1 == iter2.next());
+  /// assert(null == iter2.next());
+  /// ```
+  ///
+  /// If `from == to`, return an iterator which only
+  ///
+  /// Otherwise, if `step` is 0 or if the iteration would not progress towards the bound, returns an empty iterator.
+  public func rangeByInclusive(from : Nat, to : Nat, step : Int) : Iter.Iter<Nat> {
+    if (from == to) {
+      Iter.singleton(from)
+    } else if (step > 0) {
+      object {
+        let stepMagnitude = Int.abs(step);
+        var n = from + 1;
+        public func next() : ?Nat {
+          if (n >= to) {
+            return null
+          };
+          let current = n;
+          n += stepMagnitude;
+          ?current
+        }
+      }
+    } else {
+      object {
+        let stepMagnitude = Int.abs(step);
+        var n = from;
+        public func next() : ?Nat {
+          if (n + 1 <= to) {
+            return null
+          };
+          let current = n;
+          if (stepMagnitude > n) {
+            n := 0
+          } else {
+            n -= stepMagnitude
+          };
+          ?current
+        }
+      }
     }
   };
 

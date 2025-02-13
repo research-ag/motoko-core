@@ -250,7 +250,7 @@ run(
           let map = Map.empty<Nat, Text>();
           Map.toText<Nat, Text>(map, Nat.toText, func(value) { value })
         },
-        M.equals(T.text(""))
+        M.equals(T.text("{}"))
       ),
       test(
         "compare",
@@ -594,7 +594,7 @@ run(
           let map = Map.singleton<Nat, Text>(1, "1");
           Map.toText<Nat, Text>(map, Nat.toText, func(value) { value })
         },
-        M.equals(T.text("(1, 1)"))
+        M.equals(T.text("{(1, 1)}"))
       ),
       test(
         "compare less key",
@@ -1004,13 +1004,14 @@ run(
           Map.toText<Nat, Text>(map, Nat.toText, func(value) { value })
         },
         do {
-          var text = "";
+          var text = "{";
           for (index in Nat.range(0, smallSize)) {
-            if (text != "") {
+            if (text != "{") {
               text #= ", "
             };
             text #= "(" # Nat.toText(index) # ", " # Nat.toText(index) # ")"
           };
+	  text #= "}";
           M.equals(T.text(text))
         }
       ),

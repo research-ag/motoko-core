@@ -700,6 +700,15 @@ module {
       case (pre, post) ?(pre, chunks(post, n));
     };
 
+  /// Returns an iterator to the elements in the list.
+  ///
+  /// Example:
+  /// ```motoko include=initialize
+  /// var p = "";
+  /// for (e in List.values([3, 1, 4]))
+  ///   p #= debug_show e;
+  /// p // => "314"
+  /// ```
   public func values<T>(list : List<T>) : Iter.Iter<T> = object {
     var l = list;
     public func next() : ?T = switch l {

@@ -290,6 +290,9 @@ module {
   /// Runtime: `O(n)`.
   /// Space: `O(1)`.
   public func equal<K, V>(map1 : Map<K, V>, map2 : Map<K, V>, equalKeys : (K, K) -> Bool, equalValues : (V, V) -> Bool) : Bool {
+    if (size(map1) != size(map2)) {
+       return false;
+    };
     let iterator1 = entries(map1);
     let iterator2 = entries(map2);
     loop {
@@ -876,6 +879,7 @@ module {
     result
   };
 
+  // TODO: remove redundant compare function by copying structure of map, not rebuilding it.
   /// Project all values of the map in a new map.
   /// Apply a mapping function to the values of each entry in the map and
   /// collect the mapped entries in a new mutable key-value map.
@@ -1174,7 +1178,7 @@ module {
   ///   Map.add(map, Nat.compare, 2, "Two");
   ///
   ///   let text = Map.toText<Nat, Text>(map, Nat.toText, func (value) { value });
-  ///   // `"(0, Zero), (1, One), (2, Two)"`
+  ///   // `{(0, Zero), (1, One), (2, Two)}`
   /// }
   /// ```
   ///
@@ -1185,13 +1189,13 @@ module {
   ///
   /// Note: Creates `O(log(n))` temporary objects that will be collected as garbage.
   public func toText<K, V>(map : Map<K, V>, keyFormat : K -> Text, valueFormat : V -> Text) : Text {
-    var text = "";
+    var text = "{";
+    var sep = "";
     for ((key, value) in entries(map)) {
-      if (text != "") {
-        text #= ", "
-      };
-      text #= "(" # keyFormat(key) # ", " # valueFormat(value) # ")"
+      text #= sep # "(" # keyFormat(key) # ", " # valueFormat(value) # ")";
+      sep := ", "
     };
+    text #= "}";
     text
   };
 

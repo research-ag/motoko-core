@@ -530,7 +530,9 @@ module {
   ///
   /// Otherwise, if `step` is 0 or if the iteration would not progress towards the bound, returns an empty iterator.
   public func rangeByInclusive(from : Int, to : Int, step : Int) : Iter.Iter<Int> {
-    if (step == 0) {
+    if (from == to) {
+      Iter.singleton(from)
+    } else if (step == 0) {
       Iter.empty()
     } else if (step > 0 and from < to) {
       object {

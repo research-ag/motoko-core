@@ -503,9 +503,9 @@ module {
     } else if (step > 0) {
       object {
         let stepMagnitude = Int.abs(step);
-        var n = from + 1;
+        var n = from;
         public func next() : ?Nat {
-          if (n >= to) {
+          if (n >= to + 1) {
             return null
           };
           let current = n;

@@ -13,6 +13,7 @@ import Array "../Array";
 import Iter "../Iter";
 import Order "../Order";
 import Result "../Result";
+import { trap } "../Runtime";
 import Types "../Types";
 
 module {
@@ -60,7 +61,7 @@ module {
       case (?(_, t)) 1 + size t
     };
 
-  /// Check if the list contains a given value. Uses the provided equality function to compare values.
+  /// Check whether the list contains a given value. Uses the provided equality function to compare values.
   ///
   /// Example:
   /// ```motoko include=initialize
@@ -73,15 +74,11 @@ module {
   /// Space: O(1)
   ///
   /// *Runtime and space assumes that `equal` runs in O(1) time and space.
-  public func contains<T>(list : List<T>, equal : (T, T) -> Bool, item : T) : Bool {
+  public func contains<T>(list : List<T>, equal : (T, T) -> Bool, item : T) : Bool =
     switch list {
-      case null false;
-      case (?(head, tail)) {
-        if (equal(head, item)) true
-        else contains(tail, equal, item)
-      }
-    }
-  };
+      case (?(h, t)) equal(h, item) or contains(t, equal, item);
+      case _ false
+    };
 
   /// Access any item in a list, zero-based.
   ///
@@ -548,20 +545,13 @@ module {
   ///
   /// Space: O(1)
   ///
-  /// *Runtime and space assumes that `equal` runs in O(1) time and space.
-  public func equal<T>(list1 : List<T>, list2 : List<T>, equalFunc : (T, T) -> Bool) : Bool {
+  /// *Runtime and space assumes that `equalFunc` runs in O(1) time and space.
+  public func equal<T>(list1 : List<T>, list2 : List<T>, equalFunc : (T, T) -> Bool) : Bool =
     switch (list1, list2) {
       case (null, null) true;
-      case (?(h1, t1), ?(h2, t2)) {
-        if (equalFunc(h1, h2)) {
-          equal(t1, t2, equalFunc)
-        } else {
-          false
-        }
-      };
+      case (?(h1, t1), ?(h2, t2)) equalFunc(h1, h2) and equal(t1, t2, equalFunc);
       case _ false;
-    }
-  };
+    };
 
   /// Compare two lists using lexicographic ordering specified by argument function `compare`.
   ///
@@ -740,7 +730,7 @@ module {
   /// Space: O(size)
   public func chunks<T>(list : List<T>, n : Nat) : List<List<T>> =
     switch (split(list, n)) {
-      case (null, _) { assert n > 0; null };
+      case (null, _) { if (n == 0) trap "pure/List.chunks()"; null };
       case (pre, null) ?(pre, null);
       case (pre, post) ?(pre, chunks(post, n));
     };

@@ -47,7 +47,7 @@ module {
   type Data<T> = Types.Set.Data<T>;
   type Internal<T> = Types.Set.Internal<T>;
   type Leaf<T> = Types.Set.Leaf<T>;
- 
+
   /// Convert the mutable set to an immutable set.
   ///
   /// Example:
@@ -357,7 +357,7 @@ module {
   /// where `n` denotes the number of elements stored in the set and
   /// assuming that the `compare` function implements an `O(1)` comparison.
   public func add<T>(set : Set<T>, compare : (T, T) -> Order.Order, element : T) {
-    ignore insert(set, compare, element);
+    ignore insert(set, compare, element)
   };
 
   /// Insert a new element in the set.
@@ -395,11 +395,11 @@ module {
       case (#inserted) {
         // if inserted an element that was not previously there, increment the tree size counter
         set.size += 1;
-	true
+        true
       };
       case (#existent) {
         // keep size
-	false
+        false
       };
       case (#promote({ element = promotedElement; leftChild; rightChild })) {
         let elements = VarArray.repeat<?T>(null, btreeOrder - 1);
@@ -413,7 +413,7 @@ module {
         });
         // promotion always comes from inserting a new element, so increment the tree size counter
         set.size += 1;
-	true
+        true
       }
     }
   };
@@ -447,7 +447,7 @@ module {
   ///
   /// Note: Creates `O(log(n))` objects that will be collected as garbage.
   public func remove<T>(set : Set<T>, compare : (T, T) -> Order.Order, element : T) : () {
-    ignore delete(set, compare, element);
+    ignore delete(set, compare, element)
   };
 
   /// Deletes an element from a set.
@@ -864,7 +864,6 @@ module {
     deleted
   };
 
-
   /// Inserts all values in `iter` into `set`.
   /// Returns true if any value was not contained in the original set, otherwise false.
   /// The return value indicates whether the size of the set has changed.
@@ -895,7 +894,6 @@ module {
     };
     inserted
   };
-
 
   /// Removes all values in `set` that do not satisfy the given predicate.
   /// Returns `true` if and only if the size of the set has changed.
@@ -1393,7 +1391,7 @@ module {
       text #= sep # elementFormat(element);
       sep := ", "
     };
-    text # "}";
+    text # "}"
   };
 
   /// Compare two sets by comparing the elements.

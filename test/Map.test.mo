@@ -27,48 +27,48 @@ run(
         Map.isEmpty(Map.empty<Nat, Text>()),
         M.equals(T.bool(true))
       ),
-     test(
-       "add empty",
-	do {
-	  let map = Map.empty<Nat, Text>();
-	  Map.add(map, Nat.compare, 0, "0");
+      test(
+        "add empty",
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.add(map, Nat.compare, 0, "0");
           Iter.toArray(Map.entries(map))
-	},
-        M.equals(T.array(entryTestable, [(0,"0")]))
+        },
+        M.equals(T.array(entryTestable, [(0, "0")]))
       ),
       test(
         "insert empty",
-	do {
-	  let map = Map.empty<Nat, Text>();
+        do {
+          let map = Map.empty<Nat, Text>();
           assert Map.insert(map, Nat.compare, 0, "0");
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array(entryTestable, [(0, "0")]))
       ),
       test(
         "remove empty",
-	do {
-	  let map = Map.empty<Nat, Text>();
-	  Map.remove(map, Nat.compare, 0);
+        do {
+          let map = Map.empty<Nat, Text>();
+          Map.remove(map, Nat.compare, 0);
           Iter.toArray(Map.entries(map))
-	},
-        M.equals(T.array<(Nat,Text)>(entryTestable, []))
+        },
+        M.equals(T.array<(Nat, Text)>(entryTestable, []))
       ),
       test(
         "delete empty",
-	do {
-	  let map = Map.empty<Nat, Text>();
-	  assert (not Map.delete(map, Nat.compare, 0));
+        do {
+          let map = Map.empty<Nat, Text>();
+          assert (not Map.delete(map, Nat.compare, 0));
           Iter.toArray(Map.entries(map))
-	},
-        M.equals(T.array<(Nat,Text)>(entryTestable, []))
-       ),
+        },
+        M.equals(T.array<(Nat, Text)>(entryTestable, []))
+      ),
       test(
         "take absent",
-	do {
-	  let map = Map.empty<Nat, Text>();
+        do {
+          let map = Map.empty<Nat, Text>();
           Map.take(map, Nat.compare, 0)
-	},
+        },
         M.equals(T.optional(T.textTestable, null : ?Text))
       ),
       test(
@@ -336,80 +336,80 @@ run(
       ),
       test(
         "add singleton old",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
-	  Map.add(map, Nat.compare, 0, "1");
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.add(map, Nat.compare, 0, "1");
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "1")]))
       ),
       test(
         "add singleton new",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
-	  Map.add(map, Nat.compare, 1, "1");
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.add(map, Nat.compare, 1, "1");
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "0"), (1, "1")]))
       ),
       test(
         "insert singleton old",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
           assert (not Map.insert(map, Nat.compare, 0, "1"));
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "1")]))
-     ),
-     test(
+      ),
+      test(
         "insert singleton new",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
           assert Map.insert(map, Nat.compare, 1, "1");
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "0"), (1, "1")]))
       ),
       test(
         "remove singleton old",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
-	  Map.remove(map, Nat.compare, 0);
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.remove(map, Nat.compare, 0);
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, []))
       ),
       test(
         "remove singleton new",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
-	  Map.remove(map, Nat.compare, 1);
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          Map.remove(map, Nat.compare, 1);
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "0")]))
       ),
       test(
         "delete singleton old",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
-	  assert (Map.delete(map, Nat.compare, 0));
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          assert (Map.delete(map, Nat.compare, 0));
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, []))
       ),
       test(
         "delete singleton new",
-	do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
-	  assert (not Map.delete(map, Nat.compare, 1));
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
+          assert (not Map.delete(map, Nat.compare, 1));
           Iter.toArray(Map.entries(map))
-	},
+        },
         M.equals(T.array<(Nat, Text)>(entryTestable, [(0, "0")]))
       ),
       test(
         "take function result",
-       do {
-	  let map = Map.singleton<Nat, Text>(0, "0");
+        do {
+          let map = Map.singleton<Nat, Text>(0, "0");
           Map.take(map, Nat.compare, 0)
         },
         M.equals(T.optional(T.textTestable, ?"0"))
@@ -419,7 +419,7 @@ run(
         do {
           let map = Map.singleton<Nat, Text>(0, "0");
           ignore Map.take(map, Nat.compare, 0);
-          Map.size(map);
+          Map.size(map)
         },
         M.equals(T.nat(0))
       ),
@@ -844,15 +844,15 @@ run(
           let clone = Map.clone(original);
           let keys = Iter.toArray(Map.keys(original));
           for (key in keys.values()) {
-            ignore Map.add(original, Nat.compare, key, "X");
+            ignore Map.add(original, Nat.compare, key, "X")
           };
           for (key in keys.values()) {
-            assert Map.get(clone, Nat.compare, key) ==
-                   Map.get(copy, Nat.compare, key)
+            assert Map.get(clone, Nat.compare, key) == Map.get(copy, Nat.compare, key)
           };
           Map.size(clone)
         },
-        M.equals(T.nat(smallSize))),
+        M.equals(T.nat(smallSize))
+      ),
       test(
         "iterate forward",
         Iter.toArray(Map.entries(smallMap())),
@@ -1291,7 +1291,7 @@ run(
             assert (Map.get(map, Nat.compare, index) == ?Nat.toText(index))
           };
           for (index in Nat.range(0, numberOfEntries)) {
-	    assert (not Map.insert(map, Nat.compare, index, Nat.toText(index)));
+            assert (not Map.insert(map, Nat.compare, index, Nat.toText(index)));
             assert (Map.get(map, Nat.compare, index) == ?Nat.toText(index))
           };
           assert (Map.get(map, Nat.compare, numberOfEntries) == null);
@@ -1367,8 +1367,8 @@ run(
               Map.remove(map, Nat.compare, key);
               assert (not Map.containsKey(map, Nat.compare, key))
             } else {
-	      Map.remove(map, Nat.compare, key);
-	    };
+              Map.remove(map, Nat.compare, key)
+            };
             assert (Map.get(map, Nat.compare, key) == null)
           };
           Map.assertValid(map, Nat.compare);
@@ -1398,8 +1398,8 @@ run(
               assert Map.delete(map, Nat.compare, key);
               assert (not Map.containsKey(map, Nat.compare, key))
             } else {
-	      assert not Map.delete(map, Nat.compare, key);
-	    };
+              assert not Map.delete(map, Nat.compare, key)
+            };
             assert (Map.get(map, Nat.compare, key) == null)
           };
           Map.assertValid(map, Nat.compare);
@@ -1429,8 +1429,8 @@ run(
               assert Map.take(map, Nat.compare, key) == ?(Nat.toText(key));
               assert (not Map.containsKey(map, Nat.compare, key))
             } else {
-	      assert Map.take(map, Nat.compare, key) == null;
-	    };
+              assert Map.take(map, Nat.compare, key) == null
+            };
             assert (Map.get(map, Nat.compare, key) == null)
           };
           Map.assertValid(map, Nat.compare);
@@ -1480,7 +1480,7 @@ run(
   suite(
     "add, update, put",
     [
-       test(
+      test(
         "add disjoint",
         do {
           let map = Map.empty<Nat, Text>();
@@ -1499,5 +1499,7 @@ run(
           Map.get(map, Nat.compare, 0)
         },
         M.equals(T.optional(T.textTestable, ?"Zero"))
-      ),
-   ]))
+      )
+    ]
+  )
+)

@@ -27,38 +27,38 @@ run(
       ),
       test(
         "add empty",
-	do {
-	  let set = Set.empty<Nat>();
-	  Set.add(set, Nat.compare, 0);
+        do {
+          let set = Set.empty<Nat>();
+          Set.add(set, Nat.compare, 0);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, [0]))
       ),
       test(
         "insert empty",
-	do {
-	  let set = Set.empty<Nat>();
+        do {
+          let set = Set.empty<Nat>();
           assert Set.insert(set, Nat.compare, 0);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, [0]))
       ),
       test(
         "remove empty",
-	do {
-	  let set = Set.empty<Nat>();
-	  Set.remove(set, Nat.compare, 0);
+        do {
+          let set = Set.empty<Nat>();
+          Set.remove(set, Nat.compare, 0);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, []))
       ),
       test(
         "delete empty",
-	do { 
-	   let set = Set.empty<Nat>();
-	   assert (not Set.delete(set, Nat.compare, 0));
-           Iter.toArray(Set.values(set))
-	},
+        do {
+          let set = Set.empty<Nat>();
+          assert (not Set.delete(set, Nat.compare, 0));
+          Iter.toArray(Set.values(set))
+        },
         M.equals(T.array<Nat>(T.natTestable, []))
       ),
       test(
@@ -335,72 +335,74 @@ run(
       ),
       test(
         "add singleton old",
-	do {
-	  let set = Set.singleton<Nat>(0);
-	  Set.add(set, Nat.compare, 0);
+        do {
+          let set = Set.singleton<Nat>(0);
+          Set.add(set, Nat.compare, 0);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, [0]))
       ),
       test(
         "add singleton new",
-	do {
-	  let set = Set.singleton<Nat>(0);
-	  Set.add(set, Nat.compare, 1);
+        do {
+          let set = Set.singleton<Nat>(0);
+          Set.add(set, Nat.compare, 1);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, [0, 1]))
       ),
       test(
         "insert singleton old",
-	do {
-	  let set = Set.singleton<Nat>(0);
+        do {
+          let set = Set.singleton<Nat>(0);
           assert (not Set.insert(set, Nat.compare, 0));
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, [0]))
-     ),
-     test(
+      ),
+      test(
         "insert singleton new",
-	do {
-	  let set = Set.singleton<Nat>(0);
+        do {
+          let set = Set.singleton<Nat>(0);
           assert Set.insert(set, Nat.compare, 1);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, [0, 1]))
       ),
       test(
         "remove singleton old",
-	do {
-	  let set = Set.singleton<Nat>(0);
-	  Set.remove(set, Nat.compare, 0);
+        do {
+          let set = Set.singleton<Nat>(0);
+          Set.remove(set, Nat.compare, 0);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, []))
       ),
       test(
         "remove singleton new",
-	do {
-	  let set = Set.singleton<Nat>(0);
-	  Set.remove(set, Nat.compare, 1);
+        do {
+          let set = Set.singleton<Nat>(0);
+          Set.remove(set, Nat.compare, 1);
           Iter.toArray(Set.values(set))
-	},
+        },
         M.equals(T.array<Nat>(T.natTestable, [0]))
       ),
       test(
         "delete singleton old",
-	do { let set = Set.singleton<Nat>(0);
-	     assert (Set.delete(set, Nat.compare, 0));
-             Iter.toArray(Set.values(set))
-	},
+        do {
+          let set = Set.singleton<Nat>(0);
+          assert (Set.delete(set, Nat.compare, 0));
+          Iter.toArray(Set.values(set))
+        },
         M.equals(T.array<Nat>(T.natTestable, []))
       ),
       test(
         "delete singleton new",
-	do { let set = Set.singleton<Nat>(0);
-	     assert (not Set.delete(set, Nat.compare, 1));
-             Iter.toArray(Set.values(set))
-	},
+        do {
+          let set = Set.singleton<Nat>(0);
+          assert (not Set.delete(set, Nat.compare, 1));
+          Iter.toArray(Set.values(set))
+        },
         M.equals(T.array<Nat>(T.natTestable, [0]))
       ),
       test(
@@ -1222,7 +1224,7 @@ run(
             };
             text #= Nat.toText(index)
           };
-	  text #= "}";
+          text #= "}";
           M.equals(T.text(text))
         }
       ),
@@ -1401,7 +1403,8 @@ run(
         },
         M.equals(T.nat(numberOfElements))
       ),
-      test("insert",
+      test(
+        "insert",
         do {
           let set = Set.empty<Nat>();
           for (index in Nat.range(0, numberOfElements)) {
@@ -1410,7 +1413,7 @@ run(
             assert (Set.contains(set, Nat.compare, index))
           };
           for (index in Nat.range(0, numberOfElements)) {
-            assert (not (Set.insert(set, Nat.compare, index)));
+            assert (not (Set.insert(set, Nat.compare, index)))
           };
           for (index in Nat.range(0, numberOfElements)) {
             assert (Set.contains(set, Nat.compare, index))
@@ -1497,8 +1500,8 @@ run(
               assert Set.delete(set, Nat.compare, element);
               assert (not Set.contains(set, Nat.compare, element))
             } else {
-              assert (not Set.delete(set, Nat.compare, element));
-	    };
+              assert (not Set.delete(set, Nat.compare, element))
+            };
             assert (not Set.contains(set, Nat.compare, element))
           };
           Set.assertValid(set, Nat.compare);

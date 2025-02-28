@@ -7,7 +7,6 @@ import Nat "../../src/Nat";
 import Order "../../src/Order";
 import Debug "../../src/Debug";
 import Int "../../src/Int";
-import Iter "../../src/Iter";
 import Result "../../src/Result";
 
 /*
@@ -16,7 +15,6 @@ FIXME: (CHECK these)
 
 * flatten is quadratic
 * Array.mo doesn't implement `all`, `any`, `compare`
-* merge takes lte predicate of type (T,T)-> Bool, not comparison of type: (T,T) -> Ord
 * split is not tail recursive and calls redundant helpers
 
 TODO:
@@ -79,11 +77,6 @@ assert (opnatEq(a2, ?2));
 let (a3, t3) = List.pop<X>(l1);
 assert (opnatEq(a3, null));
 assert (List.isEmpty<X>(t3));
-
-// ## List functions
-assert (List.size<X>(l1) == 0);
-assert (List.size<X>(l2) == 1);
-assert (List.size<X>(l3) == 2);
 
 // ## List functions
 assert (List.size<X>(l1) == 0);
@@ -178,6 +171,14 @@ func listRes(itm : Result.Result<List.List<Nat>, Text>) : T.TestableItem<Result.
   { display = resT.display; equals = resT.equals; item = itm }
 };
 
+object unit : T.TestableItem<()> {
+  public let item = ();
+  public func display(()) : Text = "()";
+  public func equals((), ()) : Bool = true
+};
+
+let hugeList = List.repeat('Y', 100_000);
+
 let mapResult = Suite.suite(
   "mapResult",
   [
@@ -200,6 +201,12 @@ let mapResult = Suite.suite(
       "fail last",
       List.mapResult<Int, Nat, Text>(?(1, ?(2, ?(-3, null))), makeNatural),
       M.equals(listRes(#err("-3 is not a natural number.")))
+    ),
+    Suite.test(
+      "large",
+      List.mapResult<Char, (), ()>(hugeList, func _ = #ok)
+      |> Result.mapOk<List.List<()>, List.List<()>, ()>(_, func _ = null),
+      M.equals(T.result<List.List<()>, ()>(T.listTestable<()> unit, unit, #ok null))
     )
   ]
 );
@@ -245,9 +252,9 @@ let tabulate = Suite.suite(
     ),
     Suite.test(
       "large-list",
-      List.tabulate<Nat>(10000, func i = 0),
+      List.tabulate<Char>(100_000, func _ = 'Y'),
       M.equals(
-        T.list<Nat>(T.natTestable, List.repeat(0, 10000))
+        T.list<Char>(T.charTestable, hugeList)
       )
     )
   ]
@@ -275,6 +282,11 @@ let concat = Suite.suite(
       M.equals(
         T.list(T.natTestable, List.tabulate<Nat>(20000, func i = i))
       )
+    ),
+    Suite.test(
+      "huge-list",
+      List.concat(hugeList, List.singleton 'N') |> List.last _,
+      M.equals(T.optional(T.charTestable, ?'N'))
     )
   ]
 );
@@ -398,6 +410,11 @@ let size = Suite.suite(
       "threesome",
       List.size(?(1, ?(2, ?(3, null)))),
       M.equals(T.nat(3))
+    ),
+    Suite.test(
+      "many",
+      List.size hugeList,
+      M.equals(T.nat 100_000)
     )
   ]
 );
@@ -413,7 +430,7 @@ let get = Suite.suite(
     Suite.test(
       "singleton-0",
       List.get(?(3, null), 0),
-      M.equals(T.optional(T.natTestable, ?3 : ?Nat))
+      M.equals(T.optional(T.natTestable, ?3))
     ),
     Suite.test(
       "singleton-1",
@@ -428,12 +445,12 @@ let get = Suite.suite(
     Suite.test(
       "threesome-0",
       List.get(?(1, ?(2, ?(3, null))), 0),
-      M.equals(T.optional(T.natTestable, ?1 : ?Nat))
+      M.equals(T.optional(T.natTestable, ?1))
     ),
     Suite.test(
       "threesome-1",
       List.get(?(1, ?(2, ?(3, null))), 1),
-      M.equals(T.optional(T.natTestable, ?2 : ?Nat))
+      M.equals(T.optional(T.natTestable, ?2))
     ),
     Suite.test(
       "threesome-3",
@@ -444,6 +461,16 @@ let get = Suite.suite(
       "threesome-4",
       List.get(?(1, ?(2, ?(3, null))), 4),
       M.equals(T.optional(T.natTestable, null : ?Nat))
+    ),
+    Suite.test(
+      "many",
+      List.get(hugeList, 99_999),
+      M.equals(T.optional(T.charTestable, ?'Y'))
+    ),
+    Suite.test(
+      "past many",
+      List.get(hugeList, 100_000),
+      M.equals(T.optional(T.charTestable, null : ?Char))
     )
   ]
 );
@@ -455,7 +482,6 @@ let reverse = Suite.suite(
       "empty list",
       List.reverse(List.empty<Nat>()),
       M.equals(T.list(T.natTestable, null : List.List<Nat>))
-
     ),
     Suite.test(
       "singleton",
@@ -466,6 +492,11 @@ let reverse = Suite.suite(
       "threesome",
       List.reverse(?(1, ?(2, ?(3, null)))),
       M.equals(T.list(T.natTestable, ?(3, ?(2, ?(1, null)))))
+    ),
+    Suite.test(
+      "many",
+      List.reverse hugeList |> List.size _,
+      M.equals(T.nat 100_000)
     )
   ]
 );
@@ -499,6 +530,15 @@ let forEach = Suite.suite(
         t
       },
       M.equals(T.text("123"))
+    ),
+    Suite.test(
+      "many",
+      do {
+        var c = 0;
+        List.forEach<Char>(hugeList, func _ = c += 1);
+        c
+      },
+      M.equals(T.nat 100_000)
     )
   ]
 );
@@ -965,6 +1005,11 @@ let all = Suite.suite(
       "all empty",
       List.all<Nat>(null, func x = x >= 1),
       M.equals(T.bool(true))
+    ),
+    Suite.test(
+      "many",
+      List.all<Char>(hugeList, func c = c == 'Y'),
+      M.equals(T.bool true)
     )
   ]
 );
@@ -986,6 +1031,11 @@ let any = Suite.suite(
       "empty",
       List.any<Nat>(null, func x = true),
       M.equals(T.bool(false))
+    ),
+    Suite.test(
+      "many",
+      List.any<Char>(hugeList, func c = c != 'Y'),
+      M.equals(T.bool false)
     )
   ]
 );
@@ -998,7 +1048,7 @@ let merge = Suite.suite(
       List.merge<Nat>(
         List.tabulate<Nat>(10, func i = 2 * i),
         List.tabulate<Nat>(10, func i = 2 * i + 1),
-        func(i, j) { i <= j }
+        Nat.compare
       ),
       M.equals(
         T.list(T.natTestable, List.tabulate<Nat>(20, func i = i))
@@ -1021,7 +1071,7 @@ let merge = Suite.suite(
             { 2 * i } else { 2 * i + 1 }
           }
         ),
-        func(i, j) { i <= j }
+        Nat.compare
       ),
       M.equals(
         T.list(T.natTestable, List.tabulate<Nat>(20, func i = i))
@@ -1033,7 +1083,7 @@ let merge = Suite.suite(
       List.merge<Nat>(
         List.tabulate<Nat>(10, func i = 2 * i),
         List.tabulate<Nat>(10, func i = 2 * i),
-        func(i, j) { i <= j }
+        Nat.compare
       ),
       M.equals(
         T.list(T.natTestable, List.tabulate<Nat>(20, func i = 2 * (i / 2)))
@@ -1045,7 +1095,7 @@ let merge = Suite.suite(
       List.merge<Nat>(
         List.tabulate<Nat>(1000, func i = 2 * i),
         List.tabulate<Nat>(1000, func i = 2 * i + 1),
-        func(i, j) { i <= j }
+        Nat.compare
       ),
       M.equals(
         T.list(T.natTestable, List.tabulate<Nat>(2000, func i = i))
@@ -1493,6 +1543,40 @@ let chunks = Suite.suite(
   ]
 );
 
+let fromIter = Suite.suite(
+  "fromIter",
+  [
+    Suite.test(
+      "small",
+      List.fromIter<Nat>(Nat.range(0, 100)),
+      M.equals(
+        T.list(
+          T.natTestable,
+          List.tabulate<Nat>(100, func i = i)
+        )
+      )
+    ),
+    Suite.test(
+      "large",
+      List.fromIter<Nat>(Nat.range(0, 100_000)) |> List.size _,
+      M.equals(T.nat 100_000)
+    )
+  ]
+);
+
+let toText = Suite.suite(
+  "toText",
+  [
+    Suite.test(
+      "small",
+      List.toText<Nat>(?(0, ?(1, null)), Nat.toText),
+      M.equals(
+        T.text "[0, 1]"
+      )
+    )
+  ]
+);
+
 Suite.run(
   Suite.suite(
     "List",
@@ -1528,7 +1612,9 @@ Suite.run(
       zipWith,
       zip,
       split,
-      chunks
+      chunks,
+      fromIter,
+      toText
     ]
   )
 )

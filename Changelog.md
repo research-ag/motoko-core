@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+* Added `isRetryPossible : Error -> Bool` to `Error` (#211).
+
 ## 0.2.1
 
 * Cleanups in `pure/List` test, fixes and docstrings in `pure/Queue`
@@ -16,4 +20,3 @@
 ## 0.1.0
 
 * Initial release
-  

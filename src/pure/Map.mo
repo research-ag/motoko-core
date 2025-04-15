@@ -286,11 +286,11 @@ module {
   ///   let singleton = Map.singleton(0, "Zero");
   ///
   ///   do {
-  ///     let (map1, prev1) = Map.replaceIfExists(singleton, Nat.compare, 0, "Nil"); // overwrites the value for existing key.
+  ///     let (map1, prev1) = Map.replace(singleton, Nat.compare, 0, "Nil"); // overwrites the value for existing key.
   ///     assert prev1 == ?"Zero";
   ///     assert Map.get(map1, Nat.compare, 0) == ?"Nil";
   ///
-  ///     let (map2, prev2) = Map.replaceIfExists(map1, Nat.compare, 1, "One");  // no effect, key is absent
+  ///     let (map2, prev2) = Map.replace(map1, Nat.compare, 1, "One");  // no effect, key is absent
   ///     assert prev2 == null;
   ///     assert Map.get(map2, Nat.compare, 1) == null;
   ///  }
@@ -301,7 +301,7 @@ module {
   /// Space: `O(log(n))`.
   /// where `n` denotes the number of key-value entries stored in the map and
   /// assuming that the `compare` function implements an `O(1)` comparison.
-  public func replaceIfExists<K, V>(map : Map<K, V>, compare : (K, K) -> Order.Order, key : K, value : V) : (Map<K, V>, ?V) {
+  public func replace<K, V>(map : Map<K, V>, compare : (K, K) -> Order.Order, key : K, value : V) : (Map<K, V>, ?V) {
     // TODO: Could be optimized in future
     if (containsKey(map, compare, key)) {
       swap(map, compare, key, value)

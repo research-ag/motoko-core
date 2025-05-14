@@ -32,6 +32,8 @@ module {
   /// has `O(size)` memory waste.
   public type List<T> = Types.List<T>;
 
+  public type ListSlice<T> = Types.ListSlice<T>;
+
   let INTERNAL_ERROR = "List: internal error";
 
   /// Creates a new empty List for elements of type T.
@@ -1809,13 +1811,7 @@ module {
     list.blockIndex == 1 and list.elementIndex == 0
   };
 
-  public type Slice<T> = {
-    list : List<T>;
-    start : Nat;
-    end : Nat
-  };
-
-  public func concat<T>(slices : [Slice<T>]) : List<T> {
+  public func concat<T>(slices : [ListSlice<T>]) : List<T> {
     for (slice in slices.vals()) {
       let { list; start; end } = slice;
       let sz = size<T>(list);

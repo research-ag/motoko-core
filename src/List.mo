@@ -1045,10 +1045,14 @@ module {
     unsafe_next_i : Nat -> T
   } = object {
     let blocks = list.blocks.size();
-    let (block, element) = locate(start);
-    var blockIndex = block;
-    var elementIndex = element;
-    var db : [var ?T] = list.blocks[block];
+    var blockIndex = 0;
+    var elementIndex = 0;
+    if (start != 0) {
+      let (block, element) = if (start == 0) (0, 0) else locate(start - 1);
+      blockIndex := block;
+      elementIndex := element + 1
+    };
+    var db : [var ?T] = list.blocks[blockIndex];
     var db_size = db.size();
 
     public func next() : ?T {
@@ -1821,16 +1825,17 @@ module {
       }
     };
 
-    var list = empty<T>();
+    var result = empty<T>();
     for (slice in slices.vals()) {
       let { list; start; end } = slice;
       let values = values_from_<T>(start, list);
       var i = start;
       while (i < end) {
-        add(list, values.unsafe_next())
+        add(result, values.unsafe_next());
+        i += 1
       }
     };
 
-    list
+    result
   }
 }

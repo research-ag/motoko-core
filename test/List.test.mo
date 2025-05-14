@@ -1324,4 +1324,45 @@ Test.suite(
       }
     )
   }
-)
+);
+
+run(
+  suite(
+    "concat",
+    [
+      test(
+        "concat with valid slices",
+        do {
+          let list1 = List.fromArray<Nat>([1, 2, 3]);
+          let list2 = List.fromArray<Nat>([4, 5, 6]);
+          let slice1 = { list = list1; start = 0; end = 2 }; // [1, 2]
+          let slice2 = { list = list2; start = 1; end = 3 }; // [5, 6]
+          let result = List.concat<Nat>([slice1, slice2]);
+          List.toArray(result)
+        },
+        M.equals(T.array(T.natTestable, [1, 2, 5, 6]))
+      ),
+      test(
+        "concat with empty slices",
+        do {
+          let list1 = List.fromArray<Nat>([1, 2, 3]);
+          let slice1 = { list = list1; start = 1; end = 1 }; // []
+          let result = List.concat<Nat>([slice1]);
+          List.toArray(result)
+        },
+        M.equals(T.array(T.natTestable, [] : [Nat]))
+      ),
+      test(
+        "concat with overlapping slices",
+        do {
+          let list1 = List.fromArray<Nat>([1, 2, 3, 4]);
+          let slice1 = { list = list1; start = 0; end = 2 }; // [1, 2]
+          let slice2 = { list = list1; start = 1; end = 4 }; // [2, 3, 4]
+          let result = List.concat<Nat>([slice1, slice2]);
+          List.toArray(result)
+        },
+        M.equals(T.array(T.natTestable, [1, 2, 2, 3, 4]))
+      )
+    ]
+  )
+);

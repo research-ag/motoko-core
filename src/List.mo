@@ -22,6 +22,7 @@ import Order "Order";
 import Option "Option";
 import VarArray "VarArray";
 import Types "Types";
+import Runtime "Runtime";
 
 module {
   /// `List<T>` provides a mutable list of elements of type `T`.
@@ -97,6 +98,8 @@ module {
       var elementIndex = elementIndex
     }
   };
+
+  // func repeatInternal(initValue : )
 
   /// Converts a mutable `List` to a purely functional `PureList`.
   ///
@@ -1032,12 +1035,19 @@ module {
     next : () -> ?T;
     unsafe_next : () -> T;
     unsafe_next_i : Nat -> T
+  } = values_from_(0, list);
+
+  private func values_from_<T>(start : Nat, list : List<T>) : {
+    next : () -> ?T;
+    unsafe_next : () -> T;
+    unsafe_next_i : Nat -> T
   } = object {
     let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var db_size = 0;
-    var db : [var ?T] = [var];
+    let (block, element) = locate(start);
+    var blockIndex = block;
+    var elementIndex = element;
+    var db : [var ?T] = list.blocks[block];
+    var db_size = db.size();
 
     public func next() : ?T {
       if (elementIndex == db_size) {
@@ -1797,5 +1807,34 @@ module {
   /// Space: `O(1)`
   public func isEmpty<T>(list : List<T>) : Bool {
     list.blockIndex == 1 and list.elementIndex == 0
+  };
+
+  public type Slice<T> = {
+    list : List<T>;
+    start : Nat;
+    end : Nat
+  };
+
+  public func concat<T>(slices : [Slice<T>]) : List<T> {
+    for (slice in slices.vals()) {
+      let { list; start; end } = slice;
+      let sz = size<T>(list);
+      let ok = start <= end and end <= sz;
+      if (not ok) {
+        Runtime.trap("Invalid slice in concat")
+      }
+    };
+
+    var list = empty<T>();
+    for (slice in slices.vals()) {
+      let { list; start; end } = slice;
+      let values = values_from_<T>(start, list);
+      var i = start;
+      while (i < end) {
+        add(list, values.unsafe_next())
+      }
+    };
+
+    list
   }
 }

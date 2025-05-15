@@ -47,12 +47,6 @@ module {
     var elementIndex : Nat
   };
 
-  public type ListSlice<T> = {
-    list : List<T>;
-    start : Nat;
-    end : Nat
-  };
-
   public module Queue {
     public type Queue<T> = {
       var front : ?Node<T>;

@@ -32,8 +32,6 @@ module {
   /// has `O(size)` memory waste.
   public type List<T> = Types.List<T>;
 
-  public type ListSlice<T> = Types.ListSlice<T>;
-
   let INTERNAL_ERROR = "List: internal error";
 
   /// Creates a new empty List for elements of type T.
@@ -63,32 +61,21 @@ module {
   /// Space: `O(1)`
   public func singleton<T>(element : T) : List<T> = repeat(element, 1);
 
-  /// Creates a new List with `size` copies of the initial value.
-  ///
-  /// Example:
-  /// ```motoko include=import
-  /// let list = List.repeat<Nat>(2, 4);
-  /// assert List.toArray(list) == [2, 2, 2, 2];
-  /// ```
-  ///
-  /// Runtime: `O(size)`
-  ///
-  /// Space: `O(size)`
-  public func repeat<T>(initValue : T, size : Nat) : List<T> {
+  private func repeatInternal<T>(initValue : ?T, size : Nat) : List<T> {
     let (blockIndex, elementIndex) = locate(size);
 
     let blocks = new_index_block_length(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let data_blocks = VarArray.repeat<[var ?T]>([var], blocks);
     var i = 1;
     while (i < blockIndex) {
-      data_blocks[i] := VarArray.repeat<?T>(?initValue, data_block_size(i));
+      data_blocks[i] := VarArray.repeat<?T>(initValue, data_block_size(i));
       i += 1
     };
     if (elementIndex != 0 and blockIndex < blocks) {
       let block = VarArray.repeat<?T>(null, data_block_size(i));
       var j = 0;
       while (j < elementIndex) {
-        block[j] := ?initValue;
+        block[j] := initValue;
         j += 1
       };
       data_blocks[i] := block
@@ -101,7 +88,18 @@ module {
     }
   };
 
-  // func repeatInternal(initValue : )
+  /// Creates a new List with `size` copies of the initial value.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list = List.repeat<Nat>(2, 4);
+  /// assert List.toArray(list) == [2, 2, 2, 2];
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
+  public func repeat<T>(initValue : T, size : Nat) : List<T> = repeatInternal<T>(?initValue, size);
 
   /// Converts a mutable `List` to a purely functional `PureList`.
   ///
@@ -137,15 +135,7 @@ module {
     list
   };
 
-  /// Add to list `count` copies of the initial value.
-  ///
-  /// ```motoko include=import
-  /// let list = List.repeat<Nat>(2, 4); // [2, 2, 2, 2]
-  /// List.addRepeat(list, 2, 1); // [2, 2, 2, 2, 1, 1]
-  /// ```
-  ///
-  /// Runtime: `O(count)`
-  public func addRepeat<T>(list : List<T>, initValue : T, count : Nat) {
+  private func addRepeatInternal<T>(list : List<T>, initValue : ?T, count : Nat) {
     let (blockIndex, elementIndex) = locate(size(list) + count);
     let blocks = new_index_block_length(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
 
@@ -164,7 +154,7 @@ module {
     while (cnt > 0) {
       let db_size = data_block_size(list.blockIndex);
       if (list.elementIndex == 0 and db_size <= cnt) {
-        list.blocks[list.blockIndex] := VarArray.repeat<?T>(?initValue, db_size);
+        list.blocks[list.blockIndex] := VarArray.repeat<?T>(initValue, db_size);
         cnt -= db_size;
         list.blockIndex += 1
       } else {
@@ -177,7 +167,7 @@ module {
         let block = list.blocks[list.blockIndex];
         var i = from;
         while (i < to) {
-          block[i] := ?initValue;
+          block[i] := initValue;
           i += 1
         };
 
@@ -190,6 +180,16 @@ module {
       }
     }
   };
+
+  /// Add to list `count` copies of the initial value.
+  ///
+  /// ```motoko include=import
+  /// let list = List.repeat<Nat>(2, 4); // [2, 2, 2, 2]
+  /// List.addRepeat(list, 2, 1); // [2, 2, 2, 2, 1, 1]
+  /// ```
+  ///
+  /// Runtime: `O(count)`
+  public func addRepeat<T>(list : List<T>, initValue : T, count : Nat) = addRepeatInternal<T>(list, ?initValue, count);
 
   /// Resets the list to size 0, de-referencing all elements.
   ///
@@ -1036,13 +1036,15 @@ module {
   private func values_<T>(list : List<T>) : {
     next : () -> ?T;
     unsafe_next : () -> T;
-    unsafe_next_i : Nat -> T
+    unsafe_next_i : Nat -> T;
+    next_set : T -> ()
   } = values_from_(0, list);
 
   private func values_from_<T>(start : Nat, list : List<T>) : {
     next : () -> ?T;
     unsafe_next : () -> T;
-    unsafe_next_i : Nat -> T
+    unsafe_next_i : Nat -> T;
+    next_set : T -> ()
   } = object {
     let blocks = list.blocks.size();
     var blockIndex = 0;
@@ -1116,6 +1118,19 @@ module {
         };
         case (_) Prim.trap(INTERNAL_ERROR)
       }
+    };
+
+    public func next_set(value : T) {
+      if (elementIndex == db_size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
+        db := list.blocks[blockIndex];
+        db_size := db.size();
+        if (db_size == 0) Prim.trap(INTERNAL_ERROR);
+        elementIndex := 0
+      };
+      db[elementIndex] := ?value;
+      elementIndex += 1
     }
   };
 
@@ -1815,23 +1830,41 @@ module {
     list.blockIndex == 1 and list.elementIndex == 0
   };
 
-  public func concat<T>(slices : [ListSlice<T>]) : List<T> {
+  /// Concatenates the provided slices into a new list.
+  /// Each slice is a tuple of a list, a starting index (inclusive), and an ending index (exclusive).
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list1 = List.fromArray<Nat>([1, 2, 3]);
+  /// let list2 = List.fromArray<Nat>([4, 5, 6]);
+  /// let result = List.concat<Nat>([(list1, 0, 2), (list2, 1, 3)]);
+  /// assert Iter.toArray(List.values(result)) == [1, 2, 5, 6];
+  /// ```
+  ///
+  /// Runtime: `O(sum_size)` where `sum_size` is the sum of the sizes of all slices.
+  ///
+  /// Space: `O(sum_size)`
+  public func concat<T>(slices : [(List<T>, fromInclusive : Nat, toExclusive : Nat)]) : List<T> {
+    var length = 0;
     for (slice in slices.vals()) {
-      let { list; start; end } = slice;
+      let (list, start, end) = slice;
       let sz = size<T>(list);
       let ok = start <= end and end <= sz;
       if (not ok) {
         Runtime.trap("Invalid slice in concat")
-      }
+      };
+      length += end - start
     };
 
-    var result = empty<T>();
+    var result = repeatInternal<T>(null, length);
+    var resultIter = values_(result);
     for (slice in slices.vals()) {
-      let { list; start; end } = slice;
+      let (list, start, end) = slice;
       let values = values_from_<T>(start, list);
       var i = start;
       while (i < end) {
-        add(result, values.unsafe_next());
+        let copiedValue = values.unsafe_next();
+        resultIter.next_set(copiedValue);
         i += 1
       }
     };

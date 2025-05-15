@@ -1380,7 +1380,7 @@ run(
           let slices = [
             (l1, 1, 3), // [11, 12]
             (l2, 0, 2), // [20, 21]
-            (l3, 1, 3)  // [31, 32]
+            (l3, 1, 3) // [31, 32]
           ];
           let result = List.concat<Nat>(slices);
           List.toArray(result)
@@ -1394,7 +1394,7 @@ run(
           let l2 = List.fromArray<Nat>([3, 4]);
           let slices = [
             (l1, 0, 0), // []
-            (l2, 1, 1)  // []
+            (l2, 1, 1) // []
           ];
           let result = List.concat<Nat>(slices);
           List.toArray(result)
@@ -1409,7 +1409,7 @@ run(
           let slices = [
             (l1, 0, 1), // [1]
             (l1, 1, 2), // [2]
-            (l2, 2, 3)  // [6]
+            (l2, 2, 3) // [6]
           ];
           let result = List.concat<Nat>(slices);
           List.toArray(result)
@@ -1423,7 +1423,7 @@ run(
           let l2 = List.fromArray<Nat>([4, 5, 6, 7]);
           let slices = [
             (l1, 0, 3), // [1,2,3]
-            (l2, 1, 3)  // [5,6]
+            (l2, 1, 3) // [5,6]
           ];
           let result = List.concat<Nat>(slices);
           List.toArray(result)
@@ -1437,7 +1437,7 @@ run(
           let slices = [
             (l, 0, 2), // [9,8]
             (l, 2, 4), // [7,6]
-            (l, 1, 3)  // [8,7]
+            (l, 1, 3) // [8,7]
           ];
           let result = List.concat<Nat>(slices);
           List.toArray(result)
@@ -1456,4 +1456,4 @@ run(
       )
     ]
   )
-);
+)

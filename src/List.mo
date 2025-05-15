@@ -1835,10 +1835,13 @@ module {
   ///
   /// Example:
   /// ```motoko include=import
-  /// let list1 = List.fromArray<Nat>([1, 2, 3]);
-  /// let list2 = List.fromArray<Nat>([4, 5, 6]);
+  /// import Nat "mo:base/Nat";
+  /// import Iter "mo:base/Iter";
+  ///
+  /// let list1 = List.fromArray<Nat>([1,2,3]);
+  /// let list2 = List.fromArray<Nat>([4,5,6]);
   /// let result = List.concat<Nat>([(list1, 0, 2), (list2, 1, 3)]);
-  /// assert Iter.toArray(List.values(result)) == [1, 2, 5, 6];
+  /// assert Iter.toArray(List.values(result)) == [1,2,5,6];
   /// ```
   ///
   /// Runtime: `O(sum_size)` where `sum_size` is the sum of the sizes of all slices.

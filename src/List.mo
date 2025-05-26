@@ -1888,7 +1888,7 @@ module {
   /// assert Iter.toArray(List.values(result)) == [1,2,5,6];
   /// ```
   ///
-  /// Runtime: `O(sum_size)` where `sum_size` is the sum of the sizes of all slices.
+  /// Runtime: `O(sum_size)` where `sum_size` is the sum of the sizes of all lists.
   ///
   /// Space: `O(sum_size)`
   public func concat<T>(lists : [List<T>]) : List<T> {

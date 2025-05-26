@@ -1840,14 +1840,14 @@ module {
   ///
   /// let list1 = List.fromArray<Nat>([1,2,3]);
   /// let list2 = List.fromArray<Nat>([4,5,6]);
-  /// let result = List.concat_slices<Nat>([(list1, 0, 2), (list2, 1, 3)]);
+  /// let result = List.concatSlices<Nat>([(list1, 0, 2), (list2, 1, 3)]);
   /// assert Iter.toArray(List.values(result)) == [1,2,5,6];
   /// ```
   ///
   /// Runtime: `O(sum_size)` where `sum_size` is the sum of the sizes of all slices.
   ///
   /// Space: `O(sum_size)`
-  public func concat_slices<T>(slices : [(List<T>, fromInclusive : Nat, toExclusive : Nat)]) : List<T> {
+  public func concatSlices<T>(slices : [(List<T>, fromInclusive : Nat, toExclusive : Nat)]) : List<T> {
     var length = 0;
     for (slice in slices.vals()) {
       let (list, start, end) = slice;
@@ -1892,7 +1892,7 @@ module {
   ///
   /// Space: `O(sum_size)`
   public func concat<T>(lists : [List<T>]) : List<T> {
-    concat_slices<T>(Array.tabulate<(List<T>, Nat, Nat)>(lists.size(), func(i) = (lists[i], 0, size(lists[i]))))
+    concatSlices<T>(Array.tabulate<(List<T>, Nat, Nat)>(lists.size(), func(i) = (lists[i], 0, size(lists[i]))))
   };
 
 }

@@ -30,6 +30,8 @@ module {
   /// Since this is internally a two-dimensional array the access times for put and get operations
   /// will naturally be 2x slower than Buffer and Array. However, Array is not resizable and Buffer
   /// has `O(size)` memory waste.
+  ///
+  /// The maximum number of elements in a `List` is 2^32.
   public type List<T> = Types.List<T>;
 
   let INTERNAL_ERROR = "List: internal error";
@@ -187,6 +189,8 @@ module {
   /// let list = List.repeat<Nat>(2, 4); // [2, 2, 2, 2]
   /// List.addRepeat(list, 2, 1); // [2, 2, 2, 2, 1, 1]
   /// ```
+  ///
+  /// The maximum number of elements in a `List` is 2^32.
   ///
   /// Runtime: `O(count)`
   public func addRepeat<T>(list : List<T>, initValue : T, count : Nat) = addRepeatInternal<T>(list, ?initValue, count);
@@ -410,6 +414,8 @@ module {
   /// List.add(list, 3);
   /// assert List.toArray(list) == [0, 1, 2, 3];
   /// ```
+  ///
+  /// The maximum number of elements in a `List` is 2^32.
   ///
   /// Amortized Runtime: `O(1)`, Worst Case Runtime: `O(sqrt(n))`
   public func add<T>(list : List<T>, element : T) {
@@ -1014,6 +1020,8 @@ module {
   /// List.addAll<Nat>(list, iter);
   /// assert Iter.toArray(List.values(list)) == [2, 1, 1, 1];
   /// ```
+  ///
+  /// The maximum number of elements in a `List` is 2^32.
   ///
   /// Runtime: `O(size)`, where n is the size of iter.
   public func addAll<T>(list : List<T>, iter : Iter.Iter<T>) {

@@ -164,6 +164,26 @@ do {
   }
 };
 
+do {
+  Debug.print("  enumerate");
+
+  let list : List.List<Nat> = ?(1, ?(2, ?(3, List.empty<Nat>())));
+  let items = List.enumerate<Nat>(list);
+  let actual = [var 0, 0, 0];
+  let expected = [1, 2, 3];
+
+  var i = 0;
+  for ((index, x) in items) {
+    assert i == index;
+    actual[i] := x;
+    i += 1
+  };
+
+  for (i in actual.keys()) {
+    assert (actual[i] == expected[i])
+  }
+};
+
 func makeNatural(x : Int) : Result.Result<Nat, Text> = if (x >= 0) {
   #ok(Int.abs(x))
 } else { #err(Int.toText(x) # " is not a natural number.") };
@@ -984,6 +1004,27 @@ let find = suite(
   ]
 );
 
+let findIndex = suite(
+  "findIndex",
+  [
+    test(
+      "findIndex",
+      List.findIndex<Nat>(?(1, ?(9, ?(4, ?(8, null)))), func x = x == 9),
+      M.equals(T.optional(T.natTestable, ?1))
+    ),
+    test(
+      "findIndex fail",
+      List.findIndex<Nat>(?(1, ?(9, ?(4, ?(8, null)))), func _ = false),
+      M.equals(T.optional(T.natTestable, null : ?Nat))
+    ),
+    test(
+      "findIndex empty",
+      List.findIndex<Nat>(null, func _ = true),
+      M.equals(T.optional(T.natTestable, null : ?Nat))
+    )
+  ]
+);
+
 let all = suite(
   "all",
   [
@@ -1600,6 +1641,7 @@ run(
       foldLeft,
       foldRight,
       find,
+      findIndex,
       all,
       any,
       merge,

@@ -631,7 +631,7 @@ module {
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
     // inlining would save 10 instructions per entry
-    firstIndexWhere<T>(list, func(x) = equal(element, x))
+    findIndex<T>(list, func(x) = equal(element, x))
   };
 
   /// Finds the last index of `element` in `list` using equality of elements defined
@@ -652,7 +652,29 @@ module {
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func lastIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
     // inlining would save 10 instructions per entry
-    lastIndexWhere<T>(list, func(x) = equal(element, x))
+    findLastIndex<T>(list, func(x) = equal(element, x))
+  };
+
+  /// Returns the first value in `list` for which `predicate` returns true.
+  /// If no element satisfies the predicate, returns null.
+  ///
+  /// ```motoko include=import
+  /// let list = List.fromArray<Nat>([1, 9, 4, 8]);
+  /// let found = List.find<Nat>(list, func(x) { x > 8 });
+  /// assert found == ?9;
+  /// ```
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
+  ///
+  /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
+  public func find<T>(list : List<T>, predicate : T -> Bool) : ?T {
+    for (element in values(list)) {
+      if (predicate element) {
+        return ?element
+      }
+    };
+    null
   };
 
   /// Finds the index of the first element in `list` for which `predicate` is true.
@@ -666,14 +688,14 @@ module {
   /// List.add(list, 3);
   /// List.add(list, 4);
   ///
-  /// assert List.firstIndexWhere<Nat>(list, func(i) { i % 2 == 0 }) == ?1;
-  /// assert List.firstIndexWhere<Nat>(list, func(i) { i > 5 }) == null;
+  /// assert List.findIndex<Nat>(list, func(i) { i % 2 == 0 }) == ?1;
+  /// assert List.findIndex<Nat>(list, func(i) { i > 5 }) == null;
   /// ```
   ///
   /// Runtime: `O(size)`
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
-  public func firstIndexWhere<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
+  public func findIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
@@ -710,14 +732,14 @@ module {
   /// List.add(list, 3);
   /// List.add(list, 4);
   ///
-  /// assert List.lastIndexWhere<Nat>(list, func(i) { i % 2 == 0 }) == ?3;
-  /// assert List.lastIndexWhere<Nat>(list, func(i) { i > 5 }) == null;
+  /// assert List.findLastIndex<Nat>(list, func(i) { i % 2 == 0 }) == ?3;
+  /// assert List.findLastIndex<Nat>(list, func(i) { i > 5 }) == null;
   /// ```
   ///
   /// Runtime: `O(size)`
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
-  public func lastIndexWhere<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
+  public func findLastIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
     var i = size(list);
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
@@ -787,7 +809,7 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func any<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    switch (firstIndexWhere(list, predicate)) {
+    switch (findIndex(list, predicate)) {
       case (null) false;
       case (_) true
     }
@@ -817,8 +839,8 @@ module {
   /// Runtime: `O(1)`
   public func values<T>(list : List<T>) : Iter.Iter<T> = values_(list);
 
-  /// Returns an Iterator (`Iter`) over the items (value-index pairs) in the list.
-  /// Each item is a tuple of `(value, index)`. The iterator provides a single method
+  /// Returns an Iterator (`Iter`) over the items (index-value pairs) in the list.
+  /// Each item is a tuple of `(index, value)`. The iterator provides a single method
   /// `next()` which returns elements in order, or `null` when out of elements.
   ///
   /// ```motoko include=import
@@ -828,7 +850,7 @@ module {
   /// List.add(list, 10);
   /// List.add(list, 11);
   /// List.add(list, 12);
-  /// assert Iter.toArray(List.entries(list)) == [(10, 0), (11, 1), (12, 2)];
+  /// assert Iter.toArray(List.enumerate(list)) == [(0, 10), (1, 11), (2, 12)];
   /// ```
   ///
   /// Note: This does not create a snapshot. If the returned iterator is not consumed at once,
@@ -837,8 +859,8 @@ module {
   ///
   /// Runtime: `O(1)`
   ///
-  /// Warning: Allocates memory on the heap to store ?(T, Nat).
-  public func entries<T>(list : List<T>) : Iter.Iter<(T, Nat)> = object {
+  /// Warning: Allocates memory on the heap to store ?(Nat, T).
+  public func enumerate<T>(list : List<T>) : Iter.Iter<(Nat, T)> = object {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
@@ -846,7 +868,7 @@ module {
     var db : [var ?T] = [var];
     var i = 0;
 
-    public func next() : ?(T, Nat) {
+    public func next() : ?(Nat, T) {
       if (elementIndex == size) {
         blockIndex += 1;
         if (blockIndex >= blocks) return null;
@@ -857,7 +879,7 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          let ret = ?(x, i);
+          let ret = ?(i, x);
           elementIndex += 1;
           i += 1;
           return ret
@@ -878,7 +900,7 @@ module {
   /// List.add(list, 12);
   ///
   /// var sum = 0;
-  /// for (element in List.valuesRev(list)) {
+  /// for (element in List.reverseValues(list)) {
   ///   sum += element;
   /// };
   /// assert sum == 33;
@@ -889,7 +911,7 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
-  public func valuesRev<T>(list : List<T>) : Iter.Iter<T> = object {
+  public func reverseValues<T>(list : List<T>) : Iter.Iter<T> = object {
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
     var db : [var ?T] = if (blockIndex < list.blocks.size()) {
@@ -912,7 +934,7 @@ module {
     }
   };
 
-  /// Returns an Iterator (`Iter`) over the items in reverse order, i.e. pairs of value and index of a List.
+  /// Returns an Iterator (`Iter`) over the items in reverse order, i.e. pairs of index and value.
   /// Iterator provides a single method `next()`, which returns
   /// elements in reverse order, or `null` when out of elements to iterate over.
   ///
@@ -923,7 +945,7 @@ module {
   /// List.add(list, 10);
   /// List.add(list, 11);
   /// List.add(list, 12);
-  /// assert Iter.toArray(List.entriesRev(list)) == [(12, 2), (11, 1), (10, 0)];
+  /// assert Iter.toArray(List.reverseEnumerate(list)) == [(2, 12), (1, 11), (0, 10)];
   /// ```
   ///
   /// Note: This does not create a snapshot. If the returned iterator is not consumed at once,
@@ -933,7 +955,7 @@ module {
   /// Runtime: `O(1)`
   ///
   /// Warning: Allocates memory on the heap to store ?(T, Nat).
-  public func entriesRev<T>(list : List<T>) : Iter.Iter<(T, Nat)> = object {
+  public func reverseEnumerate<T>(list : List<T>) : Iter.Iter<(Nat, T)> = object {
     var i = size(list);
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
@@ -941,7 +963,7 @@ module {
       list.blocks[blockIndex]
     } else { [var] };
 
-    public func next() : ?(T, Nat) {
+    public func next() : ?(Nat, T) {
       if (blockIndex == 1) {
         return null
       };
@@ -955,7 +977,7 @@ module {
       switch (db[elementIndex]) {
         case (?x) {
           i -= 1;
-          return ?(x, i)
+          return ?(i, x)
         };
         case (_) Prim.trap(INTERNAL_ERROR)
       }
@@ -1417,7 +1439,7 @@ module {
   ///
   /// let list = List.fromArray<Nat>([1, 2, 3]);
   ///
-  /// List.forEachEntryRev<Nat>(list, func (i,x) {
+  /// List.reverseForEachEntry<Nat>(list, func (i,x) {
   ///   // prints each item (i,x) in list
   ///   Debug.print(Nat.toText(i) # Nat.toText(x));
   /// });
@@ -1428,7 +1450,7 @@ module {
   /// Space: `O(size)`
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
-  public func forEachEntryRev<T>(list : List<T>, f : (Nat, T) -> ()) {
+  public func reverseForEachEntry<T>(list : List<T>, f : (Nat, T) -> ()) {
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
     var db : [var ?T] = if (blockIndex < list.blocks.size()) {
@@ -1464,7 +1486,7 @@ module {
   ///
   /// let list = List.fromArray<Nat>([1, 2, 3]);
   ///
-  /// List.forEachRev<Nat>(list, func (x) {
+  /// List.reverseForEach<Nat>(list, func (x) {
   ///   Debug.print(Nat.toText(x)); // prints each element in list in reverse order
   /// });
   /// ```
@@ -1474,7 +1496,7 @@ module {
   /// Space: `O(size)`
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
-  public func forEachRev<T>(list : List<T>, f : T -> ()) {
+  public func reverseForEach<T>(list : List<T>, f : T -> ()) {
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
     var db : [var ?T] = if (blockIndex < list.blocks.size()) {
@@ -1755,7 +1777,7 @@ module {
   public func foldRight<T, A>(list : List<T>, base : A, combine : (T, A) -> A) : A {
     var accumulation = base;
 
-    forEachRev<T>(
+    reverseForEach<T>(
       list,
       func(x) = accumulation := combine(x, accumulation)
     );
@@ -1814,7 +1836,7 @@ module {
   public func reverse<T>(list : List<T>) : List<T> {
     let rlist = empty<T>();
 
-    forEachRev<T>(
+    reverseForEach<T>(
       list,
       func(x) = add(rlist, x)
     );

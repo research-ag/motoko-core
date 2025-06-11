@@ -36,6 +36,13 @@ module {
 
   let INTERNAL_ERROR = "List: internal error";
 
+  type IterInternal<T> = {
+    dataBlock : [var ?T];
+    blockIndex : Nat;
+    elementIndex : Nat;
+    size : Nat
+  };
+
   /// Creates a new empty List for elements of type T.
   ///
   /// Example:
@@ -630,8 +637,20 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
-    // inlining would save 10 instructions per entry
-    findIndex<T>(list, func(x) = equal(element, x))
+    var index = 0;
+    var found = false;
+    forEachInternal<T>(
+      list,
+      func(current) : Bool {
+        if (equal(element, current)) {
+          found := true;
+          return true
+        };
+        index += 1;
+        false
+      }
+    );
+    return if (found) ?index else null
   };
 
   /// Finds the last index of `element` in `list` using equality of elements defined
@@ -669,12 +688,18 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func find<T>(list : List<T>, predicate : T -> Bool) : ?T {
-    for (element in values(list)) {
-      if (predicate element) {
-        return ?element
+    var result : ?T = null;
+    forEachInternal<T>(
+      list,
+      func(element) : Bool {
+        if (predicate(element)) {
+          result := ?element;
+          return true
+        };
+        false
       }
-    };
-    null
+    );
+    result
   };
 
   /// Finds the index of the first element in `list` for which `predicate` is true.
@@ -696,29 +721,20 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
-    var i = 0;
-
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return null;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return null;
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) if (predicate(x)) return ?i;
-        case (_) return null
-      };
-      elementIndex += 1;
-      i += 1
-    }
+    var index = 0;
+    var found = false;
+    forEachInternal<T>(
+      list,
+      func(element) : Bool {
+        if (predicate(element)) {
+          found := true;
+          return true
+        };
+        index += 1;
+        false
+      }
+    );
+    return if (found) ?index else null
   };
 
   /// Finds the index of the last element in `list` for which `predicate` is true.
@@ -787,7 +803,18 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func all<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    not any<T>(list, func(x) : Bool = not predicate(x))
+    var flag = true;
+    forEachInternal<T>(
+      list,
+      func(element) : Bool {
+        if (not predicate(element)) {
+          flag := false;
+          return true
+        };
+        false
+      }
+    );
+    flag
   };
 
   /// Returns true iff some element in `list` satisfies `predicate`.
@@ -809,10 +836,18 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func any<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    switch (findIndex(list, predicate)) {
-      case (null) false;
-      case (_) true
-    }
+    var found = false;
+    forEachInternal<T>(
+      list,
+      func(element) : Bool {
+        if (predicate(element)) {
+          found := true;
+          return true
+        };
+        false
+      }
+    );
+    found
   };
 
   /// Returns an Iterator (`Iter`) over the elements of a List.
@@ -1326,6 +1361,35 @@ module {
     };
     let b = list.blockIndex;
     if (b == 1) null else list.blocks[b - 1][0]
+  };
+
+  private func forEachInternal<T>(
+    list : List<T>,
+    f : T -> Bool
+  ) {
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          if (f(x)) return;
+          elementIndex += 1
+        };
+        case (_) return
+      }
+    }
   };
 
   /// Applies `f` to each element in `list`.

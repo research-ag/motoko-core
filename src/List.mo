@@ -719,18 +719,14 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
-    var result : ?Nat = null;
-    forEachInternal<T>(
-      list,
-      func(i, element) : Bool {
-        if (predicate(element)) {
-          result := ?i;
-          return true
-        };
-        false
-      }
-    );
-    return result;
+    let sz = size(list);
+    var vals = values_(list);
+    var i = 0;
+    while (i < sz) {
+      if (predicate(vals.unsafeNext())) return ?i;
+      i += 1;
+    };
+    return null;
   };
 
   /// Finds the index of the last element in `list` for which `predicate` is true.

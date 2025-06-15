@@ -108,7 +108,11 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(size)`
-  public func repeat<T>(initValue : T, size : Nat) : List<T> = repeatInternal<T>(?initValue, size);
+  public func repeat<T>(initValue : T, size : Nat) : List<T> {
+    let list = empty<T>();
+    addRepeat<T>(list, initValue, size);
+    list
+  };
 
   /// Converts a mutable `List` to a purely functional `PureList`.
   ///

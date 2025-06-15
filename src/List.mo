@@ -637,20 +637,18 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
-    var index = 0;
-    var found = false;
+    var result : ?Nat = null;
     forEachInternal<T>(
       list,
-      func(current) : Bool {
+      func(i, current) : Bool {
         if (equal(element, current)) {
-          found := true;
+          result := ?i;
           return true
         };
-        index += 1;
         false
       }
     );
-    return if (found) ?index else null
+    return result;
   };
 
   /// Finds the last index of `element` in `list` using equality of elements defined
@@ -691,7 +689,7 @@ module {
     var result : ?T = null;
     forEachInternal<T>(
       list,
-      func(element) : Bool {
+      func(_, element) : Bool {
         if (predicate(element)) {
           result := ?element;
           return true
@@ -721,20 +719,18 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
-    var index = 0;
-    var found = false;
+    var result : ?Nat = null;
     forEachInternal<T>(
       list,
-      func(element) : Bool {
+      func(i, element) : Bool {
         if (predicate(element)) {
-          found := true;
+          result := ?i;
           return true
         };
-        index += 1;
         false
       }
     );
-    return if (found) ?index else null
+    return result;
   };
 
   /// Finds the index of the last element in `list` for which `predicate` is true.
@@ -806,7 +802,7 @@ module {
     var flag = true;
     forEachInternal<T>(
       list,
-      func(element) : Bool {
+      func(_, element) : Bool {
         if (not predicate(element)) {
           flag := false;
           return true
@@ -839,7 +835,7 @@ module {
     var found = false;
     forEachInternal<T>(
       list,
-      func(element) : Bool {
+      func(_, element) : Bool {
         if (predicate(element)) {
           found := true;
           return true
@@ -1365,13 +1361,14 @@ module {
 
   private func forEachInternal<T>(
     list : List<T>,
-    f : T -> Bool
+    f : (counter : Nat, value : T) -> Bool
   ) {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
     var size = 0;
     var db : [var ?T] = [var];
+    var i = 0;
 
     loop {
       if (elementIndex == size) {
@@ -1384,8 +1381,9 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          if (f(x)) return;
-          elementIndex += 1
+          if (f(i, x)) return;
+          elementIndex += 1;
+          i += 1
         };
         case (_) return
       }

@@ -36,13 +36,6 @@ module {
 
   let INTERNAL_ERROR = "List: internal error";
 
-  type IterInternal<T> = {
-    dataBlock : [var ?T];
-    blockIndex : Nat;
-    elementIndex : Nat;
-    size : Nat
-  };
-
   /// Creates a new empty List for elements of type T.
   ///
   /// Example:
@@ -240,10 +233,7 @@ module {
   public func clone<T>(list : List<T>) : List<T> = {
     var blocks = VarArray.tabulate<[var ?T]>(
       list.blocks.size(),
-      func(i) = VarArray.tabulate<?T>(
-        list.blocks[i].size(),
-        func(j) = list.blocks[i][j]
-      )
+      func(i) = VarArray.clone<?T>(list.blocks[i])
     );
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex
@@ -296,13 +286,30 @@ module {
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func filter<T>(list : List<T>, predicate : T -> Bool) : List<T> {
     let filtered = empty<T>();
-    forEach<T>(
-      list,
-      func(x) {
-        if (predicate(x)) add(filtered, x)
+
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return filtered;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return filtered;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          if (predicate(x)) add(filtered, x);
+          elementIndex += 1
+        };
+        case (_) return filtered
       }
-    );
-    filtered
+    }
   };
 
   /// Returns a new list containing all elements from `list` for which the function returns ?element.
@@ -322,16 +329,33 @@ module {
   /// *Runtime and space assumes that `f` runs in `O(1)` time and space.
   public func filterMap<T, R>(list : List<T>, f : T -> ?R) : List<R> {
     let filtered = empty<R>();
-    forEach<T>(
-      list,
-      func(x) {
-        switch (f(x)) {
-          case (?y) add(filtered, y);
-          case null {}
-        }
+
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return filtered;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return filtered;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          switch (f(x)) {
+            case (?y) add(filtered, y);
+            case null {}
+          };
+          elementIndex += 1
+        };
+        case (_) return filtered
       }
-    );
-    filtered
+    }
   };
 
   /// Returns the current number of elements in the list.
@@ -1693,6 +1717,36 @@ module {
     Option.isSome(indexOf(list, equal, element))
   };
 
+  private func minMax<T>(list : List<T>, compare : (T, T) -> Order.Order, compareResult : Order.Order) : ?T {
+    if (isEmpty(list)) return null;
+
+    var extremum = get(list, 0);
+
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return ?extremum;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return ?extremum;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          if (compare(x, extremum) == compareResult) extremum := x;
+          elementIndex += 1
+        };
+        case (_) return ?extremum
+      }
+    }
+  };
+
   /// Returns the greatest element in the list according to the ordering defined by `compare`.
   /// Returns `null` if the list is empty.
   ///
@@ -1713,20 +1767,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func max<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T {
-    if (isEmpty(list)) return null;
-
-    var maxSoFar = get(list, 0);
-    forEach<T>(
-      list,
-      func(x) = switch (compare(x, maxSoFar)) {
-        case (#greater) maxSoFar := x;
-        case _ {}
-      }
-    );
-
-    return ?maxSoFar
-  };
+  public func max<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T = minMax<T>(list, compare, #greater);
 
   /// Returns the least element in the list according to the ordering defined by `compare`.
   /// Returns `null` if the list is empty.
@@ -1748,20 +1789,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func min<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T {
-    if (isEmpty(list)) return null;
-
-    var minSoFar = get(list, 0);
-    forEach<T>(
-      list,
-      func(x) = switch (compare(x, minSoFar)) {
-        case (#less) minSoFar := x;
-        case _ {}
-      }
-    );
-
-    return ?minSoFar
-  };
+  public func min<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T = minMax(list, compare, #less);
 
   /// Tests if two lists are equal by comparing their elements using the provided `equal` function.
   /// Returns true if and only if both lists have the same size and all corresponding elements
@@ -1789,15 +1817,31 @@ module {
 
     if (size1 != size(list2)) return false;
 
-    let next1 = values_(list1).unsafeNext;
-    let next2 = values_(list2).unsafeNext;
-    var i = 0;
-    while (i < size1) {
-      if (not equal(next1(), next2())) return false;
-      i += 1
-    };
+    let blocks = Nat.min(list1.blocks.size(), list2.blocks.size());
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var sz = 0;
+    var db1 : [var ?T] = [var];
+    var db2 : [var ?T] = [var];
 
-    return true
+    loop {
+      if (elementIndex == sz) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return true;
+        db1 := list1.blocks[blockIndex];
+        db2 := list2.blocks[blockIndex];
+        sz := db1.size();
+        if (sz == 0) return true;
+        elementIndex := 0
+      };
+      switch (db1[elementIndex], db2[elementIndex]) {
+        case (?x, ?y) {
+          if (not equal(x, y)) return false;
+          elementIndex += 1
+        };
+        case (_) return true
+      }
+    }
   };
 
   /// Compares two lists lexicographically using the provided `compare` function.
@@ -1825,20 +1869,36 @@ module {
   public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order {
     let size1 = size(list1);
     let size2 = size(list2);
-    let minSize = if (size1 < size2) { size1 } else { size2 };
 
-    let next1 = values_(list1).unsafeNext;
-    let next2 = values_(list2).unsafeNext;
-    var i = 0;
-    while (i < minSize) {
-      switch (compare(next1(), next2())) {
-        case (#less) return #less;
-        case (#greater) return #greater;
-        case _ {}
+    let blocks = Nat.min(list1.blocks.size(), list2.blocks.size());
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var sz = 0;
+    var db1 : [var ?T] = [var];
+    var db2 : [var ?T] = [var];
+
+    loop {
+      if (elementIndex == sz) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return Nat.compare(size1, size2);
+        db1 := list1.blocks[blockIndex];
+        db2 := list2.blocks[blockIndex];
+        sz := db1.size();
+        if (sz == 0) return Nat.compare(size1, size2);
+        elementIndex := 0
       };
-      i += 1
-    };
-    Nat.compare(size1, size2)
+      switch (db1[elementIndex], db2[elementIndex]) {
+        case (?x, ?y) {
+          switch (compare(x, y)) {
+            case (#less) return #less;
+            case (#greater) return #greater;
+            case _ {}
+          };
+          elementIndex += 1
+        };
+        case (_) return Nat.compare(size1, size2)
+      }
+    }
   };
 
   /// Creates a textual representation of `list`, using `toText` to recursively
@@ -1984,17 +2044,51 @@ module {
   /// Space: `O(1)`
   public func reverseInPlace<T>(list : List<T>) {
     let vsize = size(list);
-    if (vsize == 0) return;
+    if (vsize <= 1) return;
 
+    let count = vsize / 2;
     var i = 0;
-    var j = vsize - 1 : Nat;
-    var temp = get(list, 0);
-    while (i < vsize / 2) {
-      temp := get(list, j);
-      put(list, j, get(list, i));
-      put(list, i, temp);
-      i += 1;
-      j -= 1
+
+    let blocks = list.blocks.size();
+    var blockIndexFront = 0;
+    var elementIndexFront = 0;
+    var sz = 0;
+    var dbFront : [var ?T] = [var];
+
+    var blockIndexBack = list.blockIndex;
+    var elementIndexBack = list.elementIndex;
+    var dbBack : [var ?T] = if (blockIndexBack < list.blocks.size()) {
+      list.blocks[blockIndexBack]
+    } else { [var] };
+
+    while (i < count) {
+      if (elementIndexFront == sz) {
+        blockIndexFront += 1;
+        if (blockIndexFront >= blocks) return;
+        dbFront := list.blocks[blockIndexFront];
+        sz := dbFront.size();
+        if (sz == 0) return;
+        elementIndexFront := 0
+      };
+
+      if (blockIndexBack == 1) {
+        return
+      };
+      if (elementIndexBack == 0) {
+        blockIndexBack -= 1;
+        dbBack := list.blocks[blockIndexBack];
+        elementIndexBack := dbBack.size() - 1
+      } else {
+        elementIndexBack -= 1
+      };
+
+      let temp = dbFront[elementIndexFront];
+      dbFront[elementIndexFront] := dbBack[elementIndexBack];
+      dbBack[elementIndexBack] := temp;
+
+      elementIndexFront += 1;
+
+      i += 1
     }
   };
 

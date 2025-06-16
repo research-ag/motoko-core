@@ -68,7 +68,11 @@ module {
   /// Runtime: `O(1)`
   ///
   /// Space: `O(1)`
-  public func singleton<T>(element : T) : List<T> = repeat(element, 1);
+  public func singleton<T>(element : T) : List<T> = {
+    var blockIndex = 2;
+    var blocks = [var [var], [var ?element]];
+    var elementIndex = 0
+  };
 
   private func repeatInternal<T>(initValue : ?T, size : Nat) : List<T> {
     let (blockIndex, elementIndex) = locate(size);
@@ -108,11 +112,7 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(size)`
-  public func repeat<T>(initValue : T, size : Nat) : List<T> {
-    let list = empty<T>();
-    addRepeat<T>(list, initValue, size);
-    list
-  };
+  public func repeat<T>(initValue : T, size : Nat) : List<T> = repeatInternal<T>(?initValue, size);
 
   /// Converts a mutable `List` to a purely functional `PureList`.
   ///
@@ -615,9 +615,7 @@ module {
     if (size(list) < 2) return;
     let arr = toVarArray(list);
     VarArray.sortInPlace(arr, compare);
-    for (i in arr.keys()) {
-      put(list, i, arr[i])
-    }
+    forEachEntryChange<T>(list, func(i, _) = arr[i])
   };
 
   /// Finds the first index of `element` in `list` using equality of elements defined
@@ -641,18 +639,29 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
-    var result : ?Nat = null;
-    forEachInternal<T>(
-      list,
-      func(i, current) : Bool {
-        if (equal(element, current)) {
-          result := ?i;
-          return true
-        };
-        false
-      }
-    );
-    return result;
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+    var i = 0;
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return null;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return null;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) if (equal(x, element)) return ?i;
+        case (_) return null
+      };
+      elementIndex += 1;
+      i += 1
+    }
   };
 
   /// Finds the last index of `element` in `list` using equality of elements defined
@@ -672,8 +681,32 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func lastIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
-    // inlining would save 10 instructions per entry
-    findLastIndex<T>(list, func(x) = equal(element, x))
+    var i = size(list);
+    var blockIndex = list.blockIndex;
+    var elementIndex = list.elementIndex;
+    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
+      list.blocks[blockIndex]
+    } else { [var] };
+
+    loop {
+      if (blockIndex == 1) {
+        return null
+      };
+      if (elementIndex == 0) {
+        blockIndex -= 1;
+        db := list.blocks[blockIndex];
+        elementIndex := db.size() - 1
+      } else {
+        elementIndex -= 1
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          i -= 1;
+          if (equal(x, element)) return ?i
+        };
+        case (_) Prim.trap(INTERNAL_ERROR)
+      }
+    }
   };
 
   /// Returns the first value in `list` for which `predicate` returns true.
@@ -690,18 +723,7 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func find<T>(list : List<T>, predicate : T -> Bool) : ?T {
-    var result : ?T = null;
-    forEachInternal<T>(
-      list,
-      func(_, element) : Bool {
-        if (predicate(element)) {
-          result := ?element;
-          return true
-        };
-        false
-      }
-    );
-    result
+    Option.map<Nat, T>(findIndex<T>(list, predicate), func(i) = get(list, i))
   };
 
   /// Finds the index of the first element in `list` for which `predicate` is true.
@@ -723,14 +745,29 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
-    let sz = size(list);
-    var vals = values_(list);
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
     var i = 0;
-    while (i < sz) {
-      if (predicate(vals.unsafeNext())) return ?i;
-      i += 1;
-    };
-    return null;
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return null;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return null;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) if (predicate(x)) return ?i;
+        case (_) return null
+      };
+      elementIndex += 1;
+      i += 1
+    }
   };
 
   /// Finds the index of the last element in `list` for which `predicate` is true.
@@ -799,18 +836,29 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func all<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    var flag = true;
-    forEachInternal<T>(
-      list,
-      func(_, element) : Bool {
-        if (not predicate(element)) {
-          flag := false;
-          return true
-        };
-        false
-      }
-    );
-    flag
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+    var i = 0;
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return true;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return true;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) if (not predicate(x)) return false;
+        case (_) return true
+      };
+      elementIndex += 1;
+      i += 1
+    }
   };
 
   /// Returns true iff some element in `list` satisfies `predicate`.
@@ -832,18 +880,27 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func any<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    var found = false;
-    forEachInternal<T>(
-      list,
-      func(_, element) : Bool {
-        if (predicate(element)) {
-          found := true;
-          return true
-        };
-        false
-      }
-    );
-    found
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return false;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return false;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) if (predicate(x)) return true;
+        case (_) return false
+      };
+      elementIndex += 1
+    }
   };
 
   /// Returns an Iterator (`Iter`) over the elements of a List.
@@ -1111,7 +1168,7 @@ module {
     var blockIndex = 0;
     var elementIndex = 0;
     if (start != 0) {
-      let (block, element) = if (start == 0) (0, 0) else locate(start - 1);
+      let (block, element) = locate(start - 1);
       blockIndex := block;
       elementIndex := element + 1
     };
@@ -1333,7 +1390,7 @@ module {
   ///
   /// Space: `O(1)`
   public func first<T>(list : List<T>) : ?T {
-    if (isEmpty(list)) null else list.blocks[1][0]
+    if (list.blockIndex == 1 and list.elementIndex == 0) null else list.blocks[1][0]
   };
 
   /// Returns the last element of `list`. Traps if `list` is empty.
@@ -1359,9 +1416,9 @@ module {
     if (b == 1) null else list.blocks[b - 1][0]
   };
 
-  private func forEachInternal<T>(
+  public func forEachEntryChange<T>(
     list : List<T>,
-    f : (counter : Nat, value : T) -> Bool
+    f : (i : Nat, oldValue : T) -> (newValue : T)
   ) {
     let blocks = list.blocks.size();
     var blockIndex = 0;
@@ -1381,9 +1438,38 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          if (f(i, x)) return;
-          elementIndex += 1;
-          i += 1
+          db[elementIndex] := ?f(i, x);
+          elementIndex += 1
+        };
+        case (_) return
+      };
+      i += 1
+    }
+  };
+
+  public func forEachChange<T>(
+    list : List<T>,
+    f : (oldValue : T) -> (newValue : T)
+  ) {
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          db[elementIndex] := ?f(x);
+          elementIndex += 1
         };
         case (_) return
       }
@@ -1810,12 +1896,29 @@ module {
   public func foldLeft<A, T>(list : List<T>, base : A, combine : (A, T) -> A) : A {
     var accumulation = base;
 
-    forEach<T>(
-      list,
-      func(x) = accumulation := combine(accumulation, x)
-    );
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
 
-    accumulation
+    loop {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return accumulation;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return accumulation;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          accumulation := combine(accumulation, x);
+          elementIndex += 1
+        };
+        case (_) return accumulation
+      }
+    }
   };
 
   /// Collapses the elements in `list` into a single value by starting with `base`
@@ -1839,12 +1942,28 @@ module {
   public func foldRight<T, A>(list : List<T>, base : A, combine : (T, A) -> A) : A {
     var accumulation = base;
 
-    reverseForEach<T>(
-      list,
-      func(x) = accumulation := combine(x, accumulation)
-    );
+    var blockIndex = list.blockIndex;
+    var elementIndex = list.elementIndex;
+    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
+      list.blocks[blockIndex]
+    } else { [var] };
 
-    accumulation
+    loop {
+      if (blockIndex == 1) {
+        return accumulation
+      };
+      if (elementIndex == 0) {
+        blockIndex -= 1;
+        db := list.blocks[blockIndex];
+        elementIndex := db.size() - 1
+      } else {
+        elementIndex -= 1
+      };
+      switch (db[elementIndex]) {
+        case (?x) accumulation := combine(x, accumulation);
+        case (_) Prim.trap(INTERNAL_ERROR)
+      }
+    }
   };
 
   /// Reverses the order of elements in `list` by overwriting in place.

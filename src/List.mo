@@ -79,10 +79,12 @@ module {
     };
     if (elementIndex != 0 and blockIndex < blocks) {
       let block = VarArray.repeat<?T>(null, dataBlockSize(i));
-      var j = 0;
-      while (j < elementIndex) {
-        block[j] := initValue;
-        j += 1
+      if (not Option.isNull(initValue)) {
+        var j = 0;
+        while (j < elementIndex) {
+          block[j] := initValue;
+          j += 1
+        }
       };
       dataBlocks[i] := block
     };
@@ -171,10 +173,12 @@ module {
         let to = Nat.min(list.elementIndex + cnt, dbSize);
 
         let block = list.blocks[list.blockIndex];
-        var i = from;
-        while (i < to) {
-          block[i] := initValue;
-          i += 1
+        if (not Option.isNull(initValue)) {
+          var i = from;
+          while (i < to) {
+            block[i] := initValue;
+            i += 1
+          }
         };
 
         list.elementIndex := to;
@@ -887,7 +891,7 @@ module {
         case (?x) if (not predicate(x)) return false;
         case (_) return true
       };
-      elementIndex += 1;
+      elementIndex += 1
     }
   };
 

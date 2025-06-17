@@ -1310,6 +1310,7 @@ module {
         elementIndex := 0
       };
       db[elementIndex] := ?array[i];
+      elementIndex += 1;
       i += 1
     };
 

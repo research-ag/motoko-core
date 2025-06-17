@@ -1290,31 +1290,41 @@ module {
   ///
   /// Runtime: `O(size)`
   public func fromArray<T>(array : [T]) : List<T> {
-    let sz = array.size();
-    let list = repeatInternal<T>(null, sz);
+    let (blockIndex, elementIndex) = locate(array.size());
 
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
-    var i = 0;
+    let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
-    while (i < sz) {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return list;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return list;
-        elementIndex := 0
+    func makeBlock(array : [T], p : Nat, len : Nat, fill : Nat) : [var ?T] {
+      let block = VarArray.repeat<?T>(null, len);
+      var j = 0;
+      var pos = p;
+      while (j < fill) {
+        block[j] := ?array[pos];
+        j += 1;
+        pos += 1
       };
-      db[elementIndex] := ?array[i];
-      elementIndex += 1;
-      i += 1
+      block
     };
 
-    list
+    var i = 1;
+    var pos = 0;
+
+    while (i < blockIndex) {
+      let len = dataBlockSize(i);
+      dataBlocks[i] := makeBlock(array, pos, len, len);
+      pos += len;
+      i += 1
+    };
+    if (elementIndex != 0 and blockIndex < blocks) {
+      dataBlocks[i] := makeBlock(array, pos, dataBlockSize(i), elementIndex)
+    };
+
+    {
+      var blocks = dataBlocks;
+      var blockIndex = blockIndex;
+      var elementIndex = elementIndex
+    }
   };
 
   /// Creates a new mutable array containing all elements from the list.
@@ -1363,12 +1373,11 @@ module {
 
     let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
-    var i = 1;
-    var pos = 0;
 
-    func makeBlock(len : Nat, fill : Nat) : [var ?T] {
+    func makeBlock(array : [var T], p : Nat, len : Nat, fill : Nat) : [var ?T] {
       let block = VarArray.repeat<?T>(null, len);
       var j = 0;
+      var pos = p;
       while (j < fill) {
         block[j] := ?array[pos];
         j += 1;
@@ -1377,21 +1386,24 @@ module {
       block
     };
 
+    var i = 1;
+    var pos = 0;
+
     while (i < blockIndex) {
       let len = dataBlockSize(i);
-      dataBlocks[i] := makeBlock(len, len);
+      dataBlocks[i] := makeBlock(array, pos, len, len);
+      pos += len;
       i += 1
     };
     if (elementIndex != 0 and blockIndex < blocks) {
-      dataBlocks[i] := makeBlock(dataBlockSize(i), elementIndex)
+      dataBlocks[i] := makeBlock(array, pos, dataBlockSize(i), elementIndex)
     };
 
     {
       var blocks = dataBlocks;
       var blockIndex = blockIndex;
       var elementIndex = elementIndex
-    };
-
+    }
   };
 
   /// Returns the first element of `list`, or `null` if the list is empty.

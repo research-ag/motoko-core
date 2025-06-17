@@ -666,25 +666,27 @@ module {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
-    var size = 0;
+    var sz = 0;
     var db : [var ?T] = [var];
-    var i = 0;
 
     loop {
-      if (elementIndex == size) {
+      if (elementIndex == sz) {
         blockIndex += 1;
         if (blockIndex >= blocks) return null;
         db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return null;
+        sz := db.size();
+        if (sz == 0) return null;
         elementIndex := 0
       };
       switch (db[elementIndex]) {
-        case (?x) if (equal(x, element)) return ?i;
+        case (?x) if (equal(x, element)) return ?size<T>({
+          var blocks = [var];
+          var blockIndex = blockIndex;
+          var elementIndex = elementIndex
+        });
         case (_) return null
       };
       elementIndex += 1;
-      i += 1
     }
   };
 

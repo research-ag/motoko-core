@@ -1290,39 +1290,30 @@ module {
   ///
   /// Runtime: `O(size)`
   public func fromArray<T>(array : [T]) : List<T> {
-    let (blockIndex, elementIndex) = locate(array.size());
+    let sz = array.size();
+    let list = repeatInternal<T>(null, sz);
 
-    let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
-    let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
-    var i = 1;
-    var pos = 0;
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var size = 0;
+    var db : [var ?T] = [var];
+    var i = 0;
 
-    func makeBlock(len : Nat, fill : Nat) : [var ?T] {
-      let block = VarArray.repeat<?T>(null, len);
-      var j = 0;
-      while (j < fill) {
-        block[j] := ?array[pos];
-        j += 1;
-        pos += 1
+    while (i < sz) {
+      if (elementIndex == size) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return list;
+        db := list.blocks[blockIndex];
+        size := db.size();
+        if (size == 0) return list;
+        elementIndex := 0
       };
-      block
-    };
-
-    while (i < blockIndex) {
-      let len = dataBlockSize(i);
-      dataBlocks[i] := makeBlock(len, len);
+      db[elementIndex] := ?array[i];
       i += 1
     };
-    if (elementIndex != 0 and blockIndex < blocks) {
-      dataBlocks[i] := makeBlock(dataBlockSize(i), elementIndex)
-    };
 
-    {
-      var blocks = dataBlocks;
-      var blockIndex = blockIndex;
-      var elementIndex = elementIndex
-    };
-
+    list
   };
 
   /// Creates a new mutable array containing all elements from the list.

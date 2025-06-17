@@ -686,7 +686,7 @@ module {
         });
         case (_) return null
       };
-      elementIndex += 1;
+      elementIndex += 1
     }
   };
 
@@ -707,7 +707,6 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func lastIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
-    var i = size(list);
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
     var db : [var ?T] = if (blockIndex < list.blocks.size()) {
@@ -727,8 +726,11 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          i -= 1;
-          if (equal(x, element)) return ?i
+          if (equal(x, element)) return ?size<T>({
+            var blocks = [var];
+            var blockIndex = blockIndex;
+            var elementIndex = elementIndex
+          })
         };
         case (_) Prim.trap(INTERNAL_ERROR)
       }
@@ -774,25 +776,27 @@ module {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
-    var size = 0;
+    var sz = 0;
     var db : [var ?T] = [var];
-    var i = 0;
 
     loop {
-      if (elementIndex == size) {
+      if (elementIndex == sz) {
         blockIndex += 1;
         if (blockIndex >= blocks) return null;
         db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return null;
+        sz := db.size();
+        if (sz == 0) return null;
         elementIndex := 0
       };
       switch (db[elementIndex]) {
-        case (?x) if (predicate(x)) return ?i;
+        case (?x) if (predicate(x)) return ?size<T>({
+          var blocks = [var];
+          var blockIndex = blockIndex;
+          var elementIndex = elementIndex
+        });
         case (_) return null
       };
-      elementIndex += 1;
-      i += 1
+      elementIndex += 1
     }
   };
 
@@ -815,7 +819,6 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findLastIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
-    var i = size(list);
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
     var db : [var ?T] = if (blockIndex < list.blocks.size()) {
@@ -835,8 +838,11 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          i -= 1;
-          if (predicate(x)) return ?i
+          if (predicate(x)) return ?size<T>({
+            var blocks = [var];
+            var blockIndex = blockIndex;
+            var elementIndex = elementIndex
+          })
         };
         case (_) Prim.trap(INTERNAL_ERROR)
       }
@@ -867,7 +873,6 @@ module {
     var elementIndex = 0;
     var size = 0;
     var db : [var ?T] = [var];
-    var i = 0;
 
     loop {
       if (elementIndex == size) {
@@ -883,7 +888,6 @@ module {
         case (_) return true
       };
       elementIndex += 1;
-      i += 1
     }
   };
 

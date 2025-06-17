@@ -2113,14 +2113,45 @@ module {
   ///
   /// Space: `O(1)`
   public func reverse<T>(list : List<T>) : List<T> {
-    let rlist = empty<T>();
+    let rlist = repeatInternal<T>(null, size(list));
 
-    reverseForEach<T>(
-      list,
-      func(x) = add(rlist, x)
-    );
+    let blocks = list.blocks.size();
+    var blockIndexFront = 0;
+    var elementIndexFront = 0;
+    var sz = 0;
+    var dbFront : [var ?T] = [var];
 
-    rlist
+    var blockIndexBack = rlist.blockIndex;
+    var elementIndexBack = rlist.elementIndex;
+    var dbBack : [var ?T] = if (blockIndexBack < rlist.blocks.size()) {
+      rlist.blocks[blockIndexBack]
+    } else { [var] };
+
+    loop {
+      if (elementIndexFront == sz) {
+        blockIndexFront += 1;
+        if (blockIndexFront >= blocks) return rlist;
+        dbFront := list.blocks[blockIndexFront];
+        sz := dbFront.size();
+        if (sz == 0) return rlist;
+        elementIndexFront := 0
+      };
+
+      if (blockIndexBack == 1) {
+        return rlist
+      };
+      if (elementIndexBack == 0) {
+        blockIndexBack -= 1;
+        dbBack := rlist.blocks[blockIndexBack];
+        elementIndexBack := dbBack.size() - 1
+      } else {
+        elementIndexBack -= 1
+      };
+
+      dbBack[elementIndexBack] := dbFront[elementIndexFront];
+
+      elementIndexFront += 1
+    }
   };
 
   /// Returns true if and only if the list is empty.

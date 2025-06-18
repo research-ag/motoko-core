@@ -1585,7 +1585,7 @@ module {
 
       var j = 0;
       while (j < sz) {
-        let ?x = db[j] else Prim.trap(INTERNAL_ERROR);
+        let ?x = db[j] else return;
         f(x);
         j += 1
       };

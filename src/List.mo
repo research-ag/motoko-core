@@ -271,7 +271,11 @@ module {
       while (j < blockSize) {
         switch (oldBlock[j]) {
           case (?item) newBlock[j] := ?f(item);
-          case (null) {}
+          case null return {
+            var blocks = blocks;
+            var blockIndex = list.blockIndex;
+            var elementIndex = list.elementIndex
+          }
         };
         j += 1
       };
@@ -302,29 +306,29 @@ module {
   public func filter<T>(list : List<T>, predicate : T -> Bool) : List<T> {
     let filtered = empty<T>();
 
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return filtered;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return filtered;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return filtered;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            if (predicate(x)) add(filtered, x);
+            j += 1
+          };
+          case null return filtered
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) {
-          if (predicate(x)) add(filtered, x);
-          elementIndex += 1
-        };
-        case (_) return filtered
-      }
-    }
+      i += 1
+    };
+
+    filtered
   };
 
   /// Returns a new list containing all elements from `list` for which the function returns ?element.
@@ -345,32 +349,32 @@ module {
   public func filterMap<T, R>(list : List<T>, f : T -> ?R) : List<R> {
     let filtered = empty<R>();
 
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return filtered;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return filtered;
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          switch (f(x)) {
-            case (?y) add(filtered, y);
-            case null {}
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return filtered;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            switch (f(x)) {
+              case (?y) add(filtered, y);
+              case null {}
+            };
+            j += 1
           };
-          elementIndex += 1
-        };
-        case (_) return filtered
-      }
-    }
+          case null return filtered
+        }
+      };
+      i += 1
+    };
+
+    filtered
   };
 
   /// Returns the current number of elements in the list.
@@ -1500,28 +1504,27 @@ module {
     list : List<T>,
     f : (i : Nat, oldValue : T) -> (newValue : T)
   ) {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
-    var i = 0;
+    var index = 0;
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return;
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          db[elementIndex] := ?f(i, x);
-          elementIndex += 1
-        };
-        case (_) return
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            db[j] := ?f(index, x);
+            index += 1;
+            j += 1
+          };
+          case null return
+        }
       };
       i += 1
     }
@@ -1531,28 +1534,26 @@ module {
     list : List<T>,
     f : (oldValue : T) -> (newValue : T)
   ) {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            db[j] := ?f(x);
+            j += 1
+          };
+          case null return
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) {
-          db[elementIndex] := ?f(x);
-          elementIndex += 1
-        };
-        case (_) return
-      }
+      i += 1
     }
   };
 
@@ -1621,37 +1622,28 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func forEachEntry<T>(list : List<T>, f : (Nat, T) -> ()) {
-    /* Inlined version of
-      let o = object {
-        var i = 0;
-        public func fx(x : T) { f(i, x); i += 1; };
-      };
-      iterate<T>(list, o.fx);
-    */
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
-    var i = 0;
+    var index = 0;
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            f(index, x);
+            j += 1;
+            index += 1
+          };
+          case null return
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) {
-          f(i, x);
-          elementIndex += 1;
-          i += 1
-        };
-        case (_) return
-      }
+      i += 1
     }
   };
 
@@ -1721,18 +1713,25 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func reverseForEach<T>(list : List<T>, f : T -> ()) {
-    var i = list.blocks.size() - 1 : Nat;
-    while (i > 0) {
-      let db = list.blocks[i];
-      var j = db.size();
-      while (j > 0) {
-        j -= 1;
-        switch (db[j]) {
-          case (?x) f(x);
-          case (_) {}
-        }
+    var blockIndex = list.blockIndex;
+    var elementIndex = list.elementIndex;
+    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
+      list.blocks[blockIndex]
+    } else { [var] };
+
+    loop {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
+        blockIndex -= 1;
+        if (blockIndex == 0) return;
+        db := list.blocks[blockIndex];
+        elementIndex := db.size() - 1
       };
-      i -= 1
+      switch (db[elementIndex]) {
+        case (?x) f(x);
+        case (_) Prim.trap(INTERNAL_ERROR)
+      }
     }
   };
 
@@ -1758,36 +1757,6 @@ module {
   /// *Runtime and space assumes that `equal` runs in O(1) time and space.
   public func contains<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : Bool {
     Option.isSome(indexOf(list, equal, element))
-  };
-
-  private func minMax<T>(list : List<T>, compare : (T, T) -> Order.Order, compareResult : Order.Order) : ?T {
-    if (isEmpty(list)) return null;
-
-    var extremum = get(list, 0);
-
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
-
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return ?extremum;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return ?extremum;
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          if (compare(x, extremum) == compareResult) extremum := x;
-          elementIndex += 1
-        };
-        case (_) return ?extremum
-      }
-    }
   };
 
   /// Returns the greatest element in the list according to the ordering defined by `compare`.
@@ -1920,35 +1889,32 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in O(1) time and space.
   public func equal<T>(list1 : List<T>, list2 : List<T>, equal : (T, T) -> Bool) : Bool {
-    let size1 = size(list1);
+    if (size(list1) != size(list2)) return false;
 
-    if (size1 != size(list2)) return false;
+    let blocks1 = list1.blocks;
+    let blocks2 = list2.blocks;
+    let blockCount = Nat.min(blocks1.size(), blocks2.size());
 
-    let blocks = Nat.min(list1.blocks.size(), list2.blocks.size());
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db1 : [var ?T] = [var];
-    var db2 : [var ?T] = [var];
+    var i = 1;
+    while (i < blockCount) {
+      let db1 = blocks1[i];
+      let db2 = blocks2[i];
+      let sz = Nat.min(db1.size(), db2.size());
+      if (sz == 0) return true;
 
-    loop {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return true;
-        db1 := list1.blocks[blockIndex];
-        db2 := list2.blocks[blockIndex];
-        sz := db1.size();
-        if (sz == 0) return true;
-        elementIndex := 0
+      var j = 0;
+      while (j < sz) {
+        switch (db1[j], db2[j]) {
+          case (?x, ?y) {
+            if (not equal(x, y)) return false;
+            j += 1
+          };
+          case (_, _) return true
+        }
       };
-      switch (db1[elementIndex], db2[elementIndex]) {
-        case (?x, ?y) {
-          if (not equal(x, y)) return false;
-          elementIndex += 1
-        };
-        case (_) return true
-      }
-    }
+      i += 1
+    };
+    return true
   };
 
   /// Compares two lists lexicographically using the provided `compare` function.
@@ -1974,38 +1940,34 @@ module {
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
   public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order {
-    let size1 = size(list1);
-    let size2 = size(list2);
+    let blocks1 = list1.blocks;
+    let blocks2 = list2.blocks;
+    let blockCount = Nat.min(blocks1.size(), blocks2.size());
 
-    let blocks = Nat.min(list1.blocks.size(), list2.blocks.size());
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db1 : [var ?T] = [var];
-    var db2 : [var ?T] = [var];
+    var i = 1;
+    while (i < blockCount) {
+      let db1 = blocks1[i];
+      let db2 = blocks2[i];
+      let sz = Nat.min(db1.size(), db2.size());
+      if (sz == 0) return Nat.compare(size(list1), size(list2));
 
-    loop {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return Nat.compare(size1, size2);
-        db1 := list1.blocks[blockIndex];
-        db2 := list2.blocks[blockIndex];
-        sz := db1.size();
-        if (sz == 0) return Nat.compare(size1, size2);
-        elementIndex := 0
-      };
-      switch (db1[elementIndex], db2[elementIndex]) {
-        case (?x, ?y) {
-          switch (compare(x, y)) {
-            case (#less) return #less;
-            case (#greater) return #greater;
-            case _ {}
+      var j = 0;
+      while (j < sz) {
+        switch (db1[j], db2[j]) {
+          case (?x, ?y) {
+            switch (compare(x, y)) {
+              case (#less) return #less;
+              case (#greater) return #greater;
+              case _ {}
+            };
+            j += 1
           };
-          elementIndex += 1
-        };
-        case (_) return Nat.compare(size1, size2)
-      }
-    }
+          case (_, _) return Nat.compare(size(list1), size(list2))
+        }
+      };
+      i += 1
+    };
+    return Nat.compare(size(list1), size(list2))
   };
 
   /// Creates a textual representation of `list`, using `toText` to recursively
@@ -2026,39 +1988,31 @@ module {
   ///
   /// *Runtime and space assumes that `toText` runs in O(1) time and space.
   public func toText<T>(list : List<T>, f : T -> Text) : Text {
-    let vsize = size(list);
-    if (vsize == 0) return "List[]";
+    // avoid the trailing comma
+    var text = switch (first(list)) {
+      case (?x) f(x);
+      case null return "List[]"
+    };
 
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    var i = 1;
-    var text = "";
+    var i = 2;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return "List[" # text # "]";
 
-    while (i < vsize) {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
-        db := list.blocks[blockIndex];
-        sz := db.size();
-        if (sz == 0) Prim.trap(INTERNAL_ERROR);
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          text := text # f(x) # ", "; // Text implemented as rope
-          elementIndex += 1
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) text := ", " # text # f(x);
+          case null return "List[" # text # "]"
         };
-        case (_) Prim.trap(INTERNAL_ERROR)
+        j += 1
       };
       i += 1
     };
-
-    // avoid the trailing comma
-    text := text # f(Option.unwrap(last(list)));
 
     "List[" # text # "]"
   };
@@ -2084,29 +2038,28 @@ module {
   public func foldLeft<A, T>(list : List<T>, base : A, combine : (A, T) -> A) : A {
     var accumulation = base;
 
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return accumulation;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return accumulation;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return accumulation;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            accumulation := combine(accumulation, x);
+            j += 1
+          };
+          case null return accumulation
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) {
-          accumulation := combine(accumulation, x);
-          elementIndex += 1
-        };
-        case (_) return accumulation
-      }
-    }
+      i += 1
+    };
+    accumulation
   };
 
   /// Collapses the elements in `list` into a single value by starting with `base`

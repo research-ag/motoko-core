@@ -2070,11 +2070,9 @@ module {
         elementIndexFront := 0
       };
 
-      if (blockIndexBack == 1) {
-        return
-      };
       if (elementIndexBack == 0) {
         blockIndexBack -= 1;
+        if (blockIndexBack == 0) return;
         dbBack := list.blocks[blockIndexBack];
         elementIndexBack := dbBack.size() - 1
       } else {
@@ -2132,11 +2130,9 @@ module {
         elementIndexFront := 0
       };
 
-      if (blockIndexBack == 1) {
-        return rlist
-      };
       if (elementIndexBack == 0) {
         blockIndexBack -= 1;
+        if (blockIndexBack == 0) return rlist;
         dbBack := rlist.blocks[blockIndexBack];
         elementIndexBack := dbBack.size() - 1
       } else {

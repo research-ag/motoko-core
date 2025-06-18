@@ -14,7 +14,6 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
-import Debug "mo:base/Debug";
 import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
@@ -1681,13 +1680,13 @@ module {
     } else { [var] };
 
     loop {
-      if (elementIndex == 0) {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
         blockIndex -= 1;
         if (blockIndex == 0) return;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      } else {
-        elementIndex -= 1
       };
       switch (db[elementIndex]) {
         case (?x) f(x);

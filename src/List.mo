@@ -256,22 +256,33 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
-  public func map<T, R>(list : List<T>, f : T -> R) : List<R> = {
-    var blocks = VarArray.tabulate<[var ?R]>(
-      list.blocks.size(),
-      func(i) {
-        let db = list.blocks[i];
-        VarArray.tabulate<?R>(
-          db.size(),
-          func(j) = switch (db[j]) {
-            case (?item) ?f(item);
-            case (null) null
-          }
-        )
-      }
-    );
-    var blockIndex = list.blockIndex;
-    var elementIndex = list.elementIndex
+  public func map<T, R>(list : List<T>, f : T -> R) : List<R> {
+    let blocks = VarArray.repeat<[var ?R]>([var], list.blocks.size());
+    let blocksCount = list.blocks.size();
+
+    var i = 1;
+    while (i < blocksCount) {
+      let oldBlock = list.blocks[i];
+      let blockSize = oldBlock.size();
+      let newBlock = VarArray.repeat<?R>(null, blockSize);
+      blocks[i] := newBlock;
+      var j = 0;
+      
+      while (j < blockSize) {
+        switch (oldBlock[j]) {
+          case (?item) newBlock[j] := ?f(item);
+          case (null) {}
+        };
+        j += 1
+      };
+      i += 1
+    };
+
+    {
+      var blocks = blocks;
+      var blockIndex = list.blockIndex;
+      var elementIndex = list.elementIndex
+    }
   };
 
   /// Returns a new list containing only the elements from `list` for which the predicate returns true.
@@ -1461,7 +1472,7 @@ module {
     if (e > 0) {
       switch (list.blocks[list.blockIndex][e - 1]) {
         case null Prim.trap(INTERNAL_ERROR);
-        case e return e;
+        case e return e
       }
     };
     let b = list.blockIndex - 1 : Nat;

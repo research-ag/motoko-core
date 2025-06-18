@@ -15,6 +15,14 @@ import Int "../src/Int";
 import Debug "../src/Debug";
 import { Tuple2 } "../src/Tuples";
 
+
+// let l = List.empty<Nat>();
+// List.add(l, 0);
+
+// let ix = List.lastIndexOf<Nat>(l, func (x, y) = x == y, 1);
+
+// Runtime.trap("");
+
 let { run; test; suite } = Suite;
 
 func unwrap<T>(x : ?T) : T = switch (x) {

@@ -14,6 +14,7 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
+import Debug "mo:base/Debug";
 import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
@@ -718,11 +719,9 @@ module {
     } else { [var] };
 
     loop {
-      if (blockIndex == 1) {
-        return null
-      };
       if (elementIndex == 0) {
         blockIndex -= 1;
+        if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
       } else {
@@ -830,11 +829,9 @@ module {
     } else { [var] };
 
     loop {
-      if (blockIndex == 1) {
-        return null
-      };
       if (elementIndex == 0) {
         blockIndex -= 1;
+        if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
       } else {
@@ -1041,11 +1038,9 @@ module {
     } else { [var] };
 
     public func next() : ?T {
-      if (blockIndex == 1) {
-        return null
-      };
       if (elementIndex == 0) {
         blockIndex -= 1;
+        if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
       } else {
@@ -1086,11 +1081,9 @@ module {
     } else { [var] };
 
     public func next() : ?(Nat, T) {
-      if (blockIndex == 1) {
-        return null
-      };
       if (elementIndex == 0) {
         blockIndex -= 1;
+        if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
       } else {
@@ -1645,11 +1638,9 @@ module {
     var i = size(list);
 
     loop {
-      if (blockIndex == 1) {
-        return
-      };
       if (elementIndex == 0) {
         blockIndex -= 1;
+        if (blockIndex == 0) return;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
       } else {
@@ -1690,11 +1681,9 @@ module {
     } else { [var] };
 
     loop {
-      if (blockIndex == 1) {
-        return
-      };
       if (elementIndex == 0) {
         blockIndex -= 1;
+        if (blockIndex == 0) return;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
       } else {
@@ -2023,11 +2012,9 @@ module {
     } else { [var] };
 
     loop {
-      if (blockIndex == 1) {
-        return accumulation
-      };
       if (elementIndex == 0) {
         blockIndex -= 1;
+        if (blockIndex == 0) return accumulation;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
       } else {

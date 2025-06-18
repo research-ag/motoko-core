@@ -1585,9 +1585,13 @@ module {
 
       var j = 0;
       while (j < sz) {
-        let ?x = db[j] else return;
-        f(x);
-        j += 1
+        switch(db[j]) {
+          case (?x) {
+            f(x);
+            j += 1
+          };
+          case null return;
+        };
       };
       i += 1
     }

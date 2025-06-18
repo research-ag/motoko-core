@@ -267,7 +267,7 @@ module {
       let newBlock = VarArray.repeat<?R>(null, blockSize);
       blocks[i] := newBlock;
       var j = 0;
-      
+
       while (j < blockSize) {
         switch (oldBlock[j]) {
           case (?item) newBlock[j] := ?f(item);
@@ -604,12 +604,19 @@ module {
   ///
   /// Space: `O(1)`
   public func getOpt<T>(list : List<T>, index : Nat) : ?T {
-    let (a, b) = locate(index);
+    let (a, b) = do {
+      let i = Nat32.fromNat(index);
+      let lz = Nat32.bitcountLeadingZero(i);
+      let lz2 = lz >> 1;
+      if (lz & 1 == 0) {
+        (Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat32.toNat(i & (0xFFFF >> lz2)))
+      } else {
+        (Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat32.toNat(i & (0x7FFF >> lz2)))
+      }
+    };
     if (a < list.blockIndex or list.elementIndex != 0 and a == list.blockIndex) {
       list.blocks[a][b]
-    } else {
-      null
-    }
+    } else null
   };
 
   /// Overwrites the current element at `index` with `element`.
@@ -625,7 +632,16 @@ module {
   ///
   /// Runtime: `O(1)`
   public func put<T>(list : List<T>, index : Nat, value : T) {
-    let (a, b) = locate(index);
+    let (a, b) = do {
+      let i = Nat32.fromNat(index);
+      let lz = Nat32.bitcountLeadingZero(i);
+      let lz2 = lz >> 1;
+      if (lz & 1 == 0) {
+        (Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat32.toNat(i & (0xFFFF >> lz2)))
+      } else {
+        (Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat32.toNat(i & (0x7FFF >> lz2)))
+      }
+    };
     if (a < list.blockIndex or a == list.blockIndex and b < list.elementIndex) {
       list.blocks[a][b] := ?value
     } else Prim.trap "List index out of bounds in put"

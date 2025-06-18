@@ -5,7 +5,7 @@
 /// This implementation is adapted with permission from the `vector` Mops package created by Research AG.
 ///
 /// Copyright: 2023 MR Research AG
-/// Main author: Andrii Stepanov
+/// Main author: Andrii Stepanov (AStepanov25)
 /// Contributors: Timo Hanke (timohanke), Andy Gura (andygura), react0r-com
 ///
 /// ```motoko name=import

@@ -718,13 +718,13 @@ module {
     } else { [var] };
 
     loop {
-      if (elementIndex == 0) {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
         blockIndex -= 1;
         if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      } else {
-        elementIndex -= 1
       };
       switch (db[elementIndex]) {
         case (?x) {
@@ -828,15 +828,14 @@ module {
     } else { [var] };
 
     loop {
-      if (elementIndex == 0) {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
         blockIndex -= 1;
         if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      } else {
-        elementIndex -= 1
-      };
-      switch (db[elementIndex]) {
+      };      switch (db[elementIndex]) {
         case (?x) {
           if (predicate(x)) return ?size<T>({
             var blocks = [var];
@@ -1037,13 +1036,13 @@ module {
     } else { [var] };
 
     public func next() : ?T {
-      if (elementIndex == 0) {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
         blockIndex -= 1;
         if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      } else {
-        elementIndex -= 1
       };
 
       db[elementIndex]
@@ -1080,13 +1079,13 @@ module {
     } else { [var] };
 
     public func next() : ?(Nat, T) {
-      if (elementIndex == 0) {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
         blockIndex -= 1;
         if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      } else {
-        elementIndex -= 1
       };
       switch (db[elementIndex]) {
         case (?x) {
@@ -1637,13 +1636,13 @@ module {
     var i = size(list);
 
     loop {
-      if (elementIndex == 0) {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
         blockIndex -= 1;
         if (blockIndex == 0) return;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      } else {
-        elementIndex -= 1
       };
       i -= 1;
       switch (db[elementIndex]) {
@@ -2011,13 +2010,13 @@ module {
     } else { [var] };
 
     loop {
-      if (elementIndex == 0) {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
         blockIndex -= 1;
         if (blockIndex == 0) return accumulation;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      } else {
-        elementIndex -= 1
       };
       switch (db[elementIndex]) {
         case (?x) accumulation := combine(x, accumulation);

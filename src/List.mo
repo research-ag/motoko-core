@@ -1577,27 +1577,19 @@ module {
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func forEach<T>(list : List<T>, f : T -> ()) {
     let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db : [var ?T] = [var];
+    var i = 1;
+    while (i < blocks) {
+      let db = list.blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
 
-    loop {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return;
-        db := list.blocks[blockIndex];
-        sz := db.size();
-        if (sz == 0) return;
-        elementIndex := 0
+      var j = 0;
+      while (j < sz) {
+        let ?x = db[j] else Prim.trap(INTERNAL_ERROR);
+        f(x);
+        j += 1
       };
-      switch (db[elementIndex]) {
-        case (?x) {
-          f(x);
-          elementIndex += 1
-        };
-        case (_) return
-      }
+      i += 1
     }
   };
 

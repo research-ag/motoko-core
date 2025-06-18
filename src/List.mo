@@ -1576,22 +1576,24 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func forEach<T>(list : List<T>, f : T -> ()) {
-    let blocks = list.blocks.size();
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
     var i = 1;
-    while (i < blocks) {
-      let db = list.blocks[i];
+    while (i < blockCount) {
+      let db = blocks[i];
       let sz = db.size();
       if (sz == 0) return;
 
       var j = 0;
       while (j < sz) {
-        switch(db[j]) {
+        switch (db[j]) {
           case (?x) {
             f(x);
             j += 1
           };
-          case null return;
-        };
+          case null return
+        }
       };
       i += 1
     }
@@ -1815,7 +1817,39 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func max<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T = minMax<T>(list, compare, #greater);
+  public func max<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T {
+    var maxSoFar : T = switch (first(list)) {
+      case (?x) x;
+      case null return null
+    };
+
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return ?maxSoFar;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            switch (compare(x, maxSoFar)) {
+              case (#greater) maxSoFar := x;
+              case _ {}
+            }
+          };
+          case null return ?maxSoFar
+        };
+        j += 1
+      };
+      i += 1
+    };
+
+    ?maxSoFar
+  };
 
   /// Returns the least element in the list according to the ordering defined by `compare`.
   /// Returns `null` if the list is empty.
@@ -1837,7 +1871,39 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func min<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T = minMax(list, compare, #less);
+  public func min<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T {
+    var minSoFar : T = switch (first(list)) {
+      case (?x) x;
+      case null return null
+    };
+
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return ?minSoFar;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) {
+            switch (compare(x, minSoFar)) {
+              case (#less) minSoFar := x;
+              case _ {}
+            }
+          };
+          case null return ?minSoFar
+        };
+        j += 1
+      };
+      i += 1
+    };
+
+    ?minSoFar
+  };
 
   /// Tests if two lists are equal by comparing their elements using the provided `equal` function.
   /// Returns true if and only if both lists have the same size and all corresponding elements

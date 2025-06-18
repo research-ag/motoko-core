@@ -318,12 +318,10 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            if (predicate(x)) add(filtered, x);
-            j += 1
-          };
+          case (?x) if (predicate(x)) add(filtered, x);
           case null return filtered
-        }
+        };
+        j += 1
       };
       i += 1
     };
@@ -361,15 +359,13 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            switch (f(x)) {
-              case (?y) add(filtered, y);
-              case null {}
-            };
-            j += 1
+          case (?x) switch (f(x)) {
+            case (?y) add(filtered, y);
+            case null {}
           };
           case null return filtered
-        }
+        };
+        j += 1
       };
       i += 1
     };
@@ -698,31 +694,30 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return null;
-        db := list.blocks[blockIndex];
-        sz := db.size();
-        if (sz == 0) return null;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return null;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) if (equal(x, element)) return ?size<T>({
+            var blocks = [var];
+            var blockIndex = i;
+            var elementIndex = j
+          });
+          case null return null
+        };
+        j += 1
       };
-      switch (db[elementIndex]) {
-        case (?x) if (equal(x, element)) return ?size<T>({
-          var blocks = [var];
-          var blockIndex = blockIndex;
-          var elementIndex = elementIndex
-        });
-        case (_) return null
-      };
-      elementIndex += 1
-    }
+      i += 1
+    };
+    null
   };
 
   /// Finds the last index of `element` in `list` using equality of elements defined
@@ -806,31 +801,30 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return null;
-        db := list.blocks[blockIndex];
-        sz := db.size();
-        if (sz == 0) return null;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return null;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) if (predicate(x)) return ?size<T>({
+            var blocks = [var];
+            var blockIndex = i;
+            var elementIndex = j
+          });
+          case null return null
+        };
+        j += 1
       };
-      switch (db[elementIndex]) {
-        case (?x) if (predicate(x)) return ?size<T>({
-          var blocks = [var];
-          var blockIndex = blockIndex;
-          var elementIndex = elementIndex
-        });
-        case (_) return null
-      };
-      elementIndex += 1
-    }
+      i += 1
+    };
+    null
   };
 
   /// Finds the index of the last element in `list` for which `predicate` is true.
@@ -899,27 +893,26 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func all<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return true;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return true;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return true;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) if (not predicate(x)) return false;
+          case null return true
+        };
+        j += 1
       };
-      switch (db[elementIndex]) {
-        case (?x) if (not predicate(x)) return false;
-        case (_) return true
-      };
-      elementIndex += 1
-    }
+      i += 1
+    };
+    true
   };
 
   /// Returns true iff some element in `list` satisfies `predicate`.
@@ -941,27 +934,26 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func any<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
-    var db : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
-    loop {
-      if (elementIndex == size) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return false;
-        db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return false;
-        elementIndex := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return false;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) if (predicate(x)) return true;
+          case null return false
+        };
+        j += 1
       };
-      switch (db[elementIndex]) {
-        case (?x) if (predicate(x)) return true;
-        case (_) return false
-      };
-      elementIndex += 1
-    }
+      i += 1
+    };
+    false
   };
 
   /// Returns an Iterator (`Iter`) over the elements of a List.
@@ -1383,27 +1375,26 @@ module {
 
     let array = VarArray.repeat<T>(Option.unwrap(first(list)), s);
 
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db : [var ?T] = [var];
-    var i = 0;
+    var index = 0;
 
-    loop {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return array;
-        db := list.blocks[blockIndex];
-        sz := db.size();
-        if (sz == 0) return array;
-        elementIndex := 0
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return array;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) array[index] := x;
+          case null return array
+        };
+        j += 1;
+        index += 1
       };
-      switch (db[elementIndex]) {
-        case (?x) array[i] := x;
-        case (_) return array
-      };
-      elementIndex += 1;
       i += 1
     };
     array
@@ -1518,13 +1509,11 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            db[j] := ?f(index, x);
-            index += 1;
-            j += 1
-          };
+          case (?x) db[j] := ?f(index, x);
           case null return
-        }
+        };
+        index += 1;
+        j += 1
       };
       i += 1
     }
@@ -1546,12 +1535,10 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            db[j] := ?f(x);
-            j += 1
-          };
+          case (?x) db[j] := ?f(x);
           case null return
-        }
+        };
+        j += 1
       };
       i += 1
     }
@@ -1589,12 +1576,10 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            f(x);
-            j += 1
-          };
+          case (?x) f(x);
           case null return
-        }
+        };
+        j += 1
       };
       i += 1
     }
@@ -1635,13 +1620,11 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            f(index, x);
-            j += 1;
-            index += 1
-          };
+          case (?x) f(index, x);
           case null return
-        }
+        };
+        j += 1;
+        index += 1
       };
       i += 1
     }
@@ -1797,11 +1780,9 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            switch (compare(x, maxSoFar)) {
-              case (#greater) maxSoFar := x;
-              case _ {}
-            }
+          case (?x) switch (compare(x, maxSoFar)) {
+            case (#greater) maxSoFar := x;
+            case _ {}
           };
           case null return ?maxSoFar
         };
@@ -1851,11 +1832,9 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            switch (compare(x, minSoFar)) {
-              case (#less) minSoFar := x;
-              case _ {}
-            }
+          case (?x) switch (compare(x, minSoFar)) {
+            case (#less) minSoFar := x;
+            case _ {}
           };
           case null return ?minSoFar
         };
@@ -1905,12 +1884,10 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db1[j], db2[j]) {
-          case (?x, ?y) {
-            if (not equal(x, y)) return false;
-            j += 1
-          };
+          case (?x, ?y) if (not equal(x, y)) return false;
           case (_, _) return true
-        }
+        };
+        j += 1
       };
       i += 1
     };
@@ -1954,16 +1931,14 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db1[j], db2[j]) {
-          case (?x, ?y) {
-            switch (compare(x, y)) {
-              case (#less) return #less;
-              case (#greater) return #greater;
-              case _ {}
-            };
-            j += 1
+          case (?x, ?y) switch (compare(x, y)) {
+            case (#less) return #less;
+            case (#greater) return #greater;
+            case _ {}
           };
           case (_, _) return Nat.compare(size(list1), size(list2))
-        }
+        };
+        j += 1
       };
       i += 1
     };
@@ -2006,7 +1981,7 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) text := ", " # text # f(x);
+          case (?x) text := text # ", " # f(x);
           case null return "List[" # text # "]"
         };
         j += 1
@@ -2050,12 +2025,10 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) {
-            accumulation := combine(accumulation, x);
-            j += 1
-          };
+          case (?x) accumulation := combine(accumulation, x);
           case null return accumulation
-        }
+        };
+        j += 1
       };
       i += 1
     };

@@ -1721,19 +1721,7 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func reverseForEach<T>(list : List<T>, f : T -> ()) {
-    var i = list.blockIndex;
-    var j = list.elementIndex;
-    let db = list.blocks[i];
-    while (j > 0) {
-      j -= 1;
-      switch (db[j]) {
-        case (?x) f(x);
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
-    };
-
-    i -= 1;
-
+    var i = list.blocks.size() - 1 : Nat;
     while (i > 0) {
       let db = list.blocks[i];
       var j = db.size();
@@ -1741,7 +1729,7 @@ module {
         j -= 1;
         switch (db[j]) {
           case (?x) f(x);
-          case (_) Prim.trap(INTERNAL_ERROR)
+          case (_) {}
         }
       };
       i -= 1

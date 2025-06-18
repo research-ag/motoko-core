@@ -286,6 +286,11 @@ run(
         M.equals(T.optional(T.natTestable, ?1))
       ),
       test(
+        "last of 6",
+        List.last(List.fromArray<Nat>([0, 1, 2, 3, 4, 5])),
+        M.equals(T.optional(T.natTestable, ?5))
+      ),
+      test(
         "last empty",
         List.last(List.empty<Nat>()),
         M.equals(T.optional(T.natTestable, null : ?Nat))

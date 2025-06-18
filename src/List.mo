@@ -835,7 +835,8 @@ module {
         if (blockIndex == 0) return null;
         db := list.blocks[blockIndex];
         elementIndex := db.size() - 1
-      };      switch (db[elementIndex]) {
+      };
+      switch (db[elementIndex]) {
         case (?x) {
           if (predicate(x)) return ?size<T>({
             var blocks = [var];
@@ -1174,19 +1175,43 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
-  public func toArray<T>(list : List<T>) : [T] = Array.tabulate<T>(size(list), values_(list).unsafeNextI);
+  public func toArray<T>(list : List<T>) : [T] {
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var sz = 0;
+    var db : [var ?T] = [var];
+
+    func generator(_ : Nat) : T {
+      if (elementIndex == sz) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
+        db := list.blocks[blockIndex];
+        sz := db.size();
+        if (sz == 0) Prim.trap(INTERNAL_ERROR);
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          elementIndex += 1;
+          return x
+        };
+        case (_) Prim.trap(INTERNAL_ERROR)
+      }
+    };
+
+    Array.tabulate<T>(size(list), generator)
+  };
 
   private func values_<T>(list : List<T>) : {
     next : () -> ?T;
     unsafeNext : () -> T;
-    unsafeNextI : Nat -> T;
     nextSet : T -> ()
   } = valuesFrom(0, list);
 
   private func valuesFrom<T>(start : Nat, list : List<T>) : {
     next : () -> ?T;
     unsafeNext : () -> T;
-    unsafeNextI : Nat -> T;
     nextSet : T -> ()
   } = object {
     let blocks = list.blocks.size();
@@ -1225,27 +1250,6 @@ module {
     //     x;
     //   };
     public func unsafeNext() : T {
-      if (elementIndex == dbSize) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
-        db := list.blocks[blockIndex];
-        dbSize := db.size();
-        if (dbSize == 0) Prim.trap(INTERNAL_ERROR);
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          elementIndex += 1;
-          return x
-        };
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
-    };
-
-    // version of next() without option type and throw-away argument
-    // inlined version of
-    //   public func unsafeNext_(i : Nat) : T = unsafeNext();
-    public func unsafeNextI(i : Nat) : T {
       if (elementIndex == dbSize) {
         blockIndex += 1;
         if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
@@ -1345,14 +1349,33 @@ module {
   public func toVarArray<T>(list : List<T>) : [var T] {
     let s = size(list);
     if (s == 0) return [var];
-    let arr = VarArray.repeat<T>(Option.unwrap(first(list)), s);
+
+    let array = VarArray.repeat<T>(Option.unwrap(first(list)), s);
+
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var sz = 0;
+    var db : [var ?T] = [var];
     var i = 0;
-    let next = values_(list).unsafeNext;
-    while (i < s) {
-      arr[i] := next();
+
+    loop {
+      if (elementIndex == sz) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return array;
+        db := list.blocks[blockIndex];
+        sz := db.size();
+        if (sz == 0) return array;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) array[i] := x;
+        case (_) return array
+      };
+      elementIndex += 1;
       i += 1
     };
-    arr
+    array
   };
 
   /// Creates a new List containing all elements from the mutable array.
@@ -1437,12 +1460,13 @@ module {
     let e = list.elementIndex;
     if (e > 0) {
       switch (list.blocks[list.blockIndex][e - 1]) {
-        case null { Prim.trap(INTERNAL_ERROR) };
-        case e { return e }
+        case null Prim.trap(INTERNAL_ERROR);
+        case e return e;
       }
     };
-    let b = list.blockIndex;
-    if (b == 1) null else list.blocks[b - 1][0]
+    let b = list.blockIndex - 1 : Nat;
+    let blocks = list.blocks;
+    if (b == 0) null else blocks[b][blocks[b].size() - 1]
   };
 
   public func forEachEntryChange<T>(
@@ -1528,16 +1552,16 @@ module {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
-    var size = 0;
+    var sz = 0;
     var db : [var ?T] = [var];
 
     loop {
-      if (elementIndex == size) {
+      if (elementIndex == sz) {
         blockIndex += 1;
         if (blockIndex >= blocks) return;
         db := list.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return;
+        sz := db.size();
+        if (sz == 0) return;
         elementIndex := 0
       };
       switch (db[elementIndex]) {
@@ -1920,18 +1944,39 @@ module {
   ///
   /// *Runtime and space assumes that `toText` runs in O(1) time and space.
   public func toText<T>(list : List<T>, f : T -> Text) : Text {
-    let vsize : Int = size(list);
-    let next = values_(list).unsafeNext;
-    var i = 0;
+    let vsize = size(list);
+    if (vsize == 0) return "List[]";
+
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var sz = 0;
+    var db : [var ?T] = [var];
+
+    var i = 1;
     var text = "";
-    while (i < vsize - 1) {
-      text := text # f(next()) # ", "; // Text implemented as rope
+
+    while (i < vsize) {
+      if (elementIndex == sz) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
+        db := list.blocks[blockIndex];
+        sz := db.size();
+        if (sz == 0) Prim.trap(INTERNAL_ERROR);
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          text := text # f(x) # ", "; // Text implemented as rope
+          elementIndex += 1
+        };
+        case (_) Prim.trap(INTERNAL_ERROR)
+      };
       i += 1
     };
-    if (vsize > 0) {
-      // avoid the trailing comma
-      text := text # f(get<T>(list, i))
-    };
+
+    // avoid the trailing comma
+    text := text # f(Option.unwrap(last(list)));
 
     "List[" # text # "]"
   };

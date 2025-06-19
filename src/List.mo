@@ -1480,15 +1480,13 @@ module {
   /// Space: `O(1)`
   public func last<T>(list : List<T>) : ?T {
     let e = list.elementIndex;
-    if (e > 0) {
-      switch (list.blocks[list.blockIndex][e - 1]) {
-        case null Prim.trap(INTERNAL_ERROR);
-        case e return e
-      }
-    };
+    if (e > 0) return list.blocks[list.blockIndex][e - 1];
+
     let b = list.blockIndex - 1 : Nat;
-    let blocks = list.blocks;
-    if (b == 0) null else blocks[b][blocks[b].size() - 1]
+    if (b == 0) null else {
+      let block = list.blocks[b];
+      block[block.size() - 1]
+    }
   };
 
   public func forEachEntryChange<T>(

@@ -1007,7 +1007,31 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
-  public func values<T>(list : List<T>) : Iter.Iter<T> = values_(list);
+  public func values<T>(list : List<T>) : Iter.Iter<T> = object {
+    let blocks = list.blocks.size();
+    var blockIndex = 0;
+    var elementIndex = 0;
+    var db : [var ?T] = list.blocks[blockIndex];
+    var dbSize = db.size();
+
+    public func next() : ?T {
+      if (elementIndex == dbSize) {
+        blockIndex += 1;
+        if (blockIndex >= blocks) return null;
+        db := list.blocks[blockIndex];
+        dbSize := db.size();
+        if (dbSize == 0) return null;
+        elementIndex := 0
+      };
+      switch (db[elementIndex]) {
+        case (?x) {
+          elementIndex += 1;
+          return ?x
+        };
+        case (_) return null
+      }
+    }
+  };
 
   /// Returns an Iterator (`Iter`) over the items (index-value pairs) in the list.
   /// Each item is a tuple of `(index, value)`. The iterator provides a single method
@@ -1253,84 +1277,6 @@ module {
     };
 
     Array.tabulate<T>(size(list), generator)
-  };
-
-  private func values_<T>(list : List<T>) : {
-    next : () -> ?T;
-    unsafeNext : () -> T;
-    nextSet : T -> ()
-  } = valuesFrom(0, list);
-
-  private func valuesFrom<T>(start : Nat, list : List<T>) : {
-    next : () -> ?T;
-    unsafeNext : () -> T;
-    nextSet : T -> ()
-  } = object {
-    let blocks = list.blocks.size();
-    var blockIndex = 0;
-    var elementIndex = 0;
-    if (start != 0) {
-      let (block, element) = locate(start - 1);
-      blockIndex := block;
-      elementIndex := element + 1
-    };
-    var db : [var ?T] = list.blocks[blockIndex];
-    var dbSize = db.size();
-
-    public func next() : ?T {
-      if (elementIndex == dbSize) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) return null;
-        db := list.blocks[blockIndex];
-        dbSize := db.size();
-        if (dbSize == 0) return null;
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          elementIndex += 1;
-          return ?x
-        };
-        case (_) return null
-      }
-    };
-
-    // version of next() without option type
-    // inlined version of
-    //   public func unsafeNext() : T = {
-    //     let ?x = next() else Prim.trap(INTERNAL_ERROR);
-    //     x;
-    //   };
-    public func unsafeNext() : T {
-      if (elementIndex == dbSize) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
-        db := list.blocks[blockIndex];
-        dbSize := db.size();
-        if (dbSize == 0) Prim.trap(INTERNAL_ERROR);
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          elementIndex += 1;
-          return x
-        };
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
-    };
-
-    public func nextSet(value : T) {
-      if (elementIndex == dbSize) {
-        blockIndex += 1;
-        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
-        db := list.blocks[blockIndex];
-        dbSize := db.size();
-        if (dbSize == 0) Prim.trap(INTERNAL_ERROR);
-        elementIndex := 0
-      };
-      db[elementIndex] := ?value;
-      elementIndex += 1
-    }
   };
 
   /// Creates a List containing elements from an Array.
@@ -2308,16 +2254,17 @@ module {
     };
 
     var result = repeatInternal<T>(null, length);
-    var resultIter = values_(result);
+    result.blockIndex := 1;
+    result.elementIndex := 0;
+
     for (slice in slices.vals()) {
       let (list, start, end) = slice;
-      let values = valuesFrom<T>(start, list);
-      var i = start;
-      while (i < end) {
-        let copiedValue = values.unsafeNext();
-        resultIter.nextSet(copiedValue);
-        i += 1
-      }
+      forEachRange<T>(
+        list,
+        func(value) = add(result, value),
+        start,
+        end
+      )
     };
 
     result

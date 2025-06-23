@@ -1370,10 +1370,9 @@ module {
   ///
   /// Runtime: `O(size)`
   public func toVarArray<T>(list : List<T>) : [var T] {
-    let s = size(list);
-    if (s == 0) return [var];
+    let ?fs = first(list) else return [var];
 
-    let array = VarArray.repeat<T>(Option.unwrap(first(list)), s);
+    let array = VarArray.repeat<T>(fs, size(list));
 
     var index = 0;
 

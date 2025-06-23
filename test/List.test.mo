@@ -239,8 +239,14 @@ run(
   )
 );
 
+// Test last and first
+assert List.last(list) == null;
+assert List.first(list) == null;
+
 for (i in Nat.rangeInclusive(0, n)) {
-  List.add(list, i)
+  List.add(list, i);
+  assert List.last(list) == ?i;
+  assert List.first(list) == ?0
 };
 
 run(

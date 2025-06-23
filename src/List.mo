@@ -14,7 +14,6 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
-import Debug "mo:base/Debug";
 import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
@@ -122,7 +121,28 @@ module {
   ///
   /// Space: `O(size)`
   public func toPure<T>(list : List<T>) : PureList.List<T> {
-    PureList.fromIter(values(list)) // TODO: optimize
+    var result : PureList.List<T> = null;
+
+    var blockIndex = list.blockIndex;
+    var elementIndex = list.elementIndex;
+    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
+      list.blocks[blockIndex]
+    } else { [var] };
+
+    loop {
+      if (elementIndex != 0) {
+        elementIndex -= 1
+      } else {
+        blockIndex -= 1;
+        if (blockIndex == 0) return result;
+        db := list.blocks[blockIndex];
+        elementIndex := db.size() - 1
+      };
+      switch (db[elementIndex]) {
+        case (?x) result := ?(x, result);
+        case (_) Prim.trap(INTERNAL_ERROR)
+      }
+    }
   };
 
   /// Converts a purely functional `List` to a mutable `List`.
@@ -138,10 +158,18 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(size)`
-  public func fromPure<T>(pure : PureList.List<T>) : List<T> {
-    let list = empty<T>();
-    PureList.forEach<T>(pure, func(x) = add(list, x));
-    list
+  public func fromPure<T>(p : PureList.List<T>) : List<T> {
+    var pure = p;
+    var list = empty<T>();
+    loop {
+      switch (pure) {
+        case (?(x, xs)) {
+          add(list, x);
+          pure := xs
+        };
+        case null return list
+      }
+    }
   };
 
   private func addRepeatInternal<T>(list : List<T>, initValue : ?T, count : Nat) {

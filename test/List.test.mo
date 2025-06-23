@@ -1138,6 +1138,21 @@ func testToArray(n : Nat) : Bool {
   Array.equal(List.toArray(vec), Array.tabulate<Nat>(n, func(i) = i), Nat.equal)
 };
 
+func testForEachRange(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+
+  var sum = 0;
+  List.forEachRange<Nat>(vec, func(x) = sum += x, 0, n);
+
+  var checkSum = 0;
+  List.forEach<Nat>(vec, func(x) = checkSum += x);
+  if (sum != checkSum) {
+    Debug.print("ForEachRange failed: expected " # Nat.toText(checkSum) # ", got " # Nat.toText(sum));
+    return false
+  };
+  true
+};
+
 func testFromIter(n : Nat) : Bool {
   let iter = Nat.range(1, n + 1);
   let vec = List.fromIter<Nat>(iter);
@@ -1224,6 +1239,7 @@ func runAllTests() {
   runTest("testSort", testSort);
   runTest("testToArray", testToArray);
   runTest("testFromIter", testFromIter);
+  runTest("testForEachRange", testForEachRange);
   runTest("testFoldLeft", testFoldLeft);
   runTest("testFoldRight", testFoldRight);
   runTest("testFilter", testFilter);

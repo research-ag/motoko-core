@@ -14,6 +14,7 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
+import Debug "mo:base/Debug";
 import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
@@ -1625,6 +1626,43 @@ module {
       };
       i += 1
     }
+  };
+
+  public func forEachRange<T>(list : List<T>, f : T -> (), fromInclusive : Nat, toExclusive : Nat) {
+    if (not (fromInclusive <= toExclusive and toExclusive <= size(list))) Prim.trap("Invalid range");
+
+    func traverseBlock(block : [var ?T], f : T -> (), from : Nat, to : Nat) {
+      var i = from;
+      while (i < to) {
+        switch (block[i]) {
+          case (?value) f(value);
+          case null Prim.trap(INTERNAL_ERROR)
+        };
+        i += 1
+      }
+    };
+
+    let (fromBlock, fromElement) = locate(fromInclusive);
+    let (toBlock, toElement) = locate(toExclusive);
+
+    let blocks = list.blocks;
+    let sz = blocks.size();
+
+    if (fromBlock == toBlock) {
+      if (fromBlock < sz) traverseBlock(blocks[fromBlock], f, fromElement, toElement);
+      return
+    };
+
+    traverseBlock(blocks[fromBlock], f, fromElement, blocks[fromBlock].size());
+
+    var i = fromBlock + 1;
+    let to = Nat.min(toBlock, sz);
+    while (i < to) {
+      traverseBlock(blocks[i], f, 0, blocks[i].size());
+      i += 1
+    };
+
+    if (toBlock < sz) traverseBlock(blocks[toBlock], f, 0, toElement)
   };
 
   /// Like `forEachEntryRev` but iterates through the list in reverse order,

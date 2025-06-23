@@ -1998,33 +1998,34 @@ module {
   ///
   /// *Runtime and space assumes that `toText` runs in O(1) time and space.
   public func toText<T>(list : List<T>, f : T -> Text) : Text {
-    // avoid the trailing comma
-    var text = switch (first(list)) {
-      case (?x) f(x);
-      case null return "List[]"
-    };
-
-    let blocks = list.blocks;
-    let blockCount = blocks.size();
-
-    var i = 2;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return "List[" # text # "]";
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) text := text # ", " # f(x);
-          case null return "List[" # text # "]"
-        };
-        j += 1
+    func toTextInternal(list : List<T>, f : T -> Text) : Text {
+      var text = switch (first(list)) {
+        case (?x) f(x);
+        case null return ""
       };
-      i += 1
-    };
 
-    "List[" # text # "]"
+      let blocks = list.blocks;
+      let blockCount = blocks.size();
+
+      var i = 2;
+      while (i < blockCount) {
+        let db = blocks[i];
+        let sz = db.size();
+        if (sz == 0) return text;
+
+        var j = 0;
+        while (j < sz) {
+          switch (db[j]) {
+            case (?x) text := text # ", " # f(x);
+            case null return text
+          };
+          j += 1
+        };
+        i += 1
+      };
+      text
+    };
+    "List[" # toTextInternal(list, f) # "]"
   };
 
   /// Collapses the elements in `list` into a single value by starting with `base`

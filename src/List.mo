@@ -157,14 +157,14 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(size)`
-  public func fromPure<T>(p : PureList.List<T>) : List<T> {
-    var pure = p;
+  public func fromPure<T>(pure : PureList.List<T>) : List<T> {
+    var p = pure;
     var list = empty<T>();
     loop {
-      switch (pure) {
+      switch (p) {
         case (?(x, xs)) {
           add(list, x);
-          pure := xs
+          p := xs
         };
         case null return list
       }

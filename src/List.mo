@@ -410,7 +410,12 @@ module {
   /// ```
   ///
   /// Runtime: `O(1)` (with some internal calculations)
-  public func size<T>(list : List<T>) : Nat {
+  public func size<T>(
+    list : {
+      var blockIndex : Nat;
+      var elementIndex : Nat
+    }
+  ) : Nat {
     let d = Nat32.fromNat(list.blockIndex);
     let i = Nat32.fromNat(list.elementIndex);
 
@@ -757,8 +762,7 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) if (equal(x, element)) return ?size<T>({
-            var blocks = [var];
+          case (?x) if (equal(x, element)) return ?size({
             var blockIndex = i;
             var elementIndex = j
           });
@@ -805,8 +809,7 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          if (equal(x, element)) return ?size<T>({
-            var blocks = [var];
+          if (equal(x, element)) return ?size({
             var blockIndex = blockIndex;
             var elementIndex = elementIndex
           })
@@ -864,8 +867,7 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) if (predicate(x)) return ?size<T>({
-            var blocks = [var];
+          case (?x) if (predicate(x)) return ?size({
             var blockIndex = i;
             var elementIndex = j
           });
@@ -914,8 +916,7 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          if (predicate(x)) return ?size<T>({
-            var blocks = [var];
+          if (predicate(x)) return ?size({
             var blockIndex = blockIndex;
             var elementIndex = elementIndex
           })

@@ -251,6 +251,59 @@ module {
     list.elementIndex := 0
   };
 
+  /// Creates a list of size `size`. Each element at index i
+  /// is created by applying `generator` to i.
+  ///
+  /// ```motoko include=import
+  /// import Nat "mo:core/Nat";
+  ///
+  /// let list = List.tabulate<Nat>(4, func i = i * 2);
+  /// assert List.toArray(list) == [0, 2, 4, 6];
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  ///
+  /// *Runtime and space assumes that `generator` runs in O(1) time and space.
+  public func tabulate<T>(size : Nat, generator : Nat -> T) : List<T> {
+    let (blockIndex, elementIndex) = locate(size);
+
+    let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
+
+    func makeBlock(generator : Nat -> T, p : Nat, len : Nat, fill : Nat) : [var ?T] {
+      let block = VarArray.repeat<?T>(null, len);
+      var j = 0;
+      var pos = p;
+      while (j < fill) {
+        block[j] := ?generator(pos);
+        j += 1;
+        pos += 1
+      };
+      block
+    };
+
+    var i = 1;
+    var pos = 0;
+
+    while (i < blockIndex) {
+      let len = dataBlockSize(i);
+      dataBlocks[i] := makeBlock(generator, pos, len, len);
+      pos += len;
+      i += 1
+    };
+    if (elementIndex != 0 and blockIndex < blocks) {
+      dataBlocks[i] := makeBlock(generator, pos, dataBlockSize(i), elementIndex)
+    };
+
+    {
+      var blocks = dataBlocks;
+      var blockIndex = blockIndex;
+      var elementIndex = elementIndex
+    }
+  };
+
   /// Returns a copy of a List, with the same size.
   ///
   /// Example:
@@ -307,6 +360,97 @@ module {
           }
         };
         j += 1
+      };
+      i += 1
+    };
+
+    {
+      var blocks = blocks;
+      var blockIndex = list.blockIndex;
+      var elementIndex = list.elementIndex
+    }
+  };
+
+  /// Applies `f` to each element of `list` in place,
+  /// retaining the original ordering of elements.
+  /// This modifies the original list.
+  ///
+  /// ```motoko include=import
+  /// import Nat "mo:core/Nat";
+  ///
+  /// let list = List.fromArray<Nat>([0, 1, 2, 3]);
+  /// List.mapInPlace<Nat>(list, func x = x * 3);
+  /// assert List.equal(list, List.fromArray<Nat>([0, 3, 6, 9]), Nat.equal);
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
+  public func mapInPlace<T>(list : List<T>, f : T -> T) {
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) db[j] := ?f(x);
+          case null return
+        };
+        j += 1
+      };
+      i += 1
+    }
+  };
+
+  /// Creates a new list by applying `f` to each element in `list` and its index.
+  /// Retains original ordering of elements.
+  ///
+  /// ```motoko include=import
+  /// import Nat "mo:core/Nat";
+  ///
+  /// let list = List.fromArray<Nat>([10, 10, 10, 10]);
+  /// let newList = List.mapEntries<Nat, Nat>(list, func (x, i) = i * x);
+  /// assert List.equal(newList, List.fromArray<Nat>([0, 10, 20, 30]), Nat.equal);
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(size)
+  ///
+  /// *Runtime and space assumes that `f` runs in O(1) time and space.
+  public func mapEntries<T, R>(list : List<T>, f : (T, Nat) -> R) : List<R> {
+    let blocks = VarArray.repeat<[var ?R]>([var], list.blocks.size());
+    let blocksCount = list.blocks.size();
+
+    var index = 0;
+
+    var i = 1;
+    while (i < blocksCount) {
+      let oldBlock = list.blocks[i];
+      let blockSize = oldBlock.size();
+      let newBlock = VarArray.repeat<?R>(null, blockSize);
+      blocks[i] := newBlock;
+      var j = 0;
+
+      while (j < blockSize) {
+        switch (oldBlock[j]) {
+          case (?item) newBlock[j] := ?f(item, index);
+          case null return {
+            var blocks = blocks;
+            var blockIndex = list.blockIndex;
+            var elementIndex = list.elementIndex
+          }
+        };
+        j += 1;
+        index += 1
       };
       i += 1
     };
@@ -1599,6 +1743,82 @@ module {
         index += 1
       };
       i += 1
+    }
+  };
+
+  /// Returns an iterator over a slice of `list` starting at `fromInclusive` up to (but not including) `toExclusive`.
+  ///
+  /// Negative indices are relative to the end of the list. For example, `-1` corresponds to the last element in the list.
+  ///
+  /// If the indices are out of bounds, they are clamped to the list bounds.
+  /// If the first index is greater than the second, the function returns an empty iterator.
+  ///
+  /// ```motoko include=import
+  /// let list = List.fromArray([1, 2, 3, 4, 5]);
+  /// let iter1 = List.range<Nat>(list, 3, list.size());
+  /// assert iter1.next() == ?4;
+  /// assert iter1.next() == ?5;
+  /// assert iter1.next() == null;
+  ///
+  /// let iter2 = List.range<Nat>(list, 3, -1);
+  /// assert iter2.next() == ?4;
+  /// assert iter2.next() == null;
+  ///
+  /// let iter3 = List.range<Nat>(list, 0, 0);
+  /// assert iter3.next() == null;
+  /// ```
+  ///
+  /// Runtime: O(1)
+  ///
+  /// Space: O(1)
+  public func range<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : Iter.Iter<T> {
+    let sz = size(list);
+    // Convert negative indices to positive and handle bounds
+    let startInt = if (fromInclusive < 0) {
+      let s = sz + fromInclusive;
+      if (s < 0) { 0 } else { s }
+    } else {
+      if (fromInclusive > sz) { sz } else { fromInclusive }
+    };
+    let endInt = if (toExclusive < 0) {
+      let e = sz + toExclusive;
+      if (e < 0) { 0 } else { e }
+    } else {
+      if (toExclusive > sz) { sz } else { toExclusive }
+    };
+    // Convert to Nat (values are non-negative due to bounds checking above)
+    let start = Prim.abs(startInt);
+    let end = Prim.abs(endInt);
+
+    object {
+      let blocks = list.blocks.size();
+      var blockIndex = 0;
+      var elementIndex = 0;
+      if (start != 0) {
+        let (block, element) = locate(start - 1);
+        blockIndex := block;
+        elementIndex := element + 1
+      };
+      var db : [var ?T] = list.blocks[blockIndex];
+      var dbSize = db.size();
+      var index = 0;
+
+      public func next() : ?T {
+        if (index >= end) return null;
+        index += 1;
+
+        if (elementIndex == dbSize) {
+          blockIndex += 1;
+          if (blockIndex >= blocks) return null;
+          db := list.blocks[blockIndex];
+          dbSize := db.size();
+          if (dbSize == 0) return null;
+          elementIndex := 0
+        };
+        let ret = db[elementIndex];
+        elementIndex += 1;
+        ret
+      }
     }
   };
 

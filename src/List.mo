@@ -304,6 +304,44 @@ module {
     }
   };
 
+  /// Combines a list of lists into a single list. Retains the original
+  /// ordering of the elements.
+  ///
+  /// ```motoko include=import
+  /// import Nat "mo:core/Nat";
+  ///
+  /// let lists = List.fromArray([
+  ///   List.fromArray([0, 1, 2]), List.fromArray([2, 3]), List.fromArray([]), List.fromArray([4])
+  /// ]);
+  /// let flatList = List.flatten<Nat>(lists);
+  /// assert List.equal(flatList, List.fromArray([0, 1, 2, 2, 3, 4]), Nat.equal);
+  /// ```
+  ///
+  /// Runtime: O(number of elements in list)
+  ///
+  /// Space: O(number of elements in list)
+  public func flatten<T>(lists : List<List<T>>) : List<T> {
+    var sz = 0;
+    forEach<List<T>>(lists, func(sublist) = sz += size(sublist));
+
+    let result = repeatInternal<T>(null, sz);
+    result.blockIndex := 1;
+    result.elementIndex := 0;
+
+    forEach<List<T>>(
+      lists,
+      func(sublist) {
+        forEach<T>(
+          sublist,
+          func(item) {
+            add(result, item)
+          }
+        )
+      }
+    );
+    result
+  };
+
   /// Returns a copy of a List, with the same size.
   ///
   /// Example:

@@ -159,14 +159,14 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(size)`
-  public func fromPure<T>(p : PureList.List<T>) : List<T> {
-    var pure = p;
+  public func fromPure<T>(pure : PureList.List<T>) : List<T> {
+    var p = pure;
     var list = empty<T>();
     loop {
-      switch (pure) {
+      switch (p) {
         case (?(x, xs)) {
           add(list, x);
-          pure := xs
+          p := xs
         };
         case null return list
       }
@@ -742,7 +742,12 @@ module {
   /// ```
   ///
   /// Runtime: `O(1)` (with some internal calculations)
-  public func size<T>(list : List<T>) : Nat {
+  public func size<T>(
+    list : {
+      var blockIndex : Nat;
+      var elementIndex : Nat
+    }
+  ) : Nat {
     let d = Nat32.fromNat(list.blockIndex);
     let i = Nat32.fromNat(list.elementIndex);
 
@@ -1028,9 +1033,32 @@ module {
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
   public func sort<T>(list : List<T>, compare : (T, T) -> Order.Order) {
     if (size(list) < 2) return;
-    let arr = toVarArray(list);
-    VarArray.sortInPlace(arr, compare);
-    forEachEntryChange<T>(list, func(i, _) = arr[i])
+    let array = toVarArray(list);
+
+    VarArray.sortInPlace(array, compare);
+
+    var index = 0;
+
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?_) db[j] := ?array[index];
+          case _ return
+        };
+        index += 1;
+        j += 1
+      };
+      i += 1
+    }
   };
 
   /// Finds the first index of `element` in `list` using equality of elements defined
@@ -1066,8 +1094,7 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) if (equal(x, element)) return ?size<T>({
-            var blocks = [var];
+          case (?x) if (equal(x, element)) return ?size({
             var blockIndex = i;
             var elementIndex = j
           });
@@ -1114,8 +1141,7 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          if (equal(x, element)) return ?size<T>({
-            var blocks = [var];
+          if (equal(x, element)) return ?size({
             var blockIndex = blockIndex;
             var elementIndex = elementIndex
           })
@@ -1173,8 +1199,7 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) if (predicate(x)) return ?size<T>({
-            var blocks = [var];
+          case (?x) if (predicate(x)) return ?size({
             var blockIndex = i;
             var elementIndex = j
           });
@@ -1223,8 +1248,7 @@ module {
       };
       switch (db[elementIndex]) {
         case (?x) {
-          if (predicate(x)) return ?size<T>({
-            var blocks = [var];
+          if (predicate(x)) return ?size({
             var blockIndex = blockIndex;
             var elementIndex = elementIndex
           })

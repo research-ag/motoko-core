@@ -902,7 +902,7 @@ while (i < locate_n) {
 
 // Helper function to run tests
 func runTest(name : Text, test : (Nat) -> Bool) {
-  let testSizes = [0, 1, 10, 100];
+  let testSizes = [0, 1, 2, 3, 4, 5, 6, 10, 100];
   for (n in testSizes.vals()) {
     if (test(n)) {
       Debug.print("✅ " # name # " passed for n = " # Nat.toText(n))
@@ -1160,6 +1160,23 @@ func testForEachRange(n : Nat) : Bool {
   true
 };
 
+func testInsert(n : Nat) : Bool {
+  for (i in Nat.range(0, n)) {
+    let list = List.tabulate<Nat>(n, func i = i);
+
+    List.insert<Nat>(list, i, n);
+    for (j in Nat.range(0, n + 1)) {
+      let expectedValue = if (j < i) j else if (j == i) n else j - 1 : Nat;
+      let value = List.get(list, j);
+      if (value != expectedValue) {
+        Debug.print("Insert failed at index " # Nat.toText(j) # ": expected " # debug_show (expectedValue) # ", got " # debug_show (value));
+        return false
+      }
+    }
+  };
+  true
+};
+
 func testFromIter(n : Nat) : Bool {
   let iter = Nat.range(1, n + 1);
   let vec = List.fromIter<Nat>(iter);
@@ -1269,7 +1286,8 @@ func runAllTests() {
   runTest("testFoldRight", testFoldRight);
   runTest("testFilter", testFilter);
   runTest("testFilterMap", testFilterMap);
-  runTest("testPure", testPure)
+  runTest("testPure", testPure);
+  runTest("testInsert", testInsert)
 };
 
 // Run all tests

@@ -368,11 +368,11 @@ module {
       let oldElementIndex = result.elementIndex;
 
       addRepeatInternal<T>(result, null, size(list));
-      
+
       result.blockIndex := oldBlockIndex;
       result.elementIndex := oldElementIndex;
 
-      forEach<T>(list, func item = add(result, item));
+      forEach<T>(list, func item = add(result, item))
     };
     result
   };
@@ -1058,6 +1058,53 @@ module {
         j += 1
       };
       i += 1
+    }
+  };
+
+  public func insert<T>(list : List<T>, index : Nat, element : T) {
+    if (index > size(list)) {
+      Prim.trap "List index out of bounds in insert"
+    };
+    addRepeatInternal<T>(list, null, 1);
+
+    func shift(block : [var ?T], start : Nat, end : Nat, first : ?T) : ?T {
+      if (start == end) return null;
+
+      var i = end - 1 : Nat;
+      let last = block[i];
+      while (i > start) {
+        block[i] := block[i - 1];
+        i -= 1
+      };
+      block[start] := first;
+      last
+    };
+
+    let listElement = list.elementIndex;
+    let listBlock = list.blockIndex;
+
+    let (blockIndex, elementIndex) = locate(index);
+    let blocks = list.blocks;
+
+    if (listBlock == blockIndex) {
+      // should be null
+      ignore shift(blocks[listBlock], elementIndex, listElement, ?element)
+    } else {
+      let db = blocks[blockIndex];
+      var last = shift(db, elementIndex, db.size(), ?element);
+
+      var i = blockIndex + 1;
+
+      while (i < listBlock) {
+        let db = blocks[i];
+        last := shift(db, 0, db.size(), last);
+        i += 1
+      };
+
+      if (listBlock < blocks.size()) {
+        // should be null
+        ignore shift(blocks[listBlock], 0, listElement, last)
+      }
     }
   };
 

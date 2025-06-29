@@ -1177,6 +1177,28 @@ func testInsert(n : Nat) : Bool {
   true
 };
 
+func testRemove(n : Nat) : Bool {
+  for (i in Nat.range(0, n)) {
+    let list = List.tabulate<Nat>(n, func i = i);
+
+    let removed = List.remove<Nat>(list, i);
+    if (removed != i) {
+      Debug.print("Remove failed: expected " # Nat.toText(i) # ", got " # debug_show (removed));
+      return false
+    };
+
+    for (j in Nat.range(0, n - 1)) {
+      let expectedValue = if (j < i) j else j + 1;
+      let value = List.get(list, j);
+      if (value != expectedValue) {
+        Debug.print("Remove failed at index " # Nat.toText(j) # ": expected " # debug_show (expectedValue) # ", got " # debug_show (value));
+        return false
+      }
+    }
+  };
+  true
+};
+
 func testFromIter(n : Nat) : Bool {
   let iter = Nat.range(1, n + 1);
   let vec = List.fromIter<Nat>(iter);
@@ -1287,7 +1309,8 @@ func runAllTests() {
   runTest("testFilter", testFilter);
   runTest("testFilterMap", testFilterMap);
   runTest("testPure", testPure);
-  runTest("testInsert", testInsert)
+  runTest("testInsert", testInsert);
+  runTest("testRemove", testRemove)
 };
 
 // Run all tests

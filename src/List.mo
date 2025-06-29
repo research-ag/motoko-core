@@ -1108,6 +1108,60 @@ module {
     }
   };
 
+  public func remove<T>(list : List<T>, index : Nat) : T {
+    if (index >= size(list)) {
+      Prim.trap "List index out of bounds in remove"
+    };
+
+    func shift(block : [var ?T], start : Nat, end : Nat, last : ?T) : ?T {
+      if (start == end) return null;
+
+      let first = block[start];
+
+      var i = start;
+      let to = end - 1 : Nat;
+      while (i < to) {
+        block[i] := block[i + 1];
+        i += 1
+      };
+      block[to] := last;
+      first
+    };
+
+    let listElement = list.elementIndex;
+    let listBlock = list.blockIndex;
+
+    let (blockIndex, elementIndex) = locate(index);
+    let blocks = list.blocks;
+
+    let ret = if (listBlock == blockIndex) {
+      shift(blocks[listBlock], elementIndex, listElement, null)
+    } else {
+      var first : ?T = null;
+      if (listBlock < blocks.size()) {
+        first := shift(blocks[listBlock], 0, listElement, null)
+      };
+
+      var i = listBlock - 1 : Nat;
+      while (i > blockIndex) {
+        let db = blocks[i];
+        first := shift(db, 0, db.size(), first);
+        i -= 1
+      };
+
+      let db = blocks[blockIndex];
+      shift(db, elementIndex, db.size(), first);
+    };
+
+    // should be null
+    ignore removeLast(list);
+
+    switch (ret) {
+      case (?x) x;
+      case (null) Prim.trap INTERNAL_ERROR
+    }
+  };
+
   /// Finds the first index of `element` in `list` using equality of elements defined
   /// by `equal`. Returns `null` if `element` is not found.
   ///

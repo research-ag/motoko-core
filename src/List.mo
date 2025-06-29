@@ -1150,7 +1150,7 @@ module {
       };
 
       let db = blocks[blockIndex];
-      shift(db, elementIndex, db.size(), first);
+      shift(db, elementIndex, db.size(), first)
     };
 
     // should be null
@@ -1182,17 +1182,32 @@ module {
   /// Runtime: `O(size)`
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
-  public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
+  public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat = nextIndexOf<T>(
+    list,
+    element,
+    0,
+    equal
+  );
+
+  public func nextIndexOf<T>(list : List<T>, element : T, fromInclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
+    if (fromInclusive >= size(list)) {
+      if (not (fromInclusive == 0 and size(list) == 0)) {
+        Prim.trap "List index out of bounds in nextIndexOf"
+      }
+    };
+
+    let (blockIndex, elementIndex) = locate(fromInclusive);
+
     let blocks = list.blocks;
     let blockCount = blocks.size();
 
-    var i = 1;
+    var i = blockIndex;
     while (i < blockCount) {
       let db = blocks[i];
       let sz = db.size();
       if (sz == 0) return null;
 
-      var j = 0;
+      var j = if (i == blockIndex) elementIndex else 0;
       while (j < sz) {
         switch (db[j]) {
           case (?x) if (equal(x, element)) return ?size({
@@ -1224,32 +1239,41 @@ module {
   /// Runtime: `O(size)`
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
-  public func lastIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
-    var blockIndex = list.blockIndex;
-    var elementIndex = list.elementIndex;
-    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
-      list.blocks[blockIndex]
-    } else { [var] };
+  public func lastIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat = prevIndexOf<T>(
+    list,
+    element,
+    size(list),
+    equal
+  );
 
-    loop {
-      if (elementIndex != 0) {
-        elementIndex -= 1
-      } else {
-        blockIndex -= 1;
-        if (blockIndex == 0) return null;
-        db := list.blocks[blockIndex];
-        elementIndex := db.size() - 1
+  public func prevIndexOf<T>(list : List<T>, element : T, fromExclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
+    if (fromExclusive > size(list)) Prim.trap "List index out of bounds in prevIndexOf";
+
+    let (blockIndex, elementIndex) = locate(fromExclusive);
+    let blocks = list.blocks;
+
+    var i = blockIndex;
+    while (i > 0) {
+      if (i < blocks.size()) {
+        let db = blocks[i];
+        let sz = db.size();
+        if (sz > 0) {
+          var j = if (i == blockIndex) elementIndex else sz;
+          while (j > 0) {
+            j -= 1;
+            switch (db[j]) {
+              case (?x) if (equal(x, element)) return ?size({
+                var blockIndex = i;
+                var elementIndex = j
+              });
+              case null Prim.trap INTERNAL_ERROR
+            }
+          }
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) {
-          if (equal(x, element)) return ?size({
-            var blockIndex = blockIndex;
-            var elementIndex = elementIndex
-          })
-        };
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
-    }
+      i -= 1
+    };
+    null
   };
 
   /// Returns the first value in `list` for which `predicate` returns true.

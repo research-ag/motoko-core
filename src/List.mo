@@ -2790,8 +2790,8 @@ module {
   ///
   /// Example:
   /// ```motoko include=import
-  /// import Nat "mo:base/Nat";
-  /// import Iter "mo:base/Iter";
+  /// import Nat "mo:core/Nat";
+  /// import Iter "mo:core/Iter";
   ///
   /// let list1 = List.fromArray<Nat>([1,2,3]);
   /// let list2 = List.fromArray<Nat>([4,5,6]);
@@ -2835,8 +2835,8 @@ module {
   ///
   /// Example:
   /// ```motoko include=import
-  /// import Nat "mo:base/Nat";
-  /// import Iter "mo:base/Iter";
+  /// import Nat "mo:core/Nat";
+  /// import Iter "mo:core/Iter";
   ///
   /// let list1 = List.fromArray<Nat>([1, 2, 3]);
   /// let list2 = List.fromArray<Nat>([4, 5, 6]);

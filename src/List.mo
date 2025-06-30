@@ -1269,30 +1269,27 @@ module {
   public func prevIndexOf<T>(list : List<T>, element : T, fromExclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
     if (fromExclusive > size(list)) Prim.trap "List index out of bounds in prevIndexOf";
 
-    let (blockIndex, elementIndex) = locate(fromExclusive);
     let blocks = list.blocks;
+    let (blockIndex, elementIndex) = locate(fromExclusive);
 
-    var i = blockIndex;
+    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
     while (i > 0) {
-      if (i < blocks.size()) {
-        let db = blocks[i];
-        let sz = db.size();
-        if (sz > 0) {
-          var j = if (i == blockIndex) elementIndex else sz;
-          while (j > 0) {
-            j -= 1;
-            switch (db[j]) {
-              case (?x) if (equal(x, element)) return ?size({
-                var blockIndex = i;
-                var elementIndex = j
-              });
-              case null Prim.trap INTERNAL_ERROR
-            }
-          }
+      let db = blocks[i];
+      let sz = db.size();
+      var j = if (i == blockIndex) elementIndex else sz;
+      while (j > 0) {
+        j -= 1;
+        switch (db[j]) {
+          case (?x) if (equal(x, element)) return ?size({
+            var blockIndex = i;
+            var elementIndex = j
+          });
+          case null Prim.trap INTERNAL_ERROR
         }
       };
       i -= 1
     };
+
     null
   };
 

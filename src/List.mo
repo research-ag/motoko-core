@@ -2097,7 +2097,7 @@ module {
     };
     var db : [var ?T] = list.blocks[blockIndex];
     var dbSize = db.size();
-    var index = 0;
+    var index = fromInclusive;
 
     public func next() : ?T {
       if (index >= end) return null;

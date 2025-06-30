@@ -1229,6 +1229,34 @@ func testPure(n : Nat) : Bool {
   true
 };
 
+func testReverseForEach(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  var revSum = 0;
+  List.reverseForEach<Nat>(vec, func(x) = revSum += x);
+  let expectedReversed = n * (n + 1) / 2;
+
+  if (revSum != expectedReversed) {
+    Debug.print("Reverse forEach failed: expected " # Nat.toText(expectedReversed) # ", got " # Nat.toText(revSum));
+    return false
+  };
+
+  true
+};
+
+func testForEach(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  var revSum = 0;
+  List.forEach<Nat>(vec, func(x) = revSum += x);
+  let expectedReversed = n * (n + 1) / 2;
+
+  if (revSum != expectedReversed) {
+    Debug.print("ForEach failed: expected " # Nat.toText(expectedReversed) # ", got " # Nat.toText(revSum));
+    return false
+  };
+
+  true
+};
+
 // Run all tests
 func runAllTests() {
   runTest("testNew", testNew);
@@ -1253,7 +1281,9 @@ func runAllTests() {
   runTest("testFoldRight", testFoldRight);
   runTest("testFilter", testFilter);
   runTest("testFilterMap", testFilterMap);
-  runTest("testPure", testPure)
+  runTest("testPure", testPure);
+  runTest("testReverseForEach", testReverseForEach);
+  runTest("testForEach", testForEach);
 };
 
 // Run all tests

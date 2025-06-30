@@ -124,26 +124,26 @@ module {
   public func toPure<T>(list : List<T>) : PureList.List<T> {
     var result : PureList.List<T> = null;
 
-    var blockIndex = list.blockIndex;
-    var elementIndex = list.elementIndex;
-    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
-      list.blocks[blockIndex]
-    } else { [var] };
+    let blocks = list.blocks;
+    let blockIndex = list.blockIndex;
+    let elementIndex = list.elementIndex;
 
-    loop {
-      if (elementIndex != 0) {
-        elementIndex -= 1
-      } else {
-        blockIndex -= 1;
-        if (blockIndex == 0) return result;
-        db := list.blocks[blockIndex];
-        elementIndex := db.size() - 1
+    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    while (i > 0) {
+      let db = blocks[i];
+      let sz = db.size();
+      var j = if (i == blockIndex) elementIndex else sz;
+      while (j > 0) {
+        j -= 1;
+        switch (db[j]) {
+          case (?x) result := ?(x, result);
+          case null Prim.trap INTERNAL_ERROR
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) result := ?(x, result);
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
-    }
+      i -= 1
+    };
+
+    result
   };
 
   /// Converts a purely functional `List` to a mutable `List`.
@@ -1376,31 +1376,29 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findLastIndex<T>(list : List<T>, predicate : T -> Bool) : ?Nat {
-    var blockIndex = list.blockIndex;
-    var elementIndex = list.elementIndex;
-    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
-      list.blocks[blockIndex]
-    } else { [var] };
+    let blocks = list.blocks;
+    let blockIndex = list.blockIndex;
+    let elementIndex = list.elementIndex;
 
-    loop {
-      if (elementIndex != 0) {
-        elementIndex -= 1
-      } else {
-        blockIndex -= 1;
-        if (blockIndex == 0) return null;
-        db := list.blocks[blockIndex];
-        elementIndex := db.size() - 1
+    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    while (i > 0) {
+      let db = blocks[i];
+      let sz = db.size();
+      var j = if (i == blockIndex) elementIndex else sz;
+      while (j > 0) {
+        j -= 1;
+        switch (db[j]) {
+          case (?x) if (predicate(x)) return ?size({
+            var blockIndex = i;
+            var elementIndex = j
+          });
+          case null Prim.trap INTERNAL_ERROR
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) {
-          if (predicate(x)) return ?size({
-            var blockIndex = blockIndex;
-            var elementIndex = elementIndex
-          })
-        };
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
-    }
+      i -= 1
+    };
+
+    null
   };
 
   /// Returns true iff every element in `list` satisfies `predicate`.
@@ -2230,27 +2228,26 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func reverseForEachEntry<T>(list : List<T>, f : (Nat, T) -> ()) {
-    var blockIndex = list.blockIndex;
-    var elementIndex = list.elementIndex;
-    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
-      list.blocks[blockIndex]
-    } else { [var] };
-    var i = size(list);
+    var index = 0;
 
-    loop {
-      if (elementIndex != 0) {
-        elementIndex -= 1
-      } else {
-        blockIndex -= 1;
-        if (blockIndex == 0) return;
-        db := list.blocks[blockIndex];
-        elementIndex := db.size() - 1
+    let blocks = list.blocks;
+    let blockIndex = list.blockIndex;
+    let elementIndex = list.elementIndex;
+
+    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    while (i > 0) {
+      let db = blocks[i];
+      let sz = db.size();
+      var j = if (i == blockIndex) elementIndex else sz;
+      while (j > 0) {
+        j -= 1;
+        switch (db[j]) {
+          case (?x) f(index, x);
+          case null Prim.trap INTERNAL_ERROR
+        };
+        index += 1
       };
-      i -= 1;
-      switch (db[elementIndex]) {
-        case (?x) f(i, x);
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
+      i -= 1
     }
   };
 
@@ -2278,20 +2275,16 @@ module {
     let blockIndex = list.blockIndex;
     let elementIndex = list.elementIndex;
 
-    var i = blockIndex;
+    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
     while (i > 0) {
-      if (i < blocks.size()) {
-        let db = blocks[i];
-        let sz = db.size();
-        if (sz > 0) {
-          var j = if (i == blockIndex) elementIndex else sz;
-          while (j > 0) {
-            j -= 1;
-            switch (db[j]) {
-              case (?x) f(x);
-              case null Prim.trap INTERNAL_ERROR
-            }
-          }
+      let db = blocks[i];
+      let sz = db.size();
+      var j = if (i == blockIndex) elementIndex else sz;
+      while (j > 0) {
+        j -= 1;
+        switch (db[j]) {
+          case (?x) f(x);
+          case null Prim.trap INTERNAL_ERROR
         }
       };
       i -= 1
@@ -2637,26 +2630,26 @@ module {
   public func foldRight<T, A>(list : List<T>, base : A, combine : (T, A) -> A) : A {
     var accumulation = base;
 
-    var blockIndex = list.blockIndex;
-    var elementIndex = list.elementIndex;
-    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
-      list.blocks[blockIndex]
-    } else { [var] };
+    let blocks = list.blocks;
+    let blockIndex = list.blockIndex;
+    let elementIndex = list.elementIndex;
 
-    loop {
-      if (elementIndex != 0) {
-        elementIndex -= 1
-      } else {
-        blockIndex -= 1;
-        if (blockIndex == 0) return accumulation;
-        db := list.blocks[blockIndex];
-        elementIndex := db.size() - 1
+    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    while (i > 0) {
+      let db = blocks[i];
+      let sz = db.size();
+      var j = if (i == blockIndex) elementIndex else sz;
+      while (j > 0) {
+        j -= 1;
+        switch (db[j]) {
+          case (?x) accumulation := combine(x, accumulation);
+          case null Prim.trap INTERNAL_ERROR
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) accumulation := combine(x, accumulation);
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
-    }
+      i -= 1
+    };
+
+    accumulation
   };
 
   /// Reverses the order of elements in `list` by overwriting in place.

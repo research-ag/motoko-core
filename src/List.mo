@@ -1078,7 +1078,7 @@ module {
   public func sort<T>(list : List<T>, compare : (T, T) -> Order.Order) : List<T> {
     let array = toVarArray(list);
     VarArray.sortInPlace(array, compare);
-    fromVarArray(array);
+    fromVarArray(array)
   };
 
   public func insert<T>(list : List<T>, index : Nat, element : T) {
@@ -1963,59 +1963,6 @@ module {
     }
   };
 
-  public func forEachEntryChange<T>(
-    list : List<T>,
-    f : (i : Nat, oldValue : T) -> (newValue : T)
-  ) {
-    var index = 0;
-
-    let blocks = list.blocks;
-    let blockCount = blocks.size();
-
-    var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) db[j] := ?f(index, x);
-          case null return
-        };
-        index += 1;
-        j += 1
-      };
-      i += 1
-    }
-  };
-
-  public func forEachChange<T>(
-    list : List<T>,
-    f : (oldValue : T) -> (newValue : T)
-  ) {
-    let blocks = list.blocks;
-    let blockCount = blocks.size();
-
-    var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) db[j] := ?f(x);
-          case null return
-        };
-        j += 1
-      };
-      i += 1
-    }
-  };
-
   /// Applies `f` to each element in `list`.
   ///
   /// Example:
@@ -2327,25 +2274,27 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func reverseForEach<T>(list : List<T>, f : T -> ()) {
-    var blockIndex = list.blockIndex;
-    var elementIndex = list.elementIndex;
-    var db : [var ?T] = if (blockIndex < list.blocks.size()) {
-      list.blocks[blockIndex]
-    } else { [var] };
+    let blocks = list.blocks;
+    let blockIndex = list.blockIndex;
+    let elementIndex = list.elementIndex;
 
-    loop {
-      if (elementIndex != 0) {
-        elementIndex -= 1
-      } else {
-        blockIndex -= 1;
-        if (blockIndex == 0) return;
-        db := list.blocks[blockIndex];
-        elementIndex := db.size() - 1
+    var i = blockIndex;
+    while (i > 0) {
+      if (i < blocks.size()) {
+        let db = blocks[i];
+        let sz = db.size();
+        if (sz > 0) {
+          var j = if (i == blockIndex) elementIndex else sz;
+          while (j > 0) {
+            j -= 1;
+            switch (db[j]) {
+              case (?x) f(x);
+              case null Prim.trap INTERNAL_ERROR
+            }
+          }
+        }
       };
-      switch (db[elementIndex]) {
-        case (?x) f(x);
-        case (_) Prim.trap(INTERNAL_ERROR)
-      }
+      i -= 1
     }
   };
 

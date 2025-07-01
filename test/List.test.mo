@@ -972,7 +972,7 @@ while (i < locate_n) {
 
 // Helper function to run tests
 func runTest(name : Text, test : (Nat) -> Bool) {
-  let testSizes = [0, 1, 2, 3, 4, 5, 6, 10, 100];
+  let testSizes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100];
   for (n in testSizes.vals()) {
     if (test(n)) {
       Debug.print("✅ " # name # " passed for n = " # Nat.toText(n))
@@ -990,7 +990,17 @@ func testNew(n : Nat) : Bool {
 
 func testInit(n : Nat) : Bool {
   let vec = List.repeat<Nat>(1, n);
-  List.size(vec) == n and (n == 0 or (List.get(vec, 0) == 1 and List.get(vec, n - 1 : Nat) == 1))
+  if (List.size(vec) != n) {
+    Debug.print("Init failed: expected size " # Nat.toText(n) # ", got " # Nat.toText(List.size(vec)));
+    return false
+  };
+  for (i in Nat.range(0, n)) {
+    if (List.get(vec, i) != 1) {
+      Debug.print("Init failed at index " # Nat.toText(i) # ": expected 1, got " # Nat.toText(List.get(vec, i)));
+      return false
+    }
+  };
+  true
 };
 
 func testAdd(n : Nat) : Bool {
@@ -1112,13 +1122,16 @@ func testGetOpt(n : Nat) : Bool {
 };
 
 func testPut(n : Nat) : Bool {
-  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
-  if (n == 0) {
-    true
-  } else {
-    List.put(vec, n - 1 : Nat, 100);
-    List.get(vec, n - 1 : Nat) == 100
-  }
+  let vec = List.fromArray<Nat>(Array.repeat<Nat>(0, n));
+  for (i in Nat.range(0, n)) {
+    List.put(vec, i, i + 1);
+    let value = List.get(vec, i);
+    if (value != i + 1) {
+      Debug.print("put: Mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i + 1) # ", got " # Nat.toText(value));
+      return false
+    }
+  };
+  true
 };
 
 func testClear(n : Nat) : Bool {

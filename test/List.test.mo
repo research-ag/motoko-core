@@ -1289,15 +1289,39 @@ func testSort(n : Nat) : Bool {
 };
 
 func testToArray(n : Nat) : Bool {
-  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
-  Array.equal(List.toArray(vec), Array.tabulate<Nat>(n, func(i) = i), Nat.equal)
+  let array = Array.tabulate<Nat>(n, func(i) = i);
+  let vec = List.fromArray<Nat>(array);
+  Array.equal(List.toArray(vec), array, Nat.equal)
+};
+
+func testToVarArray(n : Nat) : Bool {
+  let array = VarArray.tabulate<Nat>(n, func(i) = i);
+  let vec = List.tabulate<Nat>(n, func(i) = i);
+  VarArray.equal(List.toVarArray(vec), array, Nat.equal)
+};
+
+func testFromVarArray(n : Nat) : Bool {
+  let array = VarArray.tabulate<Nat>(n, func(i) = i);
+  let vec = List.fromVarArray<Nat>(array);
+  List.equal(vec, List.fromArray<Nat>(Array.fromVarArray(array)), Nat.equal)
+};
+
+func testFromArray(n : Nat) : Bool {
+  let array = Array.tabulate<Nat>(n, func(i) = i);
+  let vec = List.fromArray<Nat>(array);
+  List.equal(vec, List.fromArray<Nat>(array), Nat.equal)
 };
 
 func testInsert(n : Nat) : Bool {
-  for (i in Nat.range(0, n)) {
+  for (i in Nat.range(0, n + 1)) {
     let list = List.tabulate<Nat>(n, func i = i);
-
     List.insert<Nat>(list, i, n);
+
+    if (List.size(list) != n + 1) {
+      Debug.print("Insert failed: expected size " # Nat.toText(n + 1) # ", got " # Nat.toText(List.size(list)));
+      return false
+    };
+
     for (j in Nat.range(0, n + 1)) {
       let expectedValue = if (j < i) j else if (j == i) n else j - 1 : Nat;
       let value = List.get(list, j);
@@ -1313,10 +1337,15 @@ func testInsert(n : Nat) : Bool {
 func testRemove(n : Nat) : Bool {
   for (i in Nat.range(0, n)) {
     let list = List.tabulate<Nat>(n, func i = i);
-
     let removed = List.remove<Nat>(list, i);
+
     if (removed != i) {
       Debug.print("Remove failed: expected " # Nat.toText(i) # ", got " # debug_show (removed));
+      return false
+    };
+
+    if (List.size(list) != (n - 1 : Nat)) {
+      Debug.print("Remove failed: expected size " # Nat.toText(n - 1) # ", got " # Nat.toText(List.size(list)));
       return false
     };
 
@@ -1514,6 +1543,64 @@ func testTabulate(n : Nat) : Bool {
   true
 };
 
+func testNextIndexOf(n : Nat) : Bool {
+  func nextIndexOf(vec : List.List<Nat>, element : Nat, from : Nat) : ?Nat {
+    for (i in Nat.range(from, List.size(vec))) {
+      if (List.get(vec, i) == element) {
+        return ?i
+      }
+    };
+    return null
+  };
+
+  if (n > 10) return true; // Skip large vectors for performance
+
+  let vec = List.tabulate<Nat>(n, func(i) = i);
+  for (from in Nat.range(0, n)) {
+    for (element in Nat.range(0, n + 1)) {
+      let actual = List.nextIndexOf<Nat>(vec, element, from, Nat.equal);
+      let expected = nextIndexOf(vec, element, from);
+      if (expected != actual) {
+        Debug.print(
+          "nextIndexOf failed for element " # Nat.toText(element) # " from index " # Nat.toText(from) # ": expected " # debug_show (expected) # ", got " # debug_show (actual)
+        );
+        return false
+      }
+    }
+  };
+  true
+};
+
+func testPrevIndexOf(n : Nat) : Bool {
+  func prevIndexOf(vec : List.List<Nat>, element : Nat, from : Nat) : ?Nat {
+    var i = from;
+    while (i > 0) {
+      i -= 1;
+      if (List.get(vec, i) == element) {
+        return ?i
+      }
+    };
+    return null
+  };
+
+  if (n > 10) return true; // Skip large vectors for performance
+
+  let vec = List.tabulate<Nat>(n, func(i) = i);
+  for (from in Nat.range(1, n + 1)) {
+    for (element in Nat.range(0, n + 1)) {
+      let actual = List.prevIndexOf<Nat>(vec, element, from, Nat.equal);
+      let expected = prevIndexOf(vec, element, from);
+      if (expected != actual) {
+        Debug.print(
+          "prevIndexOf failed for element " # Nat.toText(element) # " from index " # Nat.toText(from) # ": expected " # debug_show (expected) # ", got " # debug_show (actual)
+        );
+        return false
+      }
+    }
+  };
+  true
+};
+
 // Run all tests
 func runAllTests() {
   runTest("testNew", testNew);
@@ -1538,6 +1625,9 @@ func runAllTests() {
   runTest("testReverse", testReverse);
   runTest("testSort", testSort);
   runTest("testToArray", testToArray);
+  runTest("testToVarArray", testToVarArray);
+  runTest("testFromVarArray", testFromVarArray);
+  runTest("testFromArray", testFromArray);
   runTest("testFromIter", testFromIter);
   runTest("testForEachRange", testForEachRange);
   runTest("testFoldLeft", testFoldLeft);
@@ -1551,7 +1641,9 @@ func runAllTests() {
   runTest("testRemove", testRemove);
   runTest("testFlatten", testFlatten);
   runTest("testJoin", testJoin);
-  runTest("testTabulate", testTabulate)
+  runTest("testTabulate", testTabulate);
+  runTest("testNextIndexOf", testNextIndexOf);
+  runTest("testPrevIndexOf", testPrevIndexOf)
 };
 
 // Run all tests

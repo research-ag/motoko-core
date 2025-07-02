@@ -1599,7 +1599,7 @@ func testPrevIndexOf(n : Nat) : Bool {
   if (n > 10) return true; // Skip large vectors for performance
 
   let vec = List.tabulate<Nat>(n, func(i) = i);
-  for (from in Nat.range(1, n + 1)) {
+  for (from in Nat.range(0, n + 1)) {
     for (element in Nat.range(0, n + 1)) {
       let actual = List.prevIndexOf<Nat>(vec, element, from, Nat.equal);
       let expected = prevIndexOf(vec, element, from);
@@ -1610,6 +1610,52 @@ func testPrevIndexOf(n : Nat) : Bool {
         return false
       }
     }
+  };
+  true
+};
+
+func testMin(n : Nat) : Bool {
+  if (n == 0) {
+    let vec = List.empty<Nat>();
+    if (List.min<Nat>(vec, Nat.compare) != null) {
+      Debug.print("Min on empty list should return null");
+      return false
+    };
+    return true
+  };
+
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  for (i in Nat.range(0, n)) {
+    List.put(vec, i, 0);
+    let min = List.min<Nat>(vec, Nat.compare);
+    if (min != ?0) {
+      Debug.print("Min failed: expected ?0, got " # debug_show (min));
+      return false
+    };
+    List.put(vec, i, i + 1);
+  };
+  true
+};
+
+func testMax(n : Nat) : Bool {
+  if (n == 0) {
+    let vec = List.empty<Nat>();
+    if (List.max<Nat>(vec, Nat.compare) != null) {
+      Debug.print("Max on empty list should return null");
+      return false
+    };
+    return true
+  };
+
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  for (i in Nat.range(0, n)) {
+    List.put(vec, i, n + 1);
+    let max = List.max<Nat>(vec, Nat.compare);
+    if (max != ?(n + 1)) {
+      Debug.print("Max failed: expected ?" # Nat.toText(n + 1) # ", got " # debug_show (max));
+      return false
+    };
+    List.put(vec, i, i + 1);
   };
   true
 };
@@ -1656,7 +1702,9 @@ func runAllTests() {
   runTest("testJoin", testJoin);
   runTest("testTabulate", testTabulate);
   runTest("testNextIndexOf", testNextIndexOf);
-  runTest("testPrevIndexOf", testPrevIndexOf)
+  runTest("testPrevIndexOf", testPrevIndexOf);
+  runTest("testMin", testMin);
+  runTest("testMax", testMax)
 };
 
 // Run all tests

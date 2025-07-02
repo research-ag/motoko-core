@@ -1202,19 +1202,13 @@ module {
   /// Runtime: `O(size)`
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
-  public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat = nextIndexOf<T>(
-    list,
-    element,
-    0,
-    equal
-  );
+  public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
+    if (isEmpty(list)) return null;
+    nextIndexOf<T>(list, element, 0, equal)
+  };
 
   public func nextIndexOf<T>(list : List<T>, element : T, fromInclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
-    if (fromInclusive >= size(list)) {
-      if (not (fromInclusive == 0 and size(list) == 0)) {
-        Prim.trap "List index out of bounds in nextIndexOf"
-      }
-    };
+    if (fromInclusive >= size(list)) Prim.trap "List index out of bounds in nextIndexOf";
 
     let (blockIndex, elementIndex) = locate(fromInclusive);
 
@@ -2341,7 +2335,7 @@ module {
     let blocks = list.blocks;
     let blockCount = blocks.size();
 
-    var i = 1;
+    var i = 2;
     while (i < blockCount) {
       let db = blocks[i];
       let sz = db.size();
@@ -2393,7 +2387,7 @@ module {
     let blocks = list.blocks;
     let blockCount = blocks.size();
 
-    var i = 1;
+    var i = 2;
     while (i < blockCount) {
       let db = blocks[i];
       let sz = db.size();

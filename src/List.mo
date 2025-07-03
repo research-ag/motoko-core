@@ -110,6 +110,39 @@ module {
   /// Space: `O(size)`
   public func repeat<T>(initValue : T, size : Nat) : List<T> = repeatInternal<T>(?initValue, size);
 
+  /// Fills all elements in the list with the given value.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list = List.fromArray<Nat>([1, 2, 3]);
+  /// List.fill(list, 0); // fills the list with 0
+  /// assert List.toArray(list) == [0, 0, 0];
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(1)`
+  public func fill<T>(list : List<T>, value : T) {
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+    let blockIndex = list.blockIndex;
+    let elementIndex = list.elementIndex;
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = if (i == blockIndex) elementIndex else db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        db[j] := ?value;
+        j += 1
+      };
+      i += 1
+    }
+  };
+
   /// Converts a mutable `List` to a purely functional `PureList`.
   ///
   /// Example:
@@ -232,6 +265,49 @@ module {
   ///
   /// Runtime: `O(count)`
   public func addRepeat<T>(list : List<T>, initValue : T, count : Nat) = addRepeatInternal<T>(list, ?initValue, count);
+
+  /// Truncates the list to the specified size.
+  /// If the new size is larger than the current size, it will trap.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
+  /// List.truncate(list, 3); // list is now [1, 2, 3]
+  /// assert List.toArray(list) == [1, 2, 3];
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(1)`
+  public func truncate<T>(list : List<T>, newSize : Nat) {
+    if (newSize > size(list)) Prim.trap "List.truncate: newSize is larger than current size";
+
+    let (blockIndex, elementIndex) = locate(newSize);
+    list.blockIndex := blockIndex;
+    list.elementIndex := elementIndex;
+    let newBlocksCount = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+
+    let newBlocks = if (newBlocksCount < list.blocks.size()) {
+      let oldDataBlocks = list.blocks;
+      list.blocks := VarArray.tabulate<[var ?T]>(newBlocksCount, func(i) = oldDataBlocks[i]);
+      list.blocks
+    } else list.blocks;
+
+    var i = if (elementIndex == 0) blockIndex else blockIndex + 1;
+    while (i < newBlocksCount) {
+      newBlocks[i] := [var];
+      i += 1
+    };
+    if (elementIndex != 0) {
+      let block = newBlocks[blockIndex];
+      var i = elementIndex;
+      var to = block.size();
+      while (i < to) {
+        block[i] := null;
+        i += 1
+      }
+    }
+  };
 
   /// Resets the list to size 0, de-referencing all elements.
   ///

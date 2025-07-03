@@ -1003,6 +1003,52 @@ func testInit(n : Nat) : Bool {
   true
 };
 
+func testFill(n : Nat) : Bool {
+  let vec = List.tabulate<Nat>(n, func i = i + 1);
+  List.fill(vec, 42);
+  if (List.size(vec) != n) {
+    Debug.print("Fill failed: expected size " # Nat.toText(n) # ", got " # Nat.toText(List.size(vec)));
+    return false
+  };
+  if (not List.all<Nat>(vec, func x = x == 42)) {
+    Debug.print("Fill failed");
+    return false
+  };
+  true
+};
+
+func testTruncate(n : Nat) : Bool {
+  for (i in Nat.range(0, n + 1)) {
+    let vec = List.tabulate<Nat>(n, func j = j);
+    List.truncate(vec, i);
+    if (List.size(vec) != i) {
+      Debug.print("Truncate failed: expected size " # Nat.toText(i) # ", got " # Nat.toText(List.size(vec)));
+      return false
+    };
+    for (j in Nat.range(0, i)) {
+      if (List.get(vec, j) != j) {
+        Debug.print("Truncate failed at index " # Nat.toText(j) # ": expected " # Nat.toText(j) # ", got " # Nat.toText(List.get(vec, j)));
+        return false
+      }
+    };
+    let b = vec.blockIndex;
+    let e = vec.elementIndex;
+    let blocks = vec.blocks;
+    if (b < blocks.size()) {
+      let db = blocks[b];
+      var i = e;
+      while (i < db.size()) {
+        if (db[i] != null) {
+          Debug.print("Truncate failed: expected null at index " # Nat.toText(i) # ", got " # debug_show (db[i]));
+          return false
+        };
+        i += 1
+      }
+    }
+  };
+  true
+};
+
 func testAdd(n : Nat) : Bool {
   if (n == 0) return true;
   let vec = List.empty<Nat>();
@@ -1663,6 +1709,8 @@ func testMax(n : Nat) : Bool {
 func runAllTests() {
   runTest("testNew", testNew);
   runTest("testInit", testInit);
+  runTest("testFill", testFill);
+  runTest("testTruncate", testTruncate);
   runTest("testAdd", testAdd);
   runTest("testAddAll", testAddAll);
   runTest("testRemoveLast", testRemoveLast);

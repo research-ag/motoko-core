@@ -1631,7 +1631,7 @@ func testMin(n : Nat) : Bool {
       Debug.print("Min failed: expected ?0, got " # debug_show (min));
       return false
     };
-    List.put(vec, i, i + 1);
+    List.put(vec, i, i + 1)
   };
   true
 };
@@ -1654,7 +1654,7 @@ func testMax(n : Nat) : Bool {
       Debug.print("Max failed: expected ?" # Nat.toText(n + 1) # ", got " # debug_show (max));
       return false
     };
-    List.put(vec, i, i + 1);
+    List.put(vec, i, i + 1)
   };
   true
 };

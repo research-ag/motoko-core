@@ -313,7 +313,7 @@ module {
   /// ```motoko include=import
   /// import Nat "mo:core/Nat";
   ///
-  /// let lists = List.fromArray<List<Nat>>([
+  /// let lists = List.fromArray<List.List<Nat>>([
   ///   List.fromArray<Nat>([0, 1, 2]), List.fromArray<Nat>([2, 3]), List.fromArray<Nat>([]), List.fromArray<Nat>([4])
   /// ]);
   /// let flatList = List.flatten<Nat>(lists);
@@ -701,7 +701,7 @@ module {
   ///
   /// let list = List.fromArray<Nat>([1, 2, 3, 4]);
   /// let newList = List.flatMap<Nat, Int>(list, func x = [x, -x].vals());
-  /// assert List.equal(newList, List.fromArray([1, -1, 2, -2, 3, -3, 4, -4]), Int.equal);
+  /// assert List.equal(newList, List.fromArray<Int>([1, -1, 2, -2, 3, -3, 4, -4]), Int.equal);
   /// ```
   /// Runtime: O(size)
   ///
@@ -1309,8 +1309,8 @@ module {
   /// ```motoko include=import
   /// import Char "mo:core/Char";
   /// let list = List.fromArray<Char>(['c', 'o', 'f', 'f', 'e', 'e']);
-  /// assert List.prevIndexOf<Char>(list, 'c', list.size(), Char.equal) == ?0;
-  /// assert List.prevIndexOf<Char>(list, 'e', list.size(), Char.equal) == ?5;
+  /// assert List.prevIndexOf<Char>(list, 'c', List.size(list), Char.equal) == ?0;
+  /// assert List.prevIndexOf<Char>(list, 'e', List.size(list), Char.equal) == ?5;
   /// assert List.prevIndexOf<Char>(list, 'e', 5, Char.equal) == ?4;
   /// assert List.prevIndexOf<Char>(list, 'e', 4, Char.equal) == null;
   /// ```
@@ -2121,7 +2121,7 @@ module {
   ///
   /// ```motoko include=import
   /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
-  /// let iter1 = List.range<Nat>(list, 3, list.size());
+  /// let iter1 = List.range<Nat>(list, 3, List.size(list));
   /// assert iter1.next() == ?4;
   /// assert iter1.next() == ?5;
   /// assert iter1.next() == null;

@@ -566,7 +566,7 @@
       "public func reverseValues<T>(list : List<T>) : Iter.Iter<T>",
       "public func singleton<T>(element : T) : List<T>",
       "public func size<T>( list : { var blockIndex : Nat; var elementIndex : Nat } ) : Nat",
-      "public func sliceToArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T]",
+      "public func sliceToArray<T>( list : { var blockIndex : Nat; var elementIndex : Nat } , fromInclusive : Int, toExclusive : Int) : [T]",
       "public func sort<T>(list : List<T>, compare : (T, T) -> Order.Order) : List<T>",
       "public func sortInPlace<T>(list : List<T>, compare : (T, T) -> Order.Order)",
       "public func tabulate<T>(size : Nat, generator : Nat -> T) : List<T>",

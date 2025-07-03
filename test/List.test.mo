@@ -1283,7 +1283,7 @@ func runAllTests() {
   runTest("testFilterMap", testFilterMap);
   runTest("testPure", testPure);
   runTest("testReverseForEach", testReverseForEach);
-  runTest("testForEach", testForEach);
+  runTest("testForEach", testForEach)
 };
 
 // Run all tests

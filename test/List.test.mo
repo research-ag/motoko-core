@@ -1090,10 +1090,10 @@ func testGet(n : Nat) : Bool {
 };
 
 func testGetOpt(n : Nat) : Bool {
-  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  let vec = List.tabulate<Nat>(n, func(i) = i);
 
-  for (i in Nat.range(1, n + 1)) {
-    switch (List.getOpt(vec, i - 1 : Nat)) {
+  for (i in Nat.range(0, n)) {
+    switch (List.getOpt(vec, i)) {
       case (?value) {
         if (value != i) {
           Debug.print("getOpt: Mismatch at index " # Nat.toText(i) # ": expected ?" # Nat.toText(i) # ", got ?" # Nat.toText(value));
@@ -1107,14 +1107,13 @@ func testGetOpt(n : Nat) : Bool {
     }
   };
 
-  // Test out-of-bounds access
-  switch (List.getOpt(vec, n)) {
-    case (null) {
-      // This is expected
-    };
-    case (?value) {
-      Debug.print("getOpt: Expected null for out-of-bounds access, got ?" # Nat.toText(value));
-      return false
+  for (i in Nat.range(n, 3 * n + 3)) {
+    switch (List.getOpt(vec, i)) {
+      case (?value) {
+        Debug.print("getOpt: Unexpected value at index " # Nat.toText(i) # ": got ?" # Nat.toText(value));
+        return false
+      };
+      case (null) {}
     }
   };
 

@@ -146,14 +146,14 @@ module {
     result
   };
 
-  /// Converts a purely functional `List` to a mutable `List`.
+  /// Converts a purely functional `List` to a `List`.
   ///
   /// Example:
   /// ```motoko include=import
   /// import PureList "mo:core/pure/List";
   ///
   /// let pureList = PureList.fromArray<Nat>([1, 2, 3]);
-  /// let list = List.fromPure<Nat>(pureList); // converts to mutable List
+  /// let list = List.fromPure<Nat>(pureList); // converts to List
   /// ```
   ///
   /// Runtime: `O(size)`
@@ -313,11 +313,11 @@ module {
   /// ```motoko include=import
   /// import Nat "mo:core/Nat";
   ///
-  /// let lists = List.fromArray([
-  ///   List.fromArray([0, 1, 2]), List.fromArray([2, 3]), List.fromArray([]), List.fromArray([4])
+  /// let lists = List.fromArray<List<Nat>>([
+  ///   List.fromArray<Nat>([0, 1, 2]), List.fromArray<Nat>([2, 3]), List.fromArray<Nat>([]), List.fromArray<Nat>([4])
   /// ]);
   /// let flatList = List.flatten<Nat>(lists);
-  /// assert List.equal(flatList, List.fromArray([0, 1, 2, 2, 3, 4]), Nat.equal);
+  /// assert List.equal<Nat>(flatList, List.fromArray<Nat>([0, 1, 2, 2, 3, 4]), Nat.equal);
   /// ```
   ///
   /// Runtime: O(number of elements in list)
@@ -353,9 +353,9 @@ module {
   /// ```motoko include=import
   /// import Nat "mo:core/Nat";
   ///
-  /// let lists = [List.fromArray([0, 1, 2]), List.fromArray([2, 3]), List.fromArray([]), List.fromArray([4])];
+  /// let lists = [List.fromArray<Nat>([0, 1, 2]), List.fromArray<Nat>([2, 3]), List.fromArray<Nat>([]), List.fromArray<Nat>([4])];
   /// let joinedList = List.join<Nat>(lists.vals());
-  /// assert List.equal(joinedList, List.fromArray([0, 1, 2, 2, 3, 4]), Nat.equal);
+  /// assert List.equal<Nat>(joinedList, List.fromArray<Nat>([0, 1, 2, 2, 3, 4]), Nat.equal);
   /// ```
   ///
   /// Runtime: O(number of elements in list)
@@ -542,7 +542,7 @@ module {
   /// ```motoko include=import
   /// import Result "mo:core/Result";
   ///
-  /// let list = List.fromArray([4, 3, 2, 1, 0]);
+  /// let list = List.fromArray<Nat>([4, 3, 2, 1, 0]);
   /// // divide 100 by every element in the list
   /// let result = List.mapResult<Nat, Nat, Text>(list, func x {
   ///   if (x > 0) {
@@ -699,7 +699,7 @@ module {
   /// ```motoko include=import
   /// import Int "mo:core/Int"
   ///
-  /// let list = List.fromArray([1, 2, 3, 4]);
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4]);
   /// let newList = List.flatMap<Nat, Int>(list, func x = [x, -x].vals());
   /// assert List.equal(newList, List.fromArray([1, -1, 2, -2, 3, -3, 4, -4]), Int.equal);
   /// ```
@@ -1081,6 +1081,19 @@ module {
     fromVarArray(array)
   };
 
+  /// Inserts `element` at `index` in the list, shifting existing elements to the right.
+  /// Traps if `index > size`. Indexing is zero-based.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list = List.fromArray<Nat>([1, 2, 4]);
+  /// List.insert(list, 2, 3); // inserts 3 at index 2
+  /// assert List.toArray(list) == [1, 2, 3, 4];
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
   public func insert<T>(list : List<T>, index : Nat, element : T) {
     if (index > size(list)) {
       Prim.trap "List index out of bounds in insert"
@@ -1128,6 +1141,20 @@ module {
     }
   };
 
+  /// Removes the element at `index` from the list, shifting existing elements to the left.
+  /// Traps if `index >= size`. Indexing is zero-based.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4]);
+  /// let removed = List.remove(list, 2); // removes element at index 2
+  /// assert removed == 3;
+  /// assert List.toArray(list) == [1, 2, 4];
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(1)`
   public func remove<T>(list : List<T>, index : Nat) : T {
     if (index >= size(list)) {
       Prim.trap "List index out of bounds in remove"
@@ -1207,6 +1234,23 @@ module {
     nextIndexOf<T>(list, element, 0, equal)
   };
 
+  /// Returns the index of the next occurence of `element` in the `list` starting from the `from` index (inclusive).
+  ///
+  /// ```motoko include=import
+  /// import Char "mo:core/Char";
+  /// let list = List.fromArray<Char>(['c', 'o', 'f', 'f', 'e', 'e']);
+  /// assert List.nextIndexOf<Char>(list, 'c', 0, Char.equal) == ?0;
+  /// assert List.nextIndexOf<Char>(list, 'f', 0, Char.equal) == ?2;
+  /// assert List.nextIndexOf<Char>(list, 'f', 2, Char.equal) == ?2;
+  /// assert List.nextIndexOf<Char>(list, 'f', 3, Char.equal) == ?3;
+  /// assert List.nextIndexOf<Char>(list, 'f', 4, Char.equal) == null;
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
+  ///
+  /// *Runtime and space assumes that `equal` runs in O(1) time and space.
   public func nextIndexOf<T>(list : List<T>, element : T, fromInclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
     if (fromInclusive >= size(list)) Prim.trap "List index out of bounds in nextIndexOf";
 
@@ -1260,6 +1304,20 @@ module {
     equal
   );
 
+  /// Returns the index of the previous occurence of `element` in the `list` starting from the `from` index (exclusive).
+  ///
+  /// ```motoko include=import
+  /// import Char "mo:core/Char";
+  /// let list = List.fromArray<Char>(['c', 'o', 'f', 'f', 'e', 'e']);
+  /// assert List.prevIndexOf<Char>(list, 'c', list.size(), Char.equal) == ?0;
+  /// assert List.prevIndexOf<Char>(list, 'e', list.size(), Char.equal) == ?5;
+  /// assert List.prevIndexOf<Char>(list, 'e', 5, Char.equal) == ?4;
+  /// assert List.prevIndexOf<Char>(list, 'e', 4, Char.equal) == null;
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
   public func prevIndexOf<T>(list : List<T>, element : T, fromExclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
     if (fromExclusive > size(list)) Prim.trap "List index out of bounds in prevIndexOf";
 
@@ -1930,7 +1988,7 @@ module {
     if (list.blockIndex == 1 and list.elementIndex == 0) null else list.blocks[1][0]
   };
 
-  /// Returns the last element of `list`. Traps if `list` is empty.
+  /// Returns the last element of `list`. Returns null if `list` is empty.
   ///
   /// Example:
   /// ```motoko include=import
@@ -2062,7 +2120,7 @@ module {
   /// If the first index is greater than the second, the function returns an empty iterator.
   ///
   /// ```motoko include=import
-  /// let list = List.fromArray([1, 2, 3, 4, 5]);
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   /// let iter1 = List.range<Nat>(list, 3, list.size());
   /// assert iter1.next() == ?4;
   /// assert iter1.next() == ?5;
@@ -2152,7 +2210,7 @@ module {
   /// If the indices are out of bounds, they are clamped to the array bounds.
   ///
   /// ```motoko include=import
-  /// let array = List.fromArray([1, 2, 3, 4, 5]);
+  /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   ///
   /// let slice1 = List.sliceToArray<Nat>(array, 1, 4);
   /// assert slice1 == [2, 3, 4];

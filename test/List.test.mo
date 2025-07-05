@@ -1090,6 +1090,26 @@ func testAddAll(n : Nat) : Bool {
   true
 };
 
+func testAppend(n : Nat) : Bool {
+  if (n > 10) return true;
+
+  for (i in Nat.range(0, n + 1)) {
+    for (j in Nat.range(0, n + 1)) {
+      let first = List.tabulate<Nat>(i, func x = x);
+      let second = List.tabulate<Nat>(j, func x = x);
+      let sum = List.concat([first, second]);
+      List.append(first, second);
+
+      if (not List.equal(first, sum, Nat.equal)) {
+        Debug.print("Append failed for " # List.toText(first, Nat.toText) # " and " # List.toText(second, Nat.toText));
+        return false
+      }
+    }
+  };
+
+  true
+};
+
 func testRemoveLast(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   var i = n;
@@ -1460,6 +1480,25 @@ func testFilter(n : Nat) : Bool {
   true
 };
 
+func testRetain(n : Nat) : Bool {
+  if (n > 10) return true;
+
+  for (mod in Nat.range(1, n + 1)) {
+    for (rem in Nat.range(0, mod + 1)) {
+      let f : Nat -> Bool = func x = x % mod == rem;
+      let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+      let expected = List.filter<Nat>(vec, f);
+      List.retain<Nat>(vec, f);
+      if (not List.equal<Nat>(vec, expected, Nat.equal)) {
+        Debug.print("Retain failed for mod " # Nat.toText(mod) # " and rem " # Nat.toText(rem) # "");
+        return false
+      }
+    }
+  };
+
+  true
+};
+
 func testFilterMap(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
 
@@ -1713,6 +1752,7 @@ func runAllTests() {
   runTest("testTruncate", testTruncate);
   runTest("testAdd", testAdd);
   runTest("testAddAll", testAddAll);
+  runTest("testAppend", testAppend);
   runTest("testRemoveLast", testRemoveLast);
   runTest("testGet", testGet);
   runTest("testGetOpt", testGetOpt);
@@ -1739,6 +1779,7 @@ func runAllTests() {
   runTest("testFoldLeft", testFoldLeft);
   runTest("testFoldRight", testFoldRight);
   runTest("testFilter", testFilter);
+  runTest("testRetain", testRetain);
   runTest("testFilterMap", testFilterMap);
   runTest("testPure", testPure);
   runTest("testReverseForEach", testReverseForEach);

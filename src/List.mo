@@ -254,6 +254,16 @@ module {
     }
   };
 
+  private func reserve<T>(list : List<T>, size : Nat) {
+    let blockIndex = list.blockIndex;
+    let elementIndex = list.elementIndex;
+
+    addRepeatInternal<T>(list, null, size);
+
+    list.blockIndex := blockIndex;
+    list.elementIndex := elementIndex
+  };
+
   /// Add to list `count` copies of the initial value.
   ///
   /// ```motoko include=import
@@ -440,15 +450,8 @@ module {
   public func join<T>(lists : Iter.Iter<List<T>>) : List<T> {
     var result = empty<T>();
     for (list in lists) {
-      let oldBlockIndex = result.blockIndex;
-      let oldElementIndex = result.elementIndex;
-
-      addRepeatInternal<T>(result, null, size(list));
-
-      result.blockIndex := oldBlockIndex;
-      result.elementIndex := oldElementIndex;
-
-      forEach<T>(list, func item = add(result, item))
+      reserve(result, size(list));
+      forEach<T>(list, func item = addUnsafe(result, item))
     };
     result
   };
@@ -725,6 +728,46 @@ module {
     filtered
   };
 
+  /// Retains only the elements in `list` for which the predicate returns true.
+  /// Modifies the original list in place.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4]);
+  /// List.retain<Nat>(list, func x = x % 2 == 0);
+  /// assert List.toArray(list) == [2, 4];
+  /// ```
+  ///
+  /// Runtime: `O(size)`
+  ///
+  /// Space: `O(sqrt(size))` if `list` was truncated otherwise `O(1)`
+  public func retain<T>(list : List<T>, predicate : T -> Bool) {
+    list.blockIndex := 1;
+    list.elementIndex := 0;
+
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) if (predicate(x)) addUnsafe(list, x);
+          case null return
+        };
+        j += 1
+      };
+      i += 1
+    };
+
+    truncate(list, size(list))
+  };
+
   /// Returns a new list containing all elements from `list` for which the function returns ?element.
   /// Discards all elements for which the function returns null.
   ///
@@ -926,6 +969,19 @@ module {
 
     let lastDataBlock = list.blocks[list.blockIndex];
 
+    lastDataBlock[elementIndex] := ?element;
+
+    elementIndex += 1;
+    if (elementIndex == lastDataBlock.size()) {
+      elementIndex := 0;
+      list.blockIndex += 1
+    };
+    list.elementIndex := elementIndex
+  };
+
+  private func addUnsafe<T>(list : List<T>, element : T) {
+    var elementIndex = list.elementIndex;
+    let lastDataBlock = list.blocks[list.blockIndex];
     lastDataBlock[elementIndex] := ?element;
 
     elementIndex += 1;
@@ -1861,6 +1917,45 @@ module {
   /// Runtime: `O(size)`, where n is the size of iter.
   public func addAll<T>(list : List<T>, iter : Iter.Iter<T>) {
     for (element in iter) add(list, element)
+  };
+
+  /// Appends all elements from `added` to the end of `list`.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// import Nat "mo:core/Nat";
+  ///
+  /// let list = List.fromArray<Nat>([1, 2]);
+  /// let added = List.fromArray<Nat>([3, 4]);
+  /// List.append<Nat>(list, added);
+  /// assert List.toArray(list) == [1, 2, 3, 4];
+  /// ```
+  ///
+  /// Runtime: `O(size(added))`
+  ///
+  /// Space: `O(size(added))`
+  public func append<T>(list : List<T>, added : List<T>) {
+    reserve(list, size(added));
+
+    let blocks = added.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) addUnsafe(list, x);
+          case null return
+        };
+        j += 1
+      };
+      i += 1
+    }
   };
 
   /// Creates a new immutable array containing all elements from the list.

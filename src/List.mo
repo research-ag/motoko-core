@@ -742,28 +742,32 @@ module {
   ///
   /// Space: `O(sqrt(size))` if `list` was truncated otherwise `O(1)`
   public func retain<T>(list : List<T>, predicate : T -> Bool) {
-    list.blockIndex := 1;
-    list.elementIndex := 0;
+    func retainInternal(list : List<T>, predicate : T -> Bool) {
+      list.blockIndex := 1;
+      list.elementIndex := 0;
 
-    let blocks = list.blocks;
-    let blockCount = blocks.size();
+      let blocks = list.blocks;
+      let blockCount = blocks.size();
 
-    var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
+      var i = 1;
+      while (i < blockCount) {
+        let db = blocks[i];
+        let sz = db.size();
+        if (sz == 0) return;
 
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) if (predicate(x)) addUnsafe(list, x);
-          case null return
+        var j = 0;
+        while (j < sz) {
+          switch (db[j]) {
+            case (?x) if (predicate(x)) addUnsafe(list, x);
+            case null return
+          };
+          j += 1
         };
-        j += 1
-      };
-      i += 1
+        i += 1
+      }
     };
+
+    retainInternal(list, predicate);
 
     truncate(list, size(list))
   };
@@ -1211,6 +1215,91 @@ module {
     let array = toVarArray(list);
     VarArray.sortInPlace(array, compare);
     fromVarArray(array)
+  };
+
+  /// Checks whether the `list` is sorted.
+  ///
+  /// Example:
+  /// import Nat "mo:core/Nat";
+  ///
+  /// let list = List.fromArray<Nat>([1, 2, 3]);
+  /// assert List.isSorted(list);
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
+  public func isSorted<T>(list : List<T>, compare : (T, T) -> Order.Order) : Bool {
+    var prev = switch (first(list)) {
+      case (?x) x;
+      case _ return true
+    };
+
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 2;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return true;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) switch (compare(x, prev)) {
+            case (#greater or #equal) prev := x;
+            case (#less) return false
+          };
+          case null return true
+        };
+        j += 1
+      };
+      i += 1
+    };
+
+    true
+  };
+
+  public func deduplicate<T>(list : List<T>, equal : (T, T) -> Bool) {
+    func deduplicateInternal(list : List<T>, equal : (T, T) -> Bool) {
+      var prev = switch (first(list)) {
+        case (?x) x;
+        case _ return
+      };
+
+      list.blockIndex := 1;
+      list.elementIndex := 0;
+
+      addUnsafe(list, prev);
+
+      let blocks = list.blocks;
+      let blockCount = blocks.size();
+
+      var i = 2;
+      while (i < blockCount) {
+        let db = blocks[i];
+        let sz = db.size();
+        if (sz == 0) return;
+
+        var j = 0;
+        while (j < sz) {
+          switch (db[j]) {
+            case (?x) {
+              if (not equal(x, prev)) addUnsafe(list, x);
+              prev := x
+            };
+            case null return
+          };
+          j += 1
+        };
+        i += 1
+      }
+    };
+
+    deduplicateInternal(list, equal);
+
+    truncate(list, size(list))
   };
 
   /// Inserts `element` at `index` in the list, shifting existing elements to the right.

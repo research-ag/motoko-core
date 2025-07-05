@@ -1366,6 +1366,42 @@ func testSort(n : Nat) : Bool {
   List.equal(vec, List.fromArray<Int>(Array.sort(array, Int.compare)), Int.equal)
 };
 
+func testIsSorted(n : Nat) : Bool {
+  let sorted = List.tabulate<Nat>(n, func i = i);
+  if (not List.isSorted(sorted, Nat.compare)) {
+    Debug.print("isSorted fails on " # List.toText(sorted, Nat.toText));
+    return false
+  };
+
+  let notSorted = List.tabulate<Nat>(n, func i = n - i - 1);
+  if (List.size(notSorted) >= 2 and List.isSorted(notSorted, Nat.compare)) {
+    Debug.print("isSorted fails on " # List.toText(notSorted, Nat.toText));
+    return false
+  };
+
+  true
+};
+
+func testDeduplicate(n : Nat) : Bool {
+  if (n != 0) return true;
+  
+  let lists = [
+    List.fromArray<Nat>([1, 1, 2, 2, 3, 3]),
+    List.fromArray<Nat>([1, 2, 3]),
+    List.fromArray<Nat>([1, 1, 2, 3])
+  ];
+
+  for (list in lists.vals()) {
+    List.deduplicate(list, Nat.equal);
+    if (not List.equal(list, List.fromArray<Nat>([1, 2, 3]), Nat.equal)) {
+      Debug.print("Deduplicate failed for " # List.toText(list, Nat.toText));
+      return false
+    }
+  };
+
+  true
+};
+
 func testToArray(n : Nat) : Bool {
   let array = Array.tabulate<Nat>(n, func(i) = i);
   let vec = List.fromArray<Nat>(array);
@@ -1770,6 +1806,8 @@ func runAllTests() {
   runTest("testContains", testContains);
   runTest("testReverse", testReverse);
   runTest("testSort", testSort);
+  runTest("testIsSorted", testIsSorted);
+  runTest("testDeduplicate", testDeduplicate);
   runTest("testToArray", testToArray);
   runTest("testToVarArray", testToVarArray);
   runTest("testFromVarArray", testFromVarArray);

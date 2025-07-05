@@ -1220,6 +1220,7 @@ module {
   /// Checks whether the `list` is sorted.
   ///
   /// Example:
+  /// ```
   /// import Nat "mo:core/Nat";
   ///
   /// let list = List.fromArray<Nat>([1, 2, 3]);
@@ -1261,6 +1262,20 @@ module {
     true
   };
 
+  /// Remove adjacent duplicates from the `list`, if the `list` is sorted all elements will be unique.
+  ///
+  /// Example:
+  /// ```
+  /// import Nat "mo:core/Nat";
+  ///
+  /// let list = List.fromArray<Nat>([1, 1, 2, 2, 3]);
+  /// List.deduplicate(list, Nat.equal);
+  /// assert List.equal(list, List.fromArray<Nat>([1, 2, 3]), Nat.equal);
+  /// ```
+  ///
+  /// Runtime: O(size)
+  ///
+  /// Space: O(1)
   public func deduplicate<T>(list : List<T>, equal : (T, T) -> Bool) {
     func deduplicateInternal(list : List<T>, equal : (T, T) -> Bool) {
       var prev = switch (first(list)) {

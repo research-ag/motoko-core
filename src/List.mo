@@ -1457,7 +1457,7 @@ module {
   ///
   /// Space: `O(1)`
   public func first<T>(list : List<T>) : ?T {
-    if (list.blockIndex == 1 and list.elementIndex == 0) null else list.blocks[1][0]
+    if (list.blockIndex == 1) null else list.blocks[1][0]
   };
 
   /// Returns the last element of `list`. Traps if `list` is empty.
@@ -2147,7 +2147,7 @@ module {
   ///
   /// Space: `O(1)`
   public func isEmpty<T>(list : List<T>) : Bool {
-    list.blockIndex == 1 and list.elementIndex == 0
+    list.blockIndex == 1
   };
 
 }

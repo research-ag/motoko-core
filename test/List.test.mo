@@ -1401,7 +1401,7 @@ func testIsSorted(n : Nat) : Bool {
 
 func testDeduplicate(n : Nat) : Bool {
   if (n != 0) return true;
-  
+
   let lists = [
     List.fromArray<Nat>([1, 1, 2, 2, 3, 3]),
     List.fromArray<Nat>([1, 2, 3]),

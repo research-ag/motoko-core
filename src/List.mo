@@ -184,7 +184,7 @@ module {
         blocks[i] := oldBlocks[i];
         i += 1
       };
-      list.blocks := blocks;
+      list.blocks := blocks
     };
 
     let blocks = list.blocks;
@@ -224,7 +224,7 @@ module {
     };
 
     list.blockIndex := blockIndex;
-    list.elementIndex := elementIndex;
+    list.elementIndex := elementIndex
   };
 
   /// Add to list `count` copies of the initial value.

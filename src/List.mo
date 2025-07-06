@@ -2488,6 +2488,18 @@ module {
     }
   };
 
+  /// Executes the closure over a slice of `list` starting at `fromInclusive` up to (but not including) `toExclusive`.
+  ///
+  /// ```motoko include=import
+  /// import Debug "mo:core/Debug";
+  ///
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
+  /// List.forEachRange<Nat>(list, func x = Debug.print(Nat.toText(x)), 1, 2); // prints 2 and 3
+  /// ```
+  ///
+  /// Runtime: O(toExclusive - fromExclusive)
+  ///
+  /// Space: O(1)
   public func forEachRange<T>(list : List<T>, f : T -> (), fromInclusive : Nat, toExclusive : Nat) {
     if (not (fromInclusive <= toExclusive and toExclusive <= size(list))) Prim.trap("Invalid range");
 

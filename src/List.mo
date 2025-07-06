@@ -207,35 +207,40 @@ module {
   };
 
   private func addRepeatInternal<T>(list : List<T>, initValue : ?T, count : Nat) {
-    let (blockIndex, elementIndex) = locate(size(list) + count);
-    let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let (b, e) = locate(size(list) + count);
+    let blocksCount = newIndexBlockLength(Nat32.fromNat(if (e == 0) b - 1 else b));
 
-    let oldBlocks = list.blocks.size();
-    if (oldBlocks < blocks) {
-      let oldDataBlocks = list.blocks;
-      list.blocks := VarArray.repeat<[var ?T]>([var], blocks);
+    let oldBlocksCount = list.blocks.size();
+    if (oldBlocksCount < blocksCount) {
+      let oldBlocks = list.blocks;
+      let blocks = VarArray.repeat<[var ?T]>([var], blocksCount);
       var i = 0;
-      while (i < oldBlocks) {
-        list.blocks[i] := oldDataBlocks[i];
+      while (i < oldBlocksCount) {
+        blocks[i] := oldBlocks[i];
         i += 1
-      }
+      };
+      list.blocks := blocks;
     };
+
+    let blocks = list.blocks;
+    var blockIndex = list.blockIndex;
+    var elementIndex = list.elementIndex;
 
     var cnt = count;
     while (cnt > 0) {
-      let dbSize = dataBlockSize(list.blockIndex);
-      if (list.elementIndex == 0 and dbSize <= cnt) {
-        list.blocks[list.blockIndex] := VarArray.repeat<?T>(initValue, dbSize);
+      let dbSize = dataBlockSize(blockIndex);
+      if (elementIndex == 0 and dbSize <= cnt) {
+        blocks[blockIndex] := VarArray.repeat<?T>(initValue, dbSize);
         cnt -= dbSize;
-        list.blockIndex += 1
+        blockIndex += 1
       } else {
-        if (list.blocks[list.blockIndex].size() == 0) {
-          list.blocks[list.blockIndex] := VarArray.repeat<?T>(null, dbSize)
+        if (blocks[blockIndex].size() == 0) {
+          blocks[blockIndex] := VarArray.repeat<?T>(null, dbSize)
         };
-        let from = list.elementIndex;
-        let to = Nat.min(list.elementIndex + cnt, dbSize);
+        let from = elementIndex;
+        let to = Nat.min(elementIndex + cnt, dbSize);
 
-        let block = list.blocks[list.blockIndex];
+        let block = blocks[blockIndex];
         if (not Option.isNull(initValue)) {
           var i = from;
           while (i < to) {
@@ -244,14 +249,17 @@ module {
           }
         };
 
-        list.elementIndex := to;
-        if (list.elementIndex == dbSize) {
-          list.elementIndex := 0;
-          list.blockIndex += 1
+        elementIndex := to;
+        if (elementIndex == dbSize) {
+          elementIndex := 0;
+          blockIndex += 1
         };
         cnt -= to - from
       }
-    }
+    };
+
+    list.blockIndex := blockIndex;
+    list.elementIndex := elementIndex;
   };
 
   private func reserve<T>(list : List<T>, size : Nat) {

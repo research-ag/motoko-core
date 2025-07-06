@@ -1072,21 +1072,28 @@ func testAdd(n : Nat) : Bool {
   true
 };
 
-func testAddAll(n : Nat) : Bool {
-  if (n == 0) return true;
-  let vec = List.repeat<Nat>(0, n);
-  List.addRepeat(vec, 1, n);
-  if (List.size(vec) != 2 * n) {
-    Debug.print("Size mismatch: expected " # Nat.toText(2 * n) # ", got " # Nat.toText(List.size(vec)));
-    return false
-  };
-  for (i in Nat.range(0, n)) {
-    let value = List.get(vec, n + i);
-    if (value != 1) {
-      Debug.print("Value mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(1) # ", got " # Nat.toText(value));
-      return false
+func testAddRepeat(n : Nat) : Bool {
+  if (n > 10) return true;
+
+  for (i in Nat.range(0, n + 1)) {
+    for (j in Nat.range(0, n + 1)) {
+      let vec = List.repeat<Nat>(0, i);
+      List.addRepeat(vec, 1, j);
+      if (List.size(vec) != i + j) {
+        Debug.print("Size mismatch: expected " # Nat.toText(i + j) # ", got " # Nat.toText(List.size(vec)));
+        return false
+      };
+      for (k in Nat.range(0, i + j)) {
+        let expected = if (k < i) 0 else 1;
+        let got = List.get(vec, k);
+        if (expected != got) {
+          Debug.print("addRepat failed i = " # Nat.toText(i) # " j = " # Nat.toText(j) # " k = " # Nat.toText(k) # " expected = " # Nat.toText(expected) # " got = " # Nat.toText(got));
+          return false
+        }
+      }
     }
   };
+
   true
 };
 
@@ -1787,7 +1794,7 @@ func runAllTests() {
   runTest("testFill", testFill);
   runTest("testTruncate", testTruncate);
   runTest("testAdd", testAdd);
-  runTest("testAddAll", testAddAll);
+  runTest("testAddRepeat", testAddRepeat);
   runTest("testAppend", testAppend);
   runTest("testRemoveLast", testRemoveLast);
   runTest("testGet", testGet);

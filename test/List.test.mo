@@ -1017,6 +1017,16 @@ func testFill(n : Nat) : Bool {
   true
 };
 
+func testFillWith(n : Nat) : Bool {
+  let vec = List.repeat<Nat>(0, n);
+  List.fillWith<Nat>(vec, func i = i + 1);
+  if (not List.equal(vec, List.tabulate<Nat>(n, func i = i + 1), Nat.equal)) {
+    Debug.print("Got = " # List.toText(vec, Nat.toText));
+    return false
+  };
+  true
+};
+
 func testTruncate(n : Nat) : Bool {
   for (i in Nat.range(0, n + 1)) {
     let vec = List.tabulate<Nat>(n, func j = j);
@@ -1792,6 +1802,7 @@ func runAllTests() {
   runTest("testNew", testNew);
   runTest("testInit", testInit);
   runTest("testFill", testFill);
+  runTest("testFillWith", testFillWith);
   runTest("testTruncate", testTruncate);
   runTest("testAdd", testAdd);
   runTest("testAddRepeat", testAddRepeat);

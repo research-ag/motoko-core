@@ -951,7 +951,8 @@ func testAddRepeat(n : Nat) : Bool {
 
   for (i in Nat.range(0, n + 1)) {
     for (j in Nat.range(0, n + 1)) {
-      let vec = List.repeat<Nat>(0, i);
+      let vec = List.repeat<Nat>(0, i + n);
+      for (_ in Nat.range(0, n)) ignore List.removeLast(vec);
       List.addRepeat(vec, 1, j);
       if (List.size(vec) != i + j) {
         Debug.print("Size mismatch: expected " # Nat.toText(i + j) # ", got " # Nat.toText(List.size(vec)));

@@ -187,6 +187,15 @@ module {
       list.blocks := blocks
     };
 
+    func fill<T>(block : [var ?T], from : Nat, to : Nat, value : ?T) {
+      if (Option.isNull(value)) return;
+      var i = from;
+      while (i < to) {
+        block[i] := value;
+        i += 1
+      }
+    };
+
     let blocks = list.blocks;
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
@@ -195,7 +204,13 @@ module {
     while (cnt > 0) {
       let dbSize = dataBlockSize(blockIndex);
       if (elementIndex == 0 and dbSize <= cnt) {
-        blocks[blockIndex] := VarArray.repeat<?T>(initValue, dbSize);
+        var block = blocks[blockIndex];
+        if (block.size() == 0) {
+          blocks[blockIndex] := VarArray.repeat<?T>(initValue, dbSize)
+        } else {
+          if (block.size() != dbSize) Prim.trap INTERNAL_ERROR;
+          fill(block, 0, dbSize, initValue)
+        };
         cnt -= dbSize;
         blockIndex += 1
       } else {
@@ -205,14 +220,7 @@ module {
         let from = elementIndex;
         let to = Nat.min(elementIndex + cnt, dbSize);
 
-        let block = blocks[blockIndex];
-        if (not Option.isNull(initValue)) {
-          var i = from;
-          while (i < to) {
-            block[i] := initValue;
-            i += 1
-          }
-        };
+        fill(blocks[blockIndex], from, to, initValue);
 
         elementIndex := to;
         if (elementIndex == dbSize) {

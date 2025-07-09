@@ -669,7 +669,7 @@ module {
   };
 
   /// Overwrites the current element at `index` with `element`.
-  /// Traps if `index` >= size. Indexing is zero-based.
+  /// Traps if `index` >= size, error message may not be descriptive. Indexing is zero-based.
   ///
   /// Example:
   /// ```motoko include=import
@@ -681,19 +681,19 @@ module {
   ///
   /// Runtime: `O(1)`
   public func put<T>(list : List<T>, index : Nat, value : T) {
-    let (a, b) = do {
-      let i = Nat32.fromNat(index);
-      let lz = Nat32.bitcountLeadingZero(i);
-      let lz2 = lz >> 1;
-      if (lz & 1 == 0) {
-        (Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat32.toNat(i & (0xFFFF >> lz2)))
-      } else {
-        (Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat32.toNat(i & (0x7FFF >> lz2)))
-      }
+    let i = Nat32.fromNat(index);
+    let lz = Nat32.bitcountLeadingZero(i);
+    let lz2 = lz >> 1;
+    let (block, element) = if (lz & 1 == 0) {
+      (list.blocks[Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2))], Nat32.toNat(i & (0xFFFF >> lz2)))
+    } else {
+      (list.blocks[Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2))], Nat32.toNat(i & (0x7FFF >> lz2)))
     };
-    if (a < list.blockIndex or a == list.blockIndex and b < list.elementIndex) {
-      list.blocks[a][b] := ?value
-    } else Prim.trap "List index out of bounds in put"
+
+    switch (block[element]) {
+      case (?_) block[element] := ?value;
+      case _ Prim.trap "List index out of bounds in put"
+    }
   };
 
   /// Sorts the elements in the list according to `compare`.

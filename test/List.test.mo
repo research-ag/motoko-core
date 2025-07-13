@@ -45,7 +45,7 @@ func assertValid<T>(list : List.List<T>, array : [T], equal : (T, T) -> Bool) {
     while (j < sz) {
       switch (db[j]) {
         case (?x) assert equal(array[index], x);
-        case null assert index >= List.size(list);
+        case null assert index >= List.size(list)
       };
       index += 1;
       j += 1
@@ -53,11 +53,11 @@ func assertValid<T>(list : List.List<T>, array : [T], equal : (T, T) -> Bool) {
 
     if (VarArray.all<?T>(db, Option.isNull)) {
       nullCount += 1;
-      assert j == list.blockIndex or j == list.blockIndex + 1;
+      assert j == list.blockIndex or j == list.blockIndex + 1
     };
     i += 1
   };
-  assert nullCount <= 1;
+  assert nullCount <= 1
 };
 
 let { run; test; suite } = Suite;

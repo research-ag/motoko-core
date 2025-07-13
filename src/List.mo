@@ -23,7 +23,6 @@ import Order "Order";
 import Option "Option";
 import VarArray "VarArray";
 import Types "Types";
-import Runtime "Runtime";
 
 module {
   /// `List<T>` provides a mutable list of elements of type `T`.

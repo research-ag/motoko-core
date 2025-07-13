@@ -14,6 +14,7 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
+import Debug "mo:base/Debug";
 import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
@@ -473,6 +474,7 @@ module {
 
   func growIndexBlockIfNeeded<T>(list : List<T>) {
     if (list.blocks.size() == list.blockIndex) {
+      Debug.print(debug_show ("grow", list.blocks.size(), newIndexBlockLength(Nat32.fromNat(list.blockIndex)), list.blockIndex, size(list)));
       let newBlocks = VarArray.repeat<[var ?T]>([var], newIndexBlockLength(Nat32.fromNat(list.blockIndex)));
       var i = 0;
       while (i < list.blockIndex) {
@@ -488,6 +490,7 @@ module {
     // kind of index of the first block in the super block
     if ((blockIndex << Nat32.bitcountLeadingZero(blockIndex)) << 2 == 0) {
       let newLength = newIndexBlockLength(blockIndex);
+      Debug.print(debug_show ("shrink", list.blocks.size(), newLength, blockIndex, size(list)));
       if (newLength < list.blocks.size()) {
         let newBlocks = VarArray.repeat<[var ?T]>([var], newLength);
         var i = 0;

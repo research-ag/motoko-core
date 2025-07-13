@@ -15,6 +15,50 @@ import Int "../src/Int";
 import Debug "../src/Debug";
 import { Tuple2 } "../src/Tuples";
 import PureList "../src/pure/List";
+import VarArray "../src/VarArray";
+import Option "../src/Option";
+
+func assertValid<T>(list : List.List<T>, array : [T], equal : (T, T) -> Bool) {
+  let blocks = list.blocks;
+  let blockCount = blocks.size();
+
+  func good(x : Nat) : Bool {
+    var y = x;
+    while (y % 2 == 0) y := y / 2;
+    y == 1 or y == 3
+  };
+
+  assert good(blocks.size());
+
+  assert blocks[0].size() == 0;
+
+  var index = 0;
+  var i = 1;
+  var nullCount = 0;
+  while (i < blockCount) {
+    let db = blocks[i];
+    let sz = db.size();
+    assert sz == Nat32.toNat(1 <>> Nat32.bitcountLeadingZero(Nat32.fromNat(i) / 3));
+    if (sz == 0) assert index >= List.size(list);
+
+    var j = 0;
+    while (j < sz) {
+      switch (db[j]) {
+        case (?x) assert equal(array[index], x);
+        case null assert index >= List.size(list);
+      };
+      index += 1;
+      j += 1
+    };
+
+    if (VarArray.all<?T>(db, Option.isNull)) {
+      nullCount += 1;
+      assert j == list.blockIndex or j == list.blockIndex + 1;
+    };
+    i += 1
+  };
+  assert nullCount <= 1;
+};
 
 let { run; test; suite } = Suite;
 

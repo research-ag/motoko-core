@@ -18,7 +18,7 @@ import PureList "../src/pure/List";
 import VarArray "../src/VarArray";
 import Option "../src/Option";
 
-func assertValid<T>(list : List.List<T>, array : [T], equal : (T, T) -> Bool) {
+func assertValid(list : List.List<Nat>) {
   let blocks = list.blocks;
   let blockCount = blocks.size();
 
@@ -38,26 +38,30 @@ func assertValid<T>(list : List.List<T>, array : [T], equal : (T, T) -> Bool) {
   while (i < blockCount) {
     let db = blocks[i];
     let sz = db.size();
-    assert sz == Nat32.toNat(1 <>> Nat32.bitcountLeadingZero(Nat32.fromNat(i) / 3));
+    assert i >= list.blockIndex or sz == Nat32.toNat(1 <>> Nat32.bitcountLeadingZero(Nat32.fromNat(i) / 3));
     if (sz == 0) assert index >= List.size(list);
 
     var j = 0;
     while (j < sz) {
-      switch (db[j]) {
-        case (?x) assert equal(array[index], x);
-        case null assert index >= List.size(list)
-      };
+      if (index == List.size(list)) assert i == list.blockIndex and j == list.elementIndex;
+      assert Option.isNull(db[j]) == (index >= List.size(list));
       index += 1;
       j += 1
     };
 
-    if (VarArray.all<?T>(db, Option.isNull)) {
+    if (VarArray.any<?Nat>(db, Option.isNull)) {
       nullCount += 1;
-      assert j == list.blockIndex or j == list.blockIndex + 1
+      assert i == list.blockIndex or i == list.blockIndex + 1
     };
     i += 1
   };
-  assert nullCount <= 1
+  assert nullCount <= 2;
+
+  let b = list.blockIndex;
+  let e = list.elementIndex;
+  List.add(list, 2 ** 64);
+  assert list.blocks[b][e] == ?(2 ** 64);
+  assert List.removeLast(list) == ?(2 ** 64)
 };
 
 let { run; test; suite } = Suite;
@@ -946,7 +950,7 @@ while (i < locate_n) {
 
 // Helper function to run tests
 func runTest(name : Text, test : (Nat) -> Bool) {
-  let testSizes = [0, 1, 10, 100];
+  let testSizes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 100];
   for (n in testSizes.vals()) {
     if (test(n)) {
       Debug.print("✅ " # name # " passed for n = " # Nat.toText(n))
@@ -958,12 +962,16 @@ func runTest(name : Text, test : (Nat) -> Bool) {
 
 // Test cases
 func testNew(n : Nat) : Bool {
+  if (n > 0) return true;
+
   let vec = List.empty<Nat>();
+  assertValid(vec);
   List.size(vec) == 0
 };
 
 func testInit(n : Nat) : Bool {
   let vec = List.repeat<Nat>(1, n);
+  assertValid(vec);
   List.size(vec) == n and (n == 0 or (List.get(vec, 0) == 1 and List.get(vec, n - 1 : Nat) == 1))
 };
 
@@ -971,7 +979,8 @@ func testAdd(n : Nat) : Bool {
   if (n == 0) return true;
   let vec = List.empty<Nat>();
   for (i in Nat.range(0, n)) {
-    List.add(vec, i)
+    List.add(vec, i);
+    assertValid(vec)
   };
 
   if (List.size(vec) != n) {
@@ -981,6 +990,7 @@ func testAdd(n : Nat) : Bool {
 
   for (i in Nat.range(0, n)) {
     let value = List.get(vec, i);
+    assertValid(vec);
     if (value != i) {
       Debug.print("Value mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(value));
       return false
@@ -997,7 +1007,9 @@ func testAddRepeat(n : Nat) : Bool {
     for (j in Nat.range(0, n + 1)) {
       let vec = List.repeat<Nat>(0, i + n);
       for (_ in Nat.range(0, n)) ignore List.removeLast(vec);
+      assertValid(vec);
       List.addRepeat(vec, 1, j);
+      assertValid(vec);
       if (List.size(vec) != i + j) {
         Debug.print("Size mismatch: expected " # Nat.toText(i + j) # ", got " # Nat.toText(List.size(vec)));
         return false
@@ -1018,11 +1030,13 @@ func testAddRepeat(n : Nat) : Bool {
 
 func testRemoveLast(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
-  var i = n;
+  assertValid(vec);
 
+  var i = n;
   while (i > 0) {
     i -= 1;
     let last = List.removeLast(vec);
+    assertValid(vec);
     if (last != ?i) {
       Debug.print("Unexpected value removed: expected ?" # Nat.toText(i) # ", got " # debug_show (last));
       return false
@@ -1049,6 +1063,7 @@ func testRemoveLast(n : Nat) : Bool {
 
 func testGet(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
+  assertValid(vec);
 
   for (i in Nat.range(1, n + 1)) {
     let value = List.get(vec, i - 1 : Nat);
@@ -1106,18 +1121,23 @@ func testPut(n : Nat) : Bool {
 func testClear(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   List.clear(vec);
+  assertValid(vec);
   List.size(vec) == 0
 };
 
 func testClone(n : Nat) : Bool {
   let vec1 = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  assertValid(vec1);
   let vec2 = List.clone(vec1);
+  assertValid(vec2);
   List.equal(vec1, vec2, Nat.equal)
 };
 
 func testMap(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  assertValid(vec);
   let mapped = List.map<Nat, Nat>(vec, func(x) = x * 2);
+  assertValid(mapped);
   List.equal(mapped, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i * 2)), Nat.equal)
 };
 
@@ -1182,24 +1202,29 @@ func testContains(n : Nat) : Bool {
 };
 func testReverse(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  assertValid(vec);
   List.reverseInPlace(vec);
+  assertValid(vec);
   List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal)
 };
 
 func testSort(n : Nat) : Bool {
-  let vec = List.fromArray<Int>(Array.tabulate<Int>(n, func(i) = (i * 123) % 100 - 50));
-  List.sort(vec, Int.compare);
-  List.equal(vec, List.fromArray<Int>(Array.sort(Array.tabulate<Int>(n, func(i) = (i * 123) % 100 - 50), Int.compare)), Int.equal)
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = Int.abs((i * 123) % 100 - 50)));
+  List.sort(vec, Nat.compare);
+  assertValid(vec);
+  List.equal(vec, List.fromArray<Nat>(Array.sort(Array.tabulate<Nat>(n, func(i) = Int.abs((i * 123) % 100 - 50)), Nat.compare)), Nat.equal)
 };
 
 func testToArray(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
+  assertValid(vec);
   Array.equal(List.toArray(vec), Array.tabulate<Nat>(n, func(i) = i), Nat.equal)
 };
 
 func testFromIter(n : Nat) : Bool {
   let iter = Nat.range(1, n + 1);
   let vec = List.fromIter<Nat>(iter);
+  assertValid(vec);
   List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1)), Nat.equal)
 };
 
@@ -1217,6 +1242,7 @@ func testFilter(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
 
   let evens = List.filter<Nat>(vec, func x = x % 2 == 0);
+  assertValid(evens);
   let expectedEvens = List.fromArray<Nat>(Array.tabulate<Nat>((n + 1) / 2, func(i) = i * 2));
   if (not List.equal<Nat>(evens, expectedEvens, Nat.equal)) {
     Debug.print("Filter evens failed");
@@ -1224,12 +1250,14 @@ func testFilter(n : Nat) : Bool {
   };
 
   let none = List.filter<Nat>(vec, func _ = false);
+  assertValid(none);
   if (not List.isEmpty(none)) {
     Debug.print("Filter none failed");
     return false
   };
 
   let all = List.filter<Nat>(vec, func _ = true);
+  assertValid(all);
   if (not List.equal<Nat>(all, vec, Nat.equal)) {
     Debug.print("Filter all failed");
     return false
@@ -1242,6 +1270,7 @@ func testFilterMap(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
 
   let doubledEvens = List.filterMap<Nat, Nat>(vec, func x = if (x % 2 == 0) ?(x * 2) else null);
+  assertValid(doubledEvens);
   let expectedDoubledEvens = List.fromArray<Nat>(Array.tabulate<Nat>((n + 1) / 2, func(i) = i * 4));
   if (not List.equal<Nat>(doubledEvens, expectedDoubledEvens, Nat.equal)) {
     Debug.print("FilterMap doubled evens failed");
@@ -1249,12 +1278,14 @@ func testFilterMap(n : Nat) : Bool {
   };
 
   let none = List.filterMap<Nat, Nat>(vec, func _ = null);
+  assertValid(none);
   if (not List.isEmpty(none)) {
     Debug.print("FilterMap none failed");
     return false
   };
 
   let all = List.filterMap<Nat, Nat>(vec, func x = ?x);
+  assertValid(all);
   if (not List.equal<Nat>(all, vec, Nat.equal)) {
     Debug.print("FilterMap all failed");
     return false
@@ -1268,6 +1299,7 @@ func testPure(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(idArray);
   let pureList = List.toPure<Nat>(vec);
   let newVec = List.fromPure<Nat>(pureList);
+  assertValid(newVec);
 
   if (not PureList.equal<Nat>(pureList, PureList.fromArray<Nat>(idArray), Nat.equal)) {
     Debug.print("PureList conversion failed");

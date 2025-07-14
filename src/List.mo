@@ -563,18 +563,19 @@ module {
   public func removeLast<T>(list : List<T>) : ?T {
     var elementIndex = list.elementIndex;
     if (elementIndex == 0) {
-      shrinkIndexBlockIfNeeded(list);
-
       var blockIndex = list.blockIndex;
       if (blockIndex == 1) {
         return null
       };
+
+      shrinkIndexBlockIfNeeded(list);
+
       blockIndex -= 1;
       elementIndex := list.blocks[blockIndex].size();
 
       // Keep one totally empty block when removing
       if (blockIndex + 2 < list.blocks.size()) {
-        if (list.blocks[blockIndex + 2].size() == 0) {
+        if (list.blocks[blockIndex + 2].size() > 0) {
           list.blocks[blockIndex + 2] := [var]
         }
       };

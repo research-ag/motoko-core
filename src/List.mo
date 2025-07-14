@@ -69,7 +69,7 @@ module {
   private func repeatInternal<T>(initValue : ?T, size : Nat) : List<T> {
     let (blockIndex, elementIndex) = locate(size);
 
-    let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let blocks = newIndexBlockLength(Prim.natToNat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
     var i = 1;
     while (i < blockIndex) {
@@ -173,7 +173,7 @@ module {
 
   private func addRepeatInternal<T>(list : List<T>, initValue : ?T, count : Nat) {
     let (b, e) = locate(size(list) + count);
-    let blocksCount = newIndexBlockLength(Nat32.fromNat(if (e == 0) b - 1 else b));
+    let blocksCount = newIndexBlockLength(Prim.natToNat32(if (e == 0) b - 1 else b));
 
     let oldBlocksCount = list.blocks.size();
     if (oldBlocksCount < blocksCount) {
@@ -432,8 +432,8 @@ module {
       var elementIndex : Nat
     }
   ) : Nat {
-    let d = Nat32.fromNat(list.blockIndex);
-    let i = Nat32.fromNat(list.elementIndex);
+    let d = Prim.natToNat32(list.blockIndex);
+    let i = Prim.natToNat32(list.elementIndex);
 
     // We call all data blocks of the same capacity an "epoch". We number the epochs 0,1,2,...
     // A data block is in epoch e iff the data block has capacity 2 ** e.
@@ -442,7 +442,7 @@ module {
 
     // epoch of last data block
     // e = 32 - lz
-    let lz = Nat32.bitcountLeadingZero(d / 3);
+    let lz = Prim.clzNat32(d / 3);
 
     // capacity of all prior epochs combined
     // capacity_before_e = 2 * 4 ** (e - 1) - 1
@@ -455,25 +455,25 @@ module {
 
     // there can be overflows, but the result is without overflows, so use addWrap and subWrap
     // we don't erase bits by >>, so to use <>> is ok
-    Nat32.toNat((d -% (1 <>> lz)) <>> lz +% i)
+    Prim.nat32ToNat((d -% (1 <>> lz)) <>> lz +% i)
   };
 
   func dataBlockSize(blockIndex : Nat) : Nat {
     // formula for the size of given blockIndex
     // don't call it for blockIndex == 0
-    Nat32.toNat(1 <>> Nat32.bitcountLeadingZero(Nat32.fromNat(blockIndex) / 3))
+    Prim.nat32ToNat(1 <>> Prim.clzNat32(Prim.natToNat32(blockIndex) / 3))
   };
 
   func newIndexBlockLength(blockIndex : Nat32) : Nat {
     if (blockIndex <= 1) 2 else {
-      let s = 30 - Nat32.bitcountLeadingZero(blockIndex);
-      Nat32.toNat(((blockIndex >> s) +% 1) << s)
+      let s = 30 - Prim.clzNat32(blockIndex);
+      Prim.nat32ToNat(((blockIndex >> s) +% 1) << s)
     }
   };
 
   func growIndexBlockIfNeeded<T>(list : List<T>) {
     if (list.blocks.size() == list.blockIndex) {
-      let newBlocks = VarArray.repeat<[var ?T]>([var], newIndexBlockLength(Nat32.fromNat(list.blockIndex)));
+      let newBlocks = VarArray.repeat<[var ?T]>([var], newIndexBlockLength(Prim.natToNat32(list.blockIndex)));
       var i = 0;
       while (i < list.blockIndex) {
         newBlocks[i] := list.blocks[i];
@@ -484,9 +484,9 @@ module {
   };
 
   func shrinkIndexBlockIfNeeded<T>(list : List<T>) {
-    let blockIndex = Nat32.fromNat(list.blockIndex);
+    let blockIndex = Prim.natToNat32(list.blockIndex);
     // kind of index of the first block in the super block
-    if ((blockIndex << Nat32.bitcountLeadingZero(blockIndex)) << 2 == 0) {
+    if ((blockIndex << Prim.clzNat32(blockIndex)) << 2 == 0) {
       let newLength = newIndexBlockLength(blockIndex);
       if (newLength < list.blocks.size()) {
         let newBlocks = VarArray.repeat<[var ?T]>([var], newLength);
@@ -594,13 +594,13 @@ module {
 
   func locate(index : Nat) : (Nat, Nat) {
     // see comments in tests
-    let i = Nat32.fromNat(index);
-    let lz = Nat32.bitcountLeadingZero(i);
+    let i = Prim.natToNat32 index;
+    let lz = Prim.clzNat32 i;
     let lz2 = lz >> 1;
     if (lz & 1 == 0) {
-      (Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat32.toNat(i & (0xFFFF >> lz2)))
+      (Prim.nat32ToNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Prim.nat32ToNat(i & (0xFFFF >> lz2)))
     } else {
-      (Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat32.toNat(i & (0x7FFF >> lz2)))
+      (Prim.nat32ToNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Prim.nat32ToNat(i & (0x7FFF >> lz2)))
     }
   };
 
@@ -623,14 +623,14 @@ module {
     //     case (?element) element;
     //     case (null) Prim.trap "";
     //   };
-    let i = Nat32.fromNat(index);
-    let lz = Nat32.bitcountLeadingZero(i);
+    let i = Prim.natToNat32 index;
+    let lz = Prim.clzNat32 i;
     let lz2 = lz >> 1;
     switch (
       if (lz & 1 == 0) {
-        list.blocks[Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2))][Nat32.toNat(i & (0xFFFF >> lz2))]
+        list.blocks[Prim.nat32ToNat(((i << lz2) >> 16) ^ (0x10000 >> lz2))][Prim.nat32ToNat(i & (0xFFFF >> lz2))]
       } else {
-        list.blocks[Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2))][Nat32.toNat(i & (0x7FFF >> lz2))]
+        list.blocks[Prim.nat32ToNat(((i << lz2) >> 15) ^ (0x18000 >> lz2))][Prim.nat32ToNat(i & (0x7FFF >> lz2))]
       }
     ) {
       case (?result) return result;
@@ -655,13 +655,13 @@ module {
   /// Space: `O(1)`
   public func getOpt<T>(list : List<T>, index : Nat) : ?T {
     let (a, b) = do {
-      let i = Nat32.fromNat(index);
-      let lz = Nat32.bitcountLeadingZero(i);
+      let i = Prim.natToNat32 index;
+      let lz = Prim.clzNat32 i;
       let lz2 = lz >> 1;
       if (lz & 1 == 0) {
-        (Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat32.toNat(i & (0xFFFF >> lz2)))
+        (Prim.nat32ToNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Prim.nat32ToNat(i & (0xFFFF >> lz2)))
       } else {
-        (Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat32.toNat(i & (0x7FFF >> lz2)))
+        (Prim.nat32ToNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Prim.nat32ToNat(i & (0x7FFF >> lz2)))
       }
     };
     if (a < list.blockIndex or list.elementIndex != 0 and a == list.blockIndex) {
@@ -682,13 +682,13 @@ module {
   ///
   /// Runtime: `O(1)`
   public func put<T>(list : List<T>, index : Nat, value : T) {
-    let i = Nat32.fromNat(index);
-    let lz = Nat32.bitcountLeadingZero(i);
+    let i = Prim.natToNat32 index;
+    let lz = Prim.clzNat32 i;
     let lz2 = lz >> 1;
     let (block, element) = if (lz & 1 == 0) {
-      (list.blocks[Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2))], Nat32.toNat(i & (0xFFFF >> lz2)))
+      (list.blocks[Prim.nat32ToNat(((i << lz2) >> 16) ^ (0x10000 >> lz2))], Prim.nat32ToNat(i & (0xFFFF >> lz2)))
     } else {
-      (list.blocks[Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2))], Nat32.toNat(i & (0x7FFF >> lz2)))
+      (list.blocks[Prim.nat32ToNat(((i << lz2) >> 15) ^ (0x18000 >> lz2))], Prim.nat32ToNat(i & (0x7FFF >> lz2)))
     };
 
     switch (block[element]) {
@@ -1331,7 +1331,7 @@ module {
   public func fromArray<T>(array : [T]) : List<T> {
     let (blockIndex, elementIndex) = locate(array.size());
 
-    let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let blocks = newIndexBlockLength(Prim.natToNat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
     func makeBlock(array : [T], p : Nat, len : Nat, fill : Nat) : [var ?T] {
@@ -1427,7 +1427,7 @@ module {
   public func fromVarArray<T>(array : [var T]) : List<T> {
     let (blockIndex, elementIndex) = locate(array.size());
 
-    let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
+    let blocks = newIndexBlockLength(Prim.natToNat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
     func makeBlock(array : [var T], p : Nat, len : Nat, fill : Nat) : [var ?T] {

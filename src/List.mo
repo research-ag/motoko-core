@@ -187,47 +187,36 @@ module {
       list.blocks := blocks
     };
 
-    func fill<T>(block : [var ?T], from : Nat, to : Nat, value : ?T) {
-      if (Option.isNull(value)) return;
-      var i = from;
-      while (i < to) {
-        block[i] := value;
-        i += 1
-      }
-    };
-
     let blocks = list.blocks;
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
 
     var cnt = count;
-    while (cnt > 0) {
-      let dbSize = dataBlockSize(blockIndex);
-      if (elementIndex == 0 and dbSize <= cnt) {
-        var block = blocks[blockIndex];
-        if (block.size() == 0) {
-          blocks[blockIndex] := VarArray.repeat<?T>(initValue, dbSize)
-        } else {
-          if (block.size() != dbSize) Prim.trap INTERNAL_ERROR;
-          fill(block, 0, dbSize, initValue)
+    label L while (cnt > 0) {
+      if (blocks[blockIndex].size() == 0) {
+        let dbSize = dataBlockSize(blockIndex);
+        if (cnt >= dbSize) {
+          blocks[blockIndex] := VarArray.repeat<?T>(initValue, dbSize);
+          blockIndex += 1;
+          cnt -= dbSize;
+          continue L
         };
-        cnt -= dbSize;
+        blocks[blockIndex] := VarArray.repeat<?T>(null, dbSize)
+      };
+
+      let block = blocks[blockIndex];
+      let dbSize = block.size();
+      let to = Nat.min(elementIndex + cnt, dbSize);
+      cnt -= to - elementIndex;
+
+      while (elementIndex < to) {
+        block[elementIndex] := initValue;
+        elementIndex += 1
+      };
+
+      if (elementIndex == dbSize) {
+        elementIndex := 0;
         blockIndex += 1
-      } else {
-        if (blocks[blockIndex].size() == 0) {
-          blocks[blockIndex] := VarArray.repeat<?T>(null, dbSize)
-        };
-        let from = elementIndex;
-        let to = Nat.min(elementIndex + cnt, dbSize);
-
-        fill(blocks[blockIndex], from, to, initValue);
-
-        elementIndex := to;
-        if (elementIndex == dbSize) {
-          elementIndex := 0;
-          blockIndex += 1
-        };
-        cnt -= to - from
       }
     };
 

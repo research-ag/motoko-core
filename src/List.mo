@@ -1102,134 +1102,6 @@ module {
     fromVarArray(array)
   };
 
-  /// Inserts `element` at `index` in the list, shifting existing elements to the right.
-  /// Traps if `index > size`. Indexing is zero-based.
-  ///
-  /// Example:
-  /// ```motoko include=import
-  /// let list = List.fromArray<Nat>([1, 2, 4]);
-  /// List.insert(list, 2, 3); // inserts 3 at index 2
-  /// assert List.toArray(list) == [1, 2, 3, 4];
-  /// ```
-  ///
-  /// Runtime: O(size)
-  ///
-  /// Space: O(1)
-  public func insert<T>(list : List<T>, index : Nat, element : T) {
-    if (index > size(list)) {
-      Prim.trap "List index out of bounds in insert"
-    };
-    addRepeatInternal<T>(list, null, 1);
-
-    func shift(block : [var ?T], start : Nat, end : Nat, first : ?T) : ?T {
-      if (start == end) return null;
-
-      var i = end - 1 : Nat;
-      let last = block[i];
-      while (i > start) {
-        block[i] := block[i - 1];
-        i -= 1
-      };
-      block[start] := first;
-      last
-    };
-
-    let listElement = list.elementIndex;
-    let listBlock = list.blockIndex;
-
-    let (blockIndex, elementIndex) = locate(index);
-    let blocks = list.blocks;
-
-    if (listBlock == blockIndex) {
-      // should be null
-      ignore shift(blocks[listBlock], elementIndex, listElement, ?element)
-    } else {
-      let db = blocks[blockIndex];
-      var last = shift(db, elementIndex, db.size(), ?element);
-
-      var i = blockIndex + 1;
-
-      while (i < listBlock) {
-        let db = blocks[i];
-        last := shift(db, 0, db.size(), last);
-        i += 1
-      };
-
-      if (listBlock < blocks.size()) {
-        // should be null
-        ignore shift(blocks[listBlock], 0, listElement, last)
-      }
-    }
-  };
-
-  /// Removes the element at `index` from the list, shifting existing elements to the left.
-  /// Traps if `index >= size`. Indexing is zero-based.
-  ///
-  /// Example:
-  /// ```motoko include=import
-  /// let list = List.fromArray<Nat>([1, 2, 3, 4]);
-  /// let removed = List.remove(list, 2); // removes element at index 2
-  /// assert removed == 3;
-  /// assert List.toArray(list) == [1, 2, 4];
-  /// ```
-  ///
-  /// Runtime: `O(size)`
-  ///
-  /// Space: `O(1)`
-  public func remove<T>(list : List<T>, index : Nat) : T {
-    if (index >= size(list)) {
-      Prim.trap "List index out of bounds in remove"
-    };
-
-    func shift(block : [var ?T], start : Nat, end : Nat, last : ?T) : ?T {
-      if (start == end) return null;
-
-      let first = block[start];
-
-      var i = start;
-      let to = end - 1 : Nat;
-      while (i < to) {
-        block[i] := block[i + 1];
-        i += 1
-      };
-      block[to] := last;
-      first
-    };
-
-    let listElement = list.elementIndex;
-    let listBlock = list.blockIndex;
-
-    let (blockIndex, elementIndex) = locate(index);
-    let blocks = list.blocks;
-
-    let ret = if (listBlock == blockIndex) {
-      shift(blocks[listBlock], elementIndex, listElement, null)
-    } else {
-      var first : ?T = null;
-      if (listBlock < blocks.size()) {
-        first := shift(blocks[listBlock], 0, listElement, null)
-      };
-
-      var i = listBlock - 1 : Nat;
-      while (i > blockIndex) {
-        let db = blocks[i];
-        first := shift(db, 0, db.size(), first);
-        i -= 1
-      };
-
-      let db = blocks[blockIndex];
-      shift(db, elementIndex, db.size(), first)
-    };
-
-    // should be null
-    ignore removeLast(list);
-
-    switch (ret) {
-      case (?x) x;
-      case (null) Prim.trap INTERNAL_ERROR
-    }
-  };
-
   /// Finds the first index of `element` in `list` using equality of elements defined
   /// by `equal`. Returns `null` if `element` is not found.
   ///
@@ -2196,17 +2068,17 @@ module {
   /// ```motoko include=import
   /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   ///
-  /// let slice1 = List.sliceToArray<Nat>(array, 1, 4);
+  /// let slice1 = List.subArray<Nat>(array, 1, 4);
   /// assert slice1 == [2, 3, 4];
   ///
-  /// let slice2 = List.sliceToArray<Nat>(array, 1, -1);
+  /// let slice2 = List.subArray<Nat>(array, 1, -1);
   /// assert slice2 == [2, 3, 4];
   /// ```
   ///
   /// Runtime: O(toExclusive - fromInclusive)
   ///
   /// Space: O(toExclusive - fromInclusive)
-  public func sliceToArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T] {
+  public func subArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T] {
     let (start, end) = actualInterval(fromInclusive, toExclusive, size(list));
     let blocks = list.blocks.size();
     var blockIndex = 0;

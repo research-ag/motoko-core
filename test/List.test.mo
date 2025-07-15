@@ -1260,12 +1260,12 @@ func testRange(n : Nat) : Bool {
   true
 };
 
-func testSliceToArray(n : Nat) : Bool {
+func testSubArray(n : Nat) : Bool {
   if (n > 10) return true; // Skip large ranges for performance
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   for (left in Nat.range(0, n)) {
     for (right in Nat.range(left, n + 1)) {
-      let slice = List.sliceToArray<Nat>(vec, left, right);
+      let slice = List.subArray<Nat>(vec, left, right);
       let expected = Array.tabulate<Nat>(right - left, func(i) = left + i);
       if (slice != expected) {
         Debug.print(
@@ -1376,55 +1376,6 @@ func testFromArray(n : Nat) : Bool {
   let array = Array.tabulate<Nat>(n, func(i) = i);
   let vec = List.fromArray<Nat>(array);
   List.equal(vec, List.fromArray<Nat>(array), Nat.equal)
-};
-
-func testInsert(n : Nat) : Bool {
-  for (i in Nat.range(0, n + 1)) {
-    let list = List.tabulate<Nat>(n, func i = i);
-    List.insert<Nat>(list, i, n);
-
-    if (List.size(list) != n + 1) {
-      Debug.print("Insert failed: expected size " # Nat.toText(n + 1) # ", got " # Nat.toText(List.size(list)));
-      return false
-    };
-
-    for (j in Nat.range(0, n + 1)) {
-      let expectedValue = if (j < i) j else if (j == i) n else j - 1 : Nat;
-      let value = List.get(list, j);
-      if (value != expectedValue) {
-        Debug.print("Insert failed at index " # Nat.toText(j) # ": expected " # debug_show (expectedValue) # ", got " # debug_show (value));
-        return false
-      }
-    }
-  };
-  true
-};
-
-func testRemove(n : Nat) : Bool {
-  for (i in Nat.range(0, n)) {
-    let list = List.tabulate<Nat>(n, func i = i);
-    let removed = List.remove<Nat>(list, i);
-
-    if (removed != i) {
-      Debug.print("Remove failed: expected " # Nat.toText(i) # ", got " # debug_show (removed));
-      return false
-    };
-
-    if (List.size(list) != (n - 1 : Nat)) {
-      Debug.print("Remove failed: expected size " # Nat.toText(n - 1) # ", got " # Nat.toText(List.size(list)));
-      return false
-    };
-
-    for (j in Nat.range(0, n - 1)) {
-      let expectedValue = if (j < i) j else j + 1;
-      let value = List.get(list, j);
-      if (value != expectedValue) {
-        Debug.print("Remove failed at index " # Nat.toText(j) # ": expected " # debug_show (expectedValue) # ", got " # debug_show (value));
-        return false
-      }
-    }
-  };
-  true
 };
 
 func testFromIter(n : Nat) : Bool {
@@ -1738,7 +1689,7 @@ func runAllTests() {
   runTest("testMapInPlace", testMapInPlace);
   runTest("testFlatMap", testFlatMap);
   runTest("testRange", testRange);
-  runTest("testSliceToArray", testSliceToArray);
+  runTest("testSubArray", testSubArray);
   runTest("testIndexOf", testIndexOf);
   runTest("testLastIndexOf", testLastIndexOf);
   runTest("testContains", testContains);
@@ -1756,8 +1707,6 @@ func runAllTests() {
   runTest("testPure", testPure);
   runTest("testReverseForEach", testReverseForEach);
   runTest("testForEach", testForEach);
-  runTest("testInsert", testInsert);
-  runTest("testRemove", testRemove);
   runTest("testFlatten", testFlatten);
   runTest("testJoin", testJoin);
   runTest("testTabulate", testTabulate);

@@ -145,7 +145,7 @@ module {
     result
   };
 
-  /// Converts a purely functional `List` to a `List`.
+  /// Converts a purely functional `PureList` to a mutable `List`.
   ///
   /// Example:
   /// ```motoko include=import

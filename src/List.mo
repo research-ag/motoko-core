@@ -78,15 +78,13 @@ module {
       i += 1
     };
     if (elementIndex != 0 and blockIndex < blocks) {
-      let block = VarArray.repeat<?T>(null, dataBlockSize(i));
-      if (not Option.isNull(initValue)) {
-        var j = 0;
-        while (j < elementIndex) {
-          block[j] := initValue;
-          j += 1
-        }
-      };
-      dataBlocks[i] := block
+      dataBlocks[blockIndex] := if (Option.isNull(initValue)) VarArray.repeat<?T>(
+        null,
+        dataBlockSize(blockIndex)
+      ) else VarArray.tabulate<?T>(
+        dataBlockSize(blockIndex),
+        func i = if (i < elementIndex) initValue else null
+      )
     };
 
     {
@@ -297,10 +295,10 @@ module {
       i += 1
     };
     if (elementIndex != 0 and blockIndex < blocks) {
-      dataBlocks[i] := VarArray.tabulate<?T>(dataBlockSize(blockIndex), func i {
-        let index = pos + i;
-        if (index < size) ?generator(index) else null;
-      });
+      dataBlocks[i] := VarArray.tabulate<?T>(
+        dataBlockSize(blockIndex),
+        func i = if (i < elementIndex) ?generator(pos + i) else null
+      )
     };
 
     {
@@ -1729,29 +1727,20 @@ module {
     let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
-    func makeBlock(array : [T], p : Nat, len : Nat, fill : Nat) : [var ?T] {
-      let block = VarArray.repeat<?T>(null, len);
-      var j = 0;
-      var pos = p;
-      while (j < fill) {
-        block[j] := ?array[pos];
-        j += 1;
-        pos += 1
-      };
-      block
-    };
-
     var i = 1;
     var pos = 0;
 
     while (i < blockIndex) {
       let len = dataBlockSize(i);
-      dataBlocks[i] := makeBlock(array, pos, len, len);
+      dataBlocks[i] := VarArray.tabulate<?T>(len, func i = ?array[pos + i]);
       pos += len;
       i += 1
     };
     if (elementIndex != 0 and blockIndex < blocks) {
-      dataBlocks[i] := makeBlock(array, pos, dataBlockSize(i), elementIndex)
+      dataBlocks[i] := VarArray.tabulate<?T>(
+        dataBlockSize(i),
+        func i = if (i < elementIndex) ?array[pos + i] else null
+      )
     };
 
     {

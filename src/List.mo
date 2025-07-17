@@ -145,7 +145,7 @@ module {
     result
   };
 
-  /// Converts a purely functional `PureList` to a mutable `List`.
+  /// Converts a purely functional `PureList` to a `List`.
   ///
   /// Example:
   /// ```motoko include=import
@@ -287,29 +287,20 @@ module {
     let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
-    func makeBlock(generator : Nat -> T, p : Nat, len : Nat, fill : Nat) : [var ?T] {
-      let block = VarArray.repeat<?T>(null, len);
-      var j = 0;
-      var pos = p;
-      while (j < fill) {
-        block[j] := ?generator(pos);
-        j += 1;
-        pos += 1
-      };
-      block
-    };
-
     var i = 1;
     var pos = 0;
 
     while (i < blockIndex) {
       let len = dataBlockSize(i);
-      dataBlocks[i] := makeBlock(generator, pos, len, len);
+      dataBlocks[i] := VarArray.tabulate<?T>(len, func i = ?generator(pos + i));
       pos += len;
       i += 1
     };
     if (elementIndex != 0 and blockIndex < blocks) {
-      dataBlocks[i] := makeBlock(generator, pos, dataBlockSize(i), elementIndex)
+      dataBlocks[i] := VarArray.tabulate<?T>(dataBlockSize(blockIndex), func i {
+        let index = pos + i;
+        if (index < size) ?generator(index) else null;
+      });
     };
 
     {

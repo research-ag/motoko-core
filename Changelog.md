@@ -4,6 +4,7 @@
 * Add example usage documentation to `Types` module (#374).
 * Address inconsistent treatment of empty iterators by range functions in `Int` and `Nat` (#369).
 * Fix corner cases in `Nat.rangeByInclusive()` (#368).
+* **Breaking:** Rename `List.get()` to `List.at()` and `List.getOpt()` to `List.get()` (#367).
 * Add `Text.foldLeft()` (#366).
 * **Breaking:** Adjust `Int.fromText()` to return `null` instead of `?0` for `"+"` and `"-"` (#365).
 * Fix corner case in `sliceToArray()` (#364).

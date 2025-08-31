@@ -1,5 +1,5 @@
-/// A mutable list data structure with efficient random access and dynamic resizing.
-/// Provides O(1) access time and O(sqrt(n)) memory overhead.
+/// A mutable growable array data structure with efficient random access and dynamic resizing.
+/// `List` provides O(1) access time and O(sqrt(n)) memory overhead. In contrast, `pure/List` is a purely functional linked list.
 /// Can be declared `stable` for orthogonal persistence.
 ///
 /// This implementation is adapted with permission from the `vector` Mops package created by Research AG.
@@ -937,11 +937,11 @@ module {
   /// let list = List.empty<Nat>();
   /// List.add(list, 10);
   /// List.add(list, 11);
-  /// assert List.get(list, 0) == 10;
+  /// assert List.at(list, 0) == 10;
   /// ```
   ///
   /// Runtime: `O(1)`
-  public func get<T>(list : List<T>, index : Nat) : T {
+  public func at<T>(list : List<T>, index : Nat) : T {
     // inlined version of:
     //   let (a,b) = locate(index);
     //   switch(list.blocks[a][b]) {
@@ -971,14 +971,14 @@ module {
   /// let list = List.empty<Nat>();
   /// List.add(list, 10);
   /// List.add(list, 11);
-  /// assert List.getOpt(list, 0) == ?10;
-  /// assert List.getOpt(list, 2) == null;
+  /// assert List.get(list, 0) == ?10;
+  /// assert List.get(list, 2) == null;
   /// ```
   ///
   /// Runtime: `O(1)`
   ///
   /// Space: `O(1)`
-  public func getOpt<T>(list : List<T>, index : Nat) : ?T {
+  public func get<T>(list : List<T>, index : Nat) : ?T {
     let (a, b) = do {
       let i = Nat32.fromNat(index);
       let lz = Nat32.bitcountLeadingZero(i);
@@ -1241,7 +1241,7 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func find<T>(list : List<T>, predicate : T -> Bool) : ?T {
-    Option.map<Nat, T>(findIndex<T>(list, predicate), func(i) = get(list, i))
+    Option.map<Nat, T>(findIndex<T>(list, predicate), func(i) = at(list, i))
   };
 
   /// Finds the index of the first element in `list` for which `predicate` is true.
@@ -1861,7 +1861,7 @@ module {
     if (list.blockIndex == 1) null else list.blocks[1][0]
   };
 
-  /// Returns the last element of `list`. Returns null if `list` is empty.
+  /// Returns the last element of `list`, or `null` if the list is empty.
   ///
   /// Example:
   /// ```motoko include=import

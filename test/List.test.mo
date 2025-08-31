@@ -1046,8 +1046,8 @@ func testInit(n : Nat) : Bool {
     return false
   };
   for (i in Nat.range(0, n)) {
-    if (List.get(vec, i) != 1) {
-      Debug.print("Init failed at index " # Nat.toText(i) # ": expected 1, got " # Nat.toText(List.get(vec, i)));
+    if (List.at(vec, i) != 1) {
+      Debug.print("Init failed at index " # Nat.toText(i) # ": expected 1, got " # Nat.toText(List.at(vec, i)));
       return false
     }
   };
@@ -1068,7 +1068,7 @@ func testAdd(n : Nat) : Bool {
   };
 
   for (i in Nat.range(0, n)) {
-    let value = List.get(vec, i);
+    let value = List.at(vec, i);
     assertValid(vec);
     if (value != i) {
       Debug.print("Value mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(value));
@@ -1095,7 +1095,7 @@ func testAddRepeat(n : Nat) : Bool {
       };
       for (k in Nat.range(0, i + j)) {
         let expected = if (k < i) 0 else 1;
-        let got = List.get(vec, k);
+        let got = List.at(vec, k);
         if (expected != got) {
           Debug.print("addRepat failed i = " # Nat.toText(i) # " j = " # Nat.toText(j) # " k = " # Nat.toText(k) # " expected = " # Nat.toText(expected) # " got = " # Nat.toText(got));
           return false
@@ -1140,14 +1140,14 @@ func testRemoveLast(n : Nat) : Bool {
   true
 };
 
-func testGet(n : Nat) : Bool {
+func testAt(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i + 1));
   assertValid(vec);
 
   for (i in Nat.range(1, n + 1)) {
-    let value = List.get(vec, i - 1 : Nat);
+    let value = List.at(vec, i - 1 : Nat);
     if (value != i) {
-      Debug.print("get: Mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(value));
+      Debug.print("at: Mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(value));
       return false
     }
   };
@@ -1155,28 +1155,28 @@ func testGet(n : Nat) : Bool {
   true
 };
 
-func testGetOpt(n : Nat) : Bool {
+func testGet(n : Nat) : Bool {
   let vec = List.tabulate<Nat>(n, func(i) = i);
 
-  for (i in Nat.range(0, n)) {
-    switch (List.getOpt(vec, i)) {
+  for (i in Nat.range(1, n + 1)) {
+    switch (List.get(vec, i - 1 : Nat)) {
       case (?value) {
         if (value != i) {
-          Debug.print("getOpt: Mismatch at index " # Nat.toText(i) # ": expected ?" # Nat.toText(i) # ", got ?" # Nat.toText(value));
+          Debug.print("get: Mismatch at index " # Nat.toText(i) # ": expected ?" # Nat.toText(i) # ", got ?" # Nat.toText(value));
           return false
         }
       };
       case (null) {
-        Debug.print("getOpt: Unexpected null at index " # Nat.toText(i));
+        Debug.print("get: Unexpected null at index " # Nat.toText(i));
         return false
       }
     }
   };
 
   for (i in Nat.range(n, 3 * n + 3)) {
-    switch (List.getOpt(vec, i)) {
+    switch (List.get(vec, i)) {
       case (?value) {
-        Debug.print("getOpt: Unexpected value at index " # Nat.toText(i) # ": got ?" # Nat.toText(value));
+        Debug.print("get: Unexpected value at index " # Nat.toText(i) # ": got ?" # Nat.toText(value));
         return false
       };
       case (null) {}
@@ -1190,7 +1190,7 @@ func testPut(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.repeat<Nat>(0, n));
   for (i in Nat.range(0, n)) {
     List.put(vec, i, i + 1);
-    let value = List.get(vec, i);
+    let value = List.at(vec, i);
     if (value != i + 1) {
       Debug.print("put: Mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i + 1) # ", got " # Nat.toText(value));
       return false
@@ -1679,8 +1679,8 @@ func runAllTests() {
   runTest("testAdd", testAdd);
   runTest("testAddRepeat", testAddRepeat);
   runTest("testRemoveLast", testRemoveLast);
+  runTest("testAt", testAt);
   runTest("testGet", testGet);
-  runTest("testGetOpt", testGetOpt);
   runTest("testPut", testPut);
   runTest("testClear", testClear);
   runTest("testClone", testClone);

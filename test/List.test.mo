@@ -871,14 +871,14 @@ func joinWith(xs : List.List<Text>, sep : Text) : Text {
   let size = List.size(xs);
 
   if (size == 0) return "";
-  if (size == 1) return List.get(xs, 0);
+  if (size == 1) return List.at(xs, 0);
 
-  var result = List.get(xs, 0);
+  var result = List.at(xs, 0);
   var i = 0;
   label l loop {
     i += 1;
     if (i >= size) { break l };
-    result #= sep # List.get(xs, i)
+    result #= sep # List.at(xs, i)
   };
   result
 };
@@ -1158,8 +1158,8 @@ func testAt(n : Nat) : Bool {
 func testGet(n : Nat) : Bool {
   let vec = List.tabulate<Nat>(n, func(i) = i);
 
-  for (i in Nat.range(1, n + 1)) {
-    switch (List.get(vec, i - 1 : Nat)) {
+  for (i in Nat.range(0, n)) {
+    switch (List.get(vec, i)) {
       case (?value) {
         if (value != i) {
           Debug.print("get: Mismatch at index " # Nat.toText(i) # ": expected ?" # Nat.toText(i) # ", got ?" # Nat.toText(value));
@@ -1515,7 +1515,7 @@ func testFlatten(n : Nat) : Bool {
 
   for (i in Nat.range(0, n)) {
     for (j in Nat.range(0, i + 1)) {
-      if (List.get(flattened, (i * (i + 1)) / 2 + j) != j) {
+      if (List.at(flattened, (i * (i + 1)) / 2 + j) != j) {
         Debug.print("Flatten value mismatch at index " # Nat.toText((i * (i + 1)) / 2 + j) # ": expected " # Nat.toText(j));
         return false
       }
@@ -1540,7 +1540,7 @@ func testJoin(n : Nat) : Bool {
 
   for (i in Nat.range(0, n)) {
     for (j in Nat.range(0, i + 1)) {
-      if (List.get(flattened, (i * (i + 1)) / 2 + j) != j) {
+      if (List.at(flattened, (i * (i + 1)) / 2 + j) != j) {
         Debug.print("Flatten value mismatch at index " # Nat.toText((i * (i + 1)) / 2 + j) # ": expected " # Nat.toText(j));
         return false
       }
@@ -1559,8 +1559,8 @@ func testTabulate(n : Nat) : Bool {
   };
 
   for (i in Nat.range(0, n)) {
-    if (List.get(tabu, i) != i) {
-      Debug.print("Tabulate value mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(List.get(tabu, i)));
+    if (List.at(tabu, i) != i) {
+      Debug.print("Tabulate value mismatch at index " # Nat.toText(i) # ": expected " # Nat.toText(i) # ", got " # Nat.toText(List.at(tabu, i)));
       return false
     }
   };
@@ -1571,7 +1571,7 @@ func testTabulate(n : Nat) : Bool {
 func testNextIndexOf(n : Nat) : Bool {
   func nextIndexOf(vec : List.List<Nat>, element : Nat, from : Nat) : ?Nat {
     for (i in Nat.range(from, List.size(vec))) {
-      if (List.get(vec, i) == element) {
+      if (List.at(vec, i) == element) {
         return ?i
       }
     };
@@ -1601,7 +1601,7 @@ func testPrevIndexOf(n : Nat) : Bool {
     var i = from;
     while (i > 0) {
       i -= 1;
-      if (List.get(vec, i) == element) {
+      if (List.at(vec, i) == element) {
         return ?i
       }
     };

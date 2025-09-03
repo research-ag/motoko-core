@@ -1249,6 +1249,14 @@
     ]
   },
   {
+    "name": "WeakReference",
+    "exports": [
+      "public func allocate<T>(obj : T) : WeakReference<T>",
+      "public func get<T>(weakRef : WeakReference<T>) : ?T",
+      "public func isLive<T>(weakRef : WeakReference<T>) : Bool"
+    ]
+  },
+  {
     "name": "internal/BTreeHelper",
     "exports": [
       "public func deleteAndShift<T>(array : [var ?T], deleteIndex : Nat) : T",

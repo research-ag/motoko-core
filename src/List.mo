@@ -76,9 +76,9 @@ module {
       dataBlocks[i] := VarArray.repeat<?T>(initValue, dataBlockSize(i));
       i += 1
     };
-    if (elementIndex != 0 and blockIndex < blocks) {
+    if (elementIndex != 0) {
       let block = VarArray.repeat<?T>(null, dataBlockSize(i));
-      if (not Option.isNull(initValue)) {
+      if (Option.isSome(initValue)) {
         var j = 0;
         while (j < elementIndex) {
           block[j] := initValue;
@@ -126,7 +126,9 @@ module {
     let blockIndex = list.blockIndex;
     let elementIndex = list.elementIndex;
 
-    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    var i = blockIndex;
+    if (elementIndex == 0) i -= 1;
+
     while (i > 0) {
       let db = blocks[i];
       let sz = db.size();
@@ -572,7 +574,7 @@ module {
     };
     elementIndex -= 1;
 
-    var lastDataBlock = list.blocks[list.blockIndex];
+    let lastDataBlock = list.blocks[list.blockIndex];
 
     let element = lastDataBlock[elementIndex];
     lastDataBlock[elementIndex] := null;
@@ -643,6 +645,7 @@ module {
   ///
   /// Space: `O(1)`
   public func get<T>(list : List<T>, index : Nat) : ?T {
+    // inlined version of locate
     let (a, b) = do {
       let i = Nat32.fromNat(index);
       let lz = Nat32.bitcountLeadingZero(i);
@@ -756,6 +759,7 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
+    // inlined version of findIndex
     let blocks = list.blocks;
     let blockCount = blocks.size();
 
@@ -798,11 +802,14 @@ module {
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func lastIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
+    // inlined version of findLastIndex
     let blocks = list.blocks;
     let blockIndex = list.blockIndex;
     let elementIndex = list.elementIndex;
 
-    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    var i = blockIndex;
+    if (elementIndex == 0) i -= 1;
+
     while (i > 0) {
       let db = blocks[i];
       let sz = db.size();
@@ -907,7 +914,9 @@ module {
     let blockIndex = list.blockIndex;
     let elementIndex = list.elementIndex;
 
-    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    var i = blockIndex;
+    if (elementIndex == 0) i -= 1;
+
     while (i > 0) {
       let db = blocks[i];
       let sz = db.size();
@@ -1025,28 +1034,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
-  public func any<T>(list : List<T>, predicate : T -> Bool) : Bool {
-    let blocks = list.blocks;
-    let blockCount = blocks.size();
-
-    var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return false;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) if (predicate(x)) return true;
-          case null return false
-        };
-        j += 1
-      };
-      i += 1
-    };
-    false
-  };
+  public func any<T>(list : List<T>, predicate : T -> Bool) : Bool = findIndex<T>(list, predicate) != null;
 
   /// Returns an Iterator (`Iter`) over the elements of a List.
   /// Iterator provides a single method `next()`, which returns
@@ -1382,7 +1370,7 @@ module {
       pos += len;
       i += 1
     };
-    if (elementIndex != 0 and blockIndex < blocks) {
+    if (elementIndex != 0) {
       dataBlocks[i] := makeBlock(array, pos, dataBlockSize(i), elementIndex)
     };
 
@@ -1478,7 +1466,7 @@ module {
       pos += len;
       i += 1
     };
-    if (elementIndex != 0 and blockIndex < blocks) {
+    if (elementIndex != 0) {
       dataBlocks[i] := makeBlock(array, pos, dataBlockSize(i), elementIndex)
     };
 
@@ -1640,7 +1628,9 @@ module {
     let blockIndex = list.blockIndex;
     let elementIndex = list.elementIndex;
 
-    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    var i = blockIndex;
+    if (elementIndex == 0) i -= 1;
+
     while (i > 0) {
       let db = blocks[i];
       let sz = db.size();
@@ -1681,7 +1671,9 @@ module {
     let blockIndex = list.blockIndex;
     let elementIndex = list.elementIndex;
 
-    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    var i = blockIndex;
+    if (elementIndex == 0) i -= 1;
+
     while (i > 0) {
       let db = blocks[i];
       let sz = db.size();
@@ -1750,7 +1742,7 @@ module {
     let blocks = list.blocks;
     let blockCount = blocks.size();
 
-    var i = 1;
+    var i = 2;
     while (i < blockCount) {
       let db = blocks[i];
       let sz = db.size();
@@ -1802,7 +1794,7 @@ module {
     let blocks = list.blocks;
     let blockCount = blocks.size();
 
-    var i = 1;
+    var i = 2;
     while (i < blockCount) {
       let db = blocks[i];
       let sz = db.size();
@@ -1960,7 +1952,7 @@ module {
         var j = 0;
         while (j < sz) {
           switch (db[j]) {
-            case (?x) text := text # ", " # f(x);
+            case (?x) text #= ", " # f(x);
             case null return text
           };
           j += 1
@@ -2040,7 +2032,9 @@ module {
     let blockIndex = list.blockIndex;
     let elementIndex = list.elementIndex;
 
-    var i = if (blockIndex < blocks.size()) blockIndex else blockIndex - 1 : Nat;
+    var i = blockIndex;
+    if (elementIndex == 0) i -= 1;
+    
     while (i > 0) {
       let db = blocks[i];
       let sz = db.size();

@@ -1893,11 +1893,11 @@ module {
     let blockCount = Nat.min(blocks1.size(), blocks2.size());
 
     var i = 1;
-    while (i < blockCount) {
+    label l while (i < blockCount) {
       let db1 = blocks1[i];
       let db2 = blocks2[i];
       let sz = Nat.min(db1.size(), db2.size());
-      if (sz == 0) return Nat.compare(size(list1), size(list2));
+      if (sz == 0) break l;
 
       var j = 0;
       while (j < sz) {
@@ -1907,7 +1907,7 @@ module {
             case (#greater) return #greater;
             case _ {}
           };
-          case (_, _) return Nat.compare(size(list1), size(list2))
+          case (_, _) break l
         };
         j += 1
       };
@@ -1934,34 +1934,32 @@ module {
   ///
   /// *Runtime and space assumes that `toText` runs in O(1) time and space.
   public func toText<T>(list : List<T>, f : T -> Text) : Text {
-    func toTextInternal(list : List<T>, f : T -> Text) : Text {
-      var text = switch (first(list)) {
-        case (?x) f(x);
-        case null return ""
-      };
-
-      let blocks = list.blocks;
-      let blockCount = blocks.size();
-
-      var i = 2;
-      while (i < blockCount) {
-        let db = blocks[i];
-        let sz = db.size();
-        if (sz == 0) return text;
-
-        var j = 0;
-        while (j < sz) {
-          switch (db[j]) {
-            case (?x) text #= ", " # f(x);
-            case null return text
-          };
-          j += 1
-        };
-        i += 1
-      };
-      text
+    var text = switch (first(list)) {
+      case (?x) f(x);
+      case null return "List[]"
     };
-    "List[" # toTextInternal(list, f) # "]"
+
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var i = 2;
+    label l while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) break l;
+
+      var j = 0;
+      while (j < sz) {
+        switch (db[j]) {
+          case (?x) text #= ", " # f(x);
+          case null break l
+        };
+        j += 1
+      };
+      i += 1
+    };
+
+    "List[" # text # "]"
   };
 
   /// Collapses the elements in `list` into a single value by starting with `base`
@@ -2068,54 +2066,6 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(1)`
-  public func reverseInPlace1<T>(list : List<T>) {
-    let vsize = size(list);
-    if (vsize <= 1) return;
-
-    let count = vsize / 2;
-    var i = 0;
-
-    let blocks = list.blocks.size();
-    var blockIndexFront = 0;
-    var elementIndexFront = 0;
-    var sz = 0;
-    var dbFront : [var ?T] = [var];
-
-    var blockIndexBack = list.blockIndex;
-    var elementIndexBack = list.elementIndex;
-    var dbBack : [var ?T] = if (blockIndexBack < list.blocks.size()) {
-      list.blocks[blockIndexBack]
-    } else { [var] };
-
-    while (i < count) {
-      if (elementIndexFront == sz) {
-        blockIndexFront += 1;
-        if (blockIndexFront >= blocks) return;
-        dbFront := list.blocks[blockIndexFront];
-        sz := dbFront.size();
-        if (sz == 0) return;
-        elementIndexFront := 0
-      };
-
-      if (elementIndexBack == 0) {
-        blockIndexBack -= 1;
-        if (blockIndexBack == 0) return;
-        dbBack := list.blocks[blockIndexBack];
-        elementIndexBack := dbBack.size() - 1
-      } else {
-        elementIndexBack -= 1
-      };
-
-      let temp = dbFront[elementIndexFront];
-      dbFront[elementIndexFront] := dbBack[elementIndexBack];
-      dbBack[elementIndexBack] := temp;
-
-      elementIndexFront += 1;
-
-      i += 1
-    }
-  };
-
   public func reverseInPlace<T>(list : List<T>) {
     let vsize = size(list);
     if (vsize <= 1) return;
@@ -2157,7 +2107,7 @@ module {
         index += 1
       };
       i += 1
-    };
+    }
   };
 
   /// Returns a new List with the elements from `list` in reverse order.

@@ -1208,7 +1208,7 @@ func testReverse(n : Nat) : Bool {
   assertValid(reversed);
   List.reverseInPlace(vec);
   assertValid(vec);
-  
+
   let inPlaceEqual = List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal);
   let reversedEqual = List.equal(reversed, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal);
 

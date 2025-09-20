@@ -1200,12 +1200,19 @@ func testContains(n : Nat) : Bool {
 
   true
 };
+
 func testReverse(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   assertValid(vec);
+  let reversed = List.reverse<Nat>(vec);
+  assertValid(reversed);
   List.reverseInPlace(vec);
   assertValid(vec);
-  List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal)
+  
+  let inPlaceEqual = List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal);
+  let reversedEqual = List.equal(reversed, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal);
+
+  inPlaceEqual and reversedEqual
 };
 
 func testSort(n : Nat) : Bool {

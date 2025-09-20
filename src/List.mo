@@ -2034,7 +2034,7 @@ module {
 
     var i = blockIndex;
     if (elementIndex == 0) i -= 1;
-    
+
     while (i > 0) {
       let db = blocks[i];
       let sz = db.size();
@@ -2068,7 +2068,7 @@ module {
   /// Runtime: `O(size)`
   ///
   /// Space: `O(1)`
-  public func reverseInPlace<T>(list : List<T>) {
+  public func reverseInPlace1<T>(list : List<T>) {
     let vsize = size(list);
     if (vsize <= 1) return;
 
@@ -2116,6 +2116,50 @@ module {
     }
   };
 
+  public func reverseInPlace<T>(list : List<T>) {
+    let vsize = size(list);
+    if (vsize <= 1) return;
+
+    let count = vsize / 2;
+
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
+
+    var blockIndexBack = list.blockIndex;
+    var elementIndexBack = list.elementIndex;
+    var dbBack : [var ?T] = if (blockIndexBack < list.blocks.size()) {
+      list.blocks[blockIndexBack]
+    } else { [var] };
+
+    var i = 1;
+    var index = 0;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+
+      var j = 0;
+      while (j < sz) {
+        if (index >= count) return;
+
+        if (elementIndexBack == 0) {
+          blockIndexBack -= 1;
+          dbBack := list.blocks[blockIndexBack];
+          elementIndexBack := dbBack.size() - 1
+        } else {
+          elementIndexBack -= 1
+        };
+
+        let temp = db[j];
+        db[j] := dbBack[elementIndexBack];
+        dbBack[elementIndexBack] := temp;
+
+        j += 1;
+        index += 1
+      };
+      i += 1
+    };
+  };
+
   /// Returns a new List with the elements from `list` in reverse order.
   ///
   /// Example:
@@ -2135,11 +2179,8 @@ module {
   public func reverse<T>(list : List<T>) : List<T> {
     let rlist = repeatInternal<T>(null, size(list));
 
-    let blocks = list.blocks.size();
-    var blockIndexFront = 0;
-    var elementIndexFront = 0;
-    var sz = 0;
-    var dbFront : [var ?T] = [var];
+    let blocks = list.blocks;
+    let blockCount = blocks.size();
 
     var blockIndexBack = rlist.blockIndex;
     var elementIndexBack = rlist.elementIndex;
@@ -2147,29 +2188,29 @@ module {
       rlist.blocks[blockIndexBack]
     } else { [var] };
 
-    loop {
-      if (elementIndexFront == sz) {
-        blockIndexFront += 1;
-        if (blockIndexFront >= blocks) return rlist;
-        dbFront := list.blocks[blockIndexFront];
-        sz := dbFront.size();
-        if (sz == 0) return rlist;
-        elementIndexFront := 0
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return rlist;
+
+      var j = 0;
+      while (j < sz) {
+        if (elementIndexBack == 0) {
+          blockIndexBack -= 1;
+          if (blockIndexBack == 0) return rlist;
+          dbBack := rlist.blocks[blockIndexBack];
+          elementIndexBack := dbBack.size() - 1
+        } else {
+          elementIndexBack -= 1
+        };
+
+        dbBack[elementIndexBack] := db[j];
+        j += 1
       };
-
-      if (elementIndexBack == 0) {
-        blockIndexBack -= 1;
-        if (blockIndexBack == 0) return rlist;
-        dbBack := rlist.blocks[blockIndexBack];
-        elementIndexBack := dbBack.size() - 1
-      } else {
-        elementIndexBack -= 1
-      };
-
-      dbBack[elementIndexBack] := dbFront[elementIndexFront];
-
-      elementIndexFront += 1
-    }
+      i += 1
+    };
+    rlist
   };
 
   /// Returns true if and only if the list is empty.

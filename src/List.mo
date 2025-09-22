@@ -2070,10 +2070,9 @@ module {
     let vsize = size(list);
     if (vsize <= 1) return;
 
-    let count = vsize / 2;
+    let (finalBlock, finalElement) = locate(vsize / 2);
 
     let blocks = list.blocks;
-    let blockCount = blocks.size();
 
     var blockIndexBack = list.blockIndex;
     var elementIndexBack = list.elementIndex;
@@ -2083,14 +2082,12 @@ module {
 
     var i = 1;
     var index = 0;
-    while (i < blockCount) {
+    while (i <= finalBlock) {
       let db = blocks[i];
-      let sz = db.size();
+      let sz = if (i == finalBlock) finalElement else db.size();
 
       var j = 0;
       while (j < sz) {
-        if (index >= count) return;
-
         if (elementIndexBack == 0) {
           blockIndexBack -= 1;
           dbBack := list.blocks[blockIndexBack];

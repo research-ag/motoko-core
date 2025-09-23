@@ -18,6 +18,8 @@ import PureList "../src/pure/List";
 import VarArray "../src/VarArray";
 import Option "../src/Option";
 
+// Runtime.trap(debug_show Nat.compare(4, 2));
+
 func assertValid(list : List.List<Nat>) {
   let blocks = list.blocks;
   let blockCount = blocks.size();
@@ -1348,6 +1350,38 @@ func testForEach(n : Nat) : Bool {
   true
 };
 
+func testBinarySearch(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i * 2));
+  if (n == 0) {
+    return List.binarySearch(vec, Nat.compare, 0) == #insertionIndex(0) and List.binarySearch(vec, Nat.compare, 1) == #insertionIndex(0)
+  };
+  for (i in Nat.range(0, n)) {
+    let value = i * 2;
+    let index = List.binarySearch(vec, Nat.compare, value);
+    if (index != #found i) {
+      Debug.print("binarySearch failed for value = " # Nat.toText(value) # ", expected #found " # Nat.toText(i) # ", got " # debug_show (index));
+      Debug.print("vec = " # debug_show (vec));
+      return false
+    };
+    let notFoundIndex = List.binarySearch(vec, Nat.compare, value + 1);
+    if (notFoundIndex != #insertionIndex(i + 1)) {
+      Debug.print("binarySearch should have returned null for value = " # Nat.toText(value + 1) # ", but got " # debug_show (notFoundIndex));
+      return false
+    }
+  };
+  do {
+    let vec = List.repeat<Nat>(0, n);
+    switch (List.binarySearch(vec, Nat.compare, 0)) {
+      case (#insertionIndex index) {
+        Debug.print("binarySearch on all-equal elements failed, expected #found 0, got #insertionIndex " # Nat.toText(index));
+        return false
+      };
+      case (_) {}
+    }
+  };
+  List.binarySearch(vec, Nat.compare, n * 2) == #insertionIndex(n)
+};
+
 // Run all tests
 func runAllTests() {
   runTest("testNew", testNew);
@@ -1374,7 +1408,8 @@ func runAllTests() {
   runTest("testFilterMap", testFilterMap);
   runTest("testPure", testPure);
   runTest("testReverseForEach", testReverseForEach);
-  runTest("testForEach", testForEach)
+  runTest("testForEach", testForEach);
+  runTest("testBinarySearch", testBinarySearch)
 };
 
 // Run all tests

@@ -14,6 +14,7 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
+import Debug "mo:base/Debug";
 import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
@@ -962,17 +963,96 @@ module {
     #found : Nat;
     #insertionIndex : Nat
   } {
+    /*
+    1 * 0 = 0
+
+    1 * 1 = +1
+    1 * 1 = 1
+
+    1 * 2 = 2
+    2 * 2 = 4
+    3
+
+    2 * 4 = 8
+    4 * 4 = 16
+    6
+
+    4 * 8 = 32
+    8 * 8 = 64
+    12
+
+    8 * 16 = 128
+    16 * 16 = 256
+    24
+
+    */
+    // We call all data blocks of the same capacity an "epoch". We number the epochs 0,1,2,...
+    // A data block is in epoch e iff the data block has capacity 2 ** e.
+    // Each epoch starting with epoch 1 spans exactly two super blocks.
+    // Super block s falls in epoch ceil(s/2).
+
+    // epoch of last data block
+    let b = if (list.elementIndex == 0) list.blockIndex - 1 : Nat else list.blockIndex;
+    let epoch = (32 - Nat32.bitcountLeadingZero(Nat32.fromNat(b) / 3));
+    if (epoch == 0) {
+      for (i in Nat.range(0, size(list))) {
+        let x = at(list, i);
+        switch (compare(x, element)) {
+          case (#less) {};
+          case (#equal) return #found(i);
+          case (#greater) return #insertionIndex(i)
+        }
+      };
+      return #insertionIndex(size(list))
+    };
+
+    var firstInEpoch = Nat32.toNat((1 << epoch) / 2);
+    while (firstInEpoch != 0 and compare(Option.unwrap(list.blocks[firstInEpoch * 3][0]), element) == #greater) {
+      firstInEpoch /= 2
+    };
+    
+    if (firstInEpoch == 0) {
+      for (i in Nat.range(0, size(list))) {
+        let x = at(list, i);
+        switch (compare(x, element)) {
+          case (#less) {};
+          case (#equal) return #found(i);
+          case (#greater) return #insertionIndex(i)
+        }
+      };
+      return #insertionIndex(size(list))
+    };
+
+    firstInEpoch *= 3;
+
+    let block = do {
+      var left = firstInEpoch;
+      var right = if (firstInEpoch * 2 < b) firstInEpoch * 2 else b + 1;
+      while (right - left : Nat > 1) {
+        let mid = (left + right) / 2;
+        let midElement = Option.unwrap(list.blocks[mid][0]);
+        switch (compare(midElement, element)) {
+          case (#less) left := mid;
+          case (#equal) return #found(size({ var blockIndex = mid; var elementIndex = 0 }));
+          case (#greater) right := mid
+        }
+      };
+      left
+    };
+
     var left = 0;
-    var right = size(list);
-    while (left < right) {
+    var right = if (block == list.blockIndex) list.elementIndex else list.blocks[block].size();
+    while (left != right) {
       let mid = (left + right) / 2;
-      switch (compare(at(list, mid), element)) {
+      let midElement = Option.unwrap(list.blocks[block][mid]);
+      switch (compare(midElement, element)) {
         case (#less) left := mid + 1;
-        case (#greater) right := mid;
-        case (#equal) return #found mid
+        case (#equal) return #found(size({ var blockIndex = block; var elementIndex = mid }));
+        case (#greater) right := mid
       }
     };
-    #insertionIndex left
+
+    #insertionIndex(size({ var blockIndex = block; var elementIndex = left }))
   };
 
   /// Returns true iff every element in `list` satisfies `predicate`.

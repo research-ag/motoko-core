@@ -14,7 +14,6 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
-import Debug "mo:base/Debug";
 import Nat32 "Nat32";
 import Array "Array";
 import Iter "Iter";
@@ -992,27 +991,18 @@ module {
     // Super block s falls in epoch ceil(s/2).
 
     // epoch of last data block
+    let blocks = list.blocks;
     let b = if (list.elementIndex == 0) list.blockIndex - 1 : Nat else list.blockIndex;
     let epoch = (32 - Nat32.bitcountLeadingZero(Nat32.fromNat(b) / 3));
-    if (epoch == 0) {
-      for (i in Nat.range(0, size(list))) {
-        let x = at(list, i);
-        switch (compare(x, element)) {
-          case (#less) {};
-          case (#equal) return #found(i);
-          case (#greater) return #insertionIndex(i)
-        }
-      };
-      return #insertionIndex(size(list))
-    };
-
     var firstInEpoch = Nat32.toNat((1 << epoch) / 2);
-    while (firstInEpoch != 0 and compare(Option.unwrap(list.blocks[firstInEpoch * 3][0]), element) == #greater) {
+
+    while (firstInEpoch != 0 and compare(Option.unwrap(blocks[firstInEpoch * 3][0]), element) == #greater) {
       firstInEpoch /= 2
     };
-    
+
     if (firstInEpoch == 0) {
-      for (i in Nat.range(0, size(list))) {
+      let to = Nat.min(size(list), 2);
+      for (i in Nat.range(0, to)) {
         let x = at(list, i);
         switch (compare(x, element)) {
           case (#less) {};
@@ -1020,39 +1010,42 @@ module {
           case (#greater) return #insertionIndex(i)
         }
       };
-      return #insertionIndex(size(list))
+      return #insertionIndex(to)
     };
 
     firstInEpoch *= 3;
 
-    let block = do {
+    let blockIndex = do {
       var left = firstInEpoch;
       var right = if (firstInEpoch * 2 < b) firstInEpoch * 2 else b + 1;
       while (right - left : Nat > 1) {
         let mid = (left + right) / 2;
-        let midElement = Option.unwrap(list.blocks[mid][0]);
+        let midElement = Option.unwrap(blocks[mid][0]);
         switch (compare(midElement, element)) {
           case (#less) left := mid;
-          case (#equal) return #found(size({ var blockIndex = mid; var elementIndex = 0 }));
-          case (#greater) right := mid
+          case (#greater) right := mid;
+          case (#equal) return #found(size({ var blockIndex = mid; var elementIndex = 0 }))
         }
       };
       left
     };
 
-    var left = 0;
-    var right = if (block == list.blockIndex) list.elementIndex else list.blocks[block].size();
-    while (left != right) {
-      let mid = (left + right) / 2;
-      let midElement = Option.unwrap(list.blocks[block][mid]);
-      switch (compare(midElement, element)) {
-        case (#less) left := mid + 1;
-        case (#equal) return #found(size({ var blockIndex = block; var elementIndex = mid }));
-        case (#greater) right := mid
-      }
+    let elementIndex = do {
+      let block = blocks[blockIndex];
+      var left = 0;
+      var right = if (blockIndex == list.blockIndex) list.elementIndex else block.size();
+      while (left != right) {
+        let mid = (left + right) / 2;
+        switch (compare(Option.unwrap(block[mid]), element)) {
+          case (#less) left := mid + 1;
+          case (#greater) right := mid;
+          case (#equal) return #found(size({ var blockIndex = blockIndex; var elementIndex = mid }))
+        }
+      };
+      left
     };
 
-    #insertionIndex(size({ var blockIndex = block; var elementIndex = left }))
+    #insertionIndex(size({ var blockIndex = blockIndex; var elementIndex = elementIndex }))
   };
 
   /// Returns true iff every element in `list` satisfies `predicate`.

@@ -1017,7 +1017,7 @@ module {
 
     let blockIndex = do {
       var left = firstInEpoch;
-      var right = if (firstInEpoch * 2 < b) firstInEpoch * 2 else b + 1;
+      var right = Nat.min(b + 1, firstInEpoch * 2);
       while (right - left : Nat > 1) {
         let mid = (left + right) / 2;
         let midElement = Option.unwrap(blocks[mid][0]);

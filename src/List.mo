@@ -962,45 +962,34 @@ module {
     #found : Nat;
     #insertionIndex : Nat
   } {
-    /*
-    1 * 0 = 0
-
-    1 * 1 = +1
-    1 * 1 = 1
-
-    1 * 2 = 2
-    2 * 2 = 4
-    3
-
-    2 * 4 = 8
-    4 * 4 = 16
-    6
-
-    4 * 8 = 32
-    8 * 8 = 64
-    12
-
-    8 * 16 = 128
-    16 * 16 = 256
-    24
-
-    */
     // We call all data blocks of the same capacity an "epoch". We number the epochs 0,1,2,...
     // A data block is in epoch e iff the data block has capacity 2 ** e.
     // Each epoch starting with epoch 1 spans exactly two super blocks.
     // Super block s falls in epoch ceil(s/2).
+    // Each epoch except e=0 contains 3 * 2 ** (e - 1) data blocks
 
-    // epoch of last data block
     let blocks = list.blocks;
-    let b = if (list.elementIndex == 0) list.blockIndex - 1 : Nat else list.blockIndex;
-    let epoch = (32 - Nat32.bitcountLeadingZero(Nat32.fromNat(b) / 3));
-    var firstInEpoch = Nat32.toNat((1 << epoch) / 2);
+    let b = list.blockIndex - (if (list.elementIndex == 0) 1 else 0) : Nat;
 
-    while (firstInEpoch != 0 and compare(Option.unwrap(blocks[firstInEpoch * 3][0]), element) == #greater) {
-      firstInEpoch /= 2
+    // block index x such that blocks[x][0] <= element
+    let lessOrEqual = do {
+      // epoch of the last data block
+      let epoch = 32 - Nat32.bitcountLeadingZero(Nat32.fromNat(b) / 3);
+      // initially block index is the first in the epoch
+      var lessOrEqual = Nat32.toNat((1 << epoch) / 2);
+
+      // lessOrEqual * 3 is always the first data block in an epoch
+      // while the first element of the first data block in an epoch is actually grater then element go to the previous epoch
+      // as the last epoch is half of the array we each iteration of the search divides the interval in four
+      while (lessOrEqual != 0 and compare(Option.unwrap(blocks[lessOrEqual * 3][0]), element) == #greater) {
+        lessOrEqual /= 2
+      };
+      
+      lessOrEqual * 3
     };
 
-    if (firstInEpoch == 0) {
+    // Linear search in e=0, there are just two elements
+    if (lessOrEqual == 0) {
       let to = Nat.min(size(list), 2);
       for (i in Nat.range(0, to)) {
         let x = at(list, i);
@@ -1012,16 +1001,16 @@ module {
       };
       return #insertionIndex(to)
     };
-
-    firstInEpoch *= 3;
-
+    
+    // binary search the blockIndex in [left, right)
     let blockIndex = do {
-      var left = firstInEpoch;
-      var right = Nat.min(b + 1, firstInEpoch * 2);
+      // guarateed less or equal to element
+      var left = lessOrEqual;
+      // right is either outside of the array or greater than element
+      var right = Nat.min(b + 1, lessOrEqual * 2);
       while (right - left : Nat > 1) {
         let mid = (left + right) / 2;
-        let midElement = Option.unwrap(blocks[mid][0]);
-        switch (compare(midElement, element)) {
+        switch (compare(Option.unwrap(blocks[mid][0]), element)) {
           case (#less) left := mid;
           case (#greater) right := mid;
           case (#equal) return #found(size({ var blockIndex = mid; var elementIndex = 0 }))
@@ -1030,6 +1019,7 @@ module {
       left
     };
 
+    // binary search the elementIndex
     let elementIndex = do {
       let block = blocks[blockIndex];
       var left = 0;

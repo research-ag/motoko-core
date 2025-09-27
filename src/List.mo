@@ -66,7 +66,7 @@ module {
     var elementIndex = 0
   };
 
-  private func repeatInternal<T>(initValue : ?T, size : Nat) : List<T> {
+  func repeatInternal<T>(initValue : ?T, size : Nat) : List<T> {
     let (blockIndex, elementIndex) = locate(size);
 
     let blocks = newIndexBlockLength(Nat32.fromNat(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
@@ -173,7 +173,7 @@ module {
     }
   };
 
-  private func addRepeatInternal<T>(list : List<T>, initValue : ?T, count : Nat) {
+  func addRepeatInternal<T>(list : List<T>, initValue : ?T, count : Nat) {
     let (b, e) = locate(size(list) + count);
     let blocksCount = newIndexBlockLength(Nat32.fromNat(if (e == 0) b - 1 else b));
 
@@ -408,23 +408,8 @@ module {
     filtered
   };
 
-  /// Returns the current number of elements in the list.
-  ///
-  /// Example:
-  /// ```motoko include=import
-  /// let list = List.empty<Nat>();
-  /// assert List.size(list) == 0
-  /// ```
-  ///
-  /// Runtime: `O(1)` (with some internal calculations)
-  public func size<T>(
-    list : {
-      var blockIndex : Nat;
-      var elementIndex : Nat
-    }
-  ) : Nat {
-    let d = Nat32.fromNat(list.blockIndex);
-    let i = Nat32.fromNat(list.elementIndex);
+  func indexByBlockElement(block : Nat, element : Nat) : Nat {
+    let d = Nat32.fromNat(block);
 
     // We call all data blocks of the same capacity an "epoch". We number the epochs 0,1,2,...
     // A data block is in epoch e iff the data block has capacity 2 ** e.
@@ -446,7 +431,25 @@ module {
 
     // there can be overflows, but the result is without overflows, so use addWrap and subWrap
     // we don't erase bits by >>, so to use <>> is ok
-    Nat32.toNat((d -% (1 <>> lz)) <>> lz +% i)
+    Nat32.toNat((d -% (1 <>> lz)) <>> lz +% Nat32.fromNat(element))
+  };
+
+  /// Returns the current number of elements in the list.
+  ///
+  /// Example:
+  /// ```motoko include=import
+  /// let list = List.empty<Nat>();
+  /// assert List.size(list) == 0
+  /// ```
+  ///
+  /// Runtime: `O(1)` (with some internal calculations)
+  public func size<T>(list : List<T>) : Nat {
+    // due to the design of List (blockIndex, elementIndex) pair points
+    // exactly to the place where size-th element should be added
+    // so, it's the inlined version of indexByBlockElement
+    let d = Nat32.fromNat(list.blockIndex);
+    let lz = Nat32.bitcountLeadingZero(d / 3);
+    Nat32.toNat((d -% (1 <>> lz)) <>> lz +% Nat32.fromNat(list.elementIndex))
   };
 
   func dataBlockSize(blockIndex : Nat) : Nat {
@@ -772,10 +775,7 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) if (equal(x, element)) return ?size({
-            var blockIndex = i;
-            var elementIndex = j
-          });
+          case (?x) if (equal(x, element)) return ?indexByBlockElement(i, j);
           case null return null
         };
         j += 1
@@ -817,10 +817,7 @@ module {
       while (j > 0) {
         j -= 1;
         switch (db[j]) {
-          case (?x) if (equal(x, element)) return ?size({
-            var blockIndex = i;
-            var elementIndex = j
-          });
+          case (?x) if (equal(x, element)) return ?indexByBlockElement(i, j);
           case null Prim.trap INTERNAL_ERROR
         }
       };
@@ -878,10 +875,7 @@ module {
       var j = 0;
       while (j < sz) {
         switch (db[j]) {
-          case (?x) if (predicate(x)) return ?size({
-            var blockIndex = i;
-            var elementIndex = j
-          });
+          case (?x) if (predicate(x)) return ?indexByBlockElement(i, j);
           case null return null
         };
         j += 1
@@ -924,10 +918,7 @@ module {
       while (j > 0) {
         j -= 1;
         switch (db[j]) {
-          case (?x) if (predicate(x)) return ?size({
-            var blockIndex = i;
-            var elementIndex = j
-          });
+          case (?x) if (predicate(x)) return ?indexByBlockElement(i, j);
           case null Prim.trap INTERNAL_ERROR
         }
       };
@@ -984,7 +975,7 @@ module {
       while (lessOrEqual != 0 and compare(Option.unwrap(blocks[lessOrEqual * 3][0]), element) == #greater) {
         lessOrEqual /= 2
       };
-      
+
       lessOrEqual * 3
     };
 
@@ -1001,7 +992,7 @@ module {
       };
       return #insertionIndex(to)
     };
-    
+
     // binary search the blockIndex in [left, right)
     let blockIndex = do {
       // guarateed less or equal to element
@@ -1013,7 +1004,7 @@ module {
         switch (compare(Option.unwrap(blocks[mid][0]), element)) {
           case (#less) left := mid;
           case (#greater) right := mid;
-          case (#equal) return #found(size({ var blockIndex = mid; var elementIndex = 0 }))
+          case (#equal) return #found(indexByBlockElement(mid, 0))
         }
       };
       left
@@ -1029,13 +1020,13 @@ module {
         switch (compare(Option.unwrap(block[mid]), element)) {
           case (#less) left := mid + 1;
           case (#greater) right := mid;
-          case (#equal) return #found(size({ var blockIndex = blockIndex; var elementIndex = mid }))
+          case (#equal) return #found(indexByBlockElement(blockIndex, mid))
         }
       };
       left
     };
 
-    #insertionIndex(size({ var blockIndex = blockIndex; var elementIndex = elementIndex }))
+    #insertionIndex(indexByBlockElement(blockIndex, elementIndex))
   };
 
   /// Returns true iff every element in `list` satisfies `predicate`.

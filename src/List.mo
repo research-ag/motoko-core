@@ -568,11 +568,8 @@ module {
       elementIndex := list.blocks[blockIndex].size();
 
       // Keep one totally empty block when removing
-      if (blockIndex + 2 < list.blocks.size()) {
-        if (list.blocks[blockIndex + 2].size() > 0) {
-          list.blocks[blockIndex + 2] := [var]
-        }
-      };
+      if (blockIndex + 2 < list.blocks.size()) list.blocks[blockIndex + 2] := [var];
+
       list.blockIndex := blockIndex
     };
     elementIndex -= 1;
@@ -1990,7 +1987,7 @@ module {
   public func toText<T>(list : List<T>, f : T -> Text) : Text {
     var text = switch (first(list)) {
       case (?x) f(x);
-      case null return "List[]"
+      case null ""
     };
 
     let blocks = list.blocks;

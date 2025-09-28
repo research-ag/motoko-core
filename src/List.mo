@@ -42,7 +42,10 @@ module {
   /// let list = List.empty<Nat>(); // Creates a new List
   /// ```
   public func empty<T>() : List<T> = {
+    // the first block is always empty and is present in each List
+    // this is done to optimize locate, at, get, etc
     var blocks = [var [var]];
+    // can't be 0 in any List
     var blockIndex = 1;
     var elementIndex = 0
   };
@@ -292,7 +295,12 @@ module {
   ///
   /// Runtime: `O(size)`
   public func map<T, R>(list : List<T>, f : T -> R) : List<R> {
-    let blocks = VarArray.repeat<[var ?R]>([var], list.blocks.size());
+    let blocks = VarArray.repeat<[var ?R]>(
+      [var],
+      newIndexBlockLength(
+        Nat32.fromNat(if (list.elementIndex == 0) list.blockIndex - 1 else list.blockIndex)
+      )
+    );
     let blocksCount = list.blocks.size();
 
     var i = 1;

@@ -1150,6 +1150,12 @@ func testClear(n : Nat) : Bool {
 };
 
 func testClone(n : Nat) : Bool {
+  do {
+    let vec1 = List.empty<Nat>();
+    let vec2 = List.clone(vec1);
+    assertValid(vec2);
+    if (not List.equal(vec1, vec2, Nat.equal)) return false
+  };
   let vec1 = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   assertValid(vec1);
   let vec2 = List.clone(vec1);

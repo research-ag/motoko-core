@@ -274,10 +274,11 @@ module {
   /// Runtime: `O(size)`
   public func clone<T>(list : List<T>) : List<T> = {
     var blocks = VarArray.tabulate<[var ?T]>(
-      newIndexBlockLength(
-        Nat32.fromNat(if (list.elementIndex == 0) list.blockIndex - 1 else list.blockIndex)
+      Nat.min(
+        newIndexBlockLength(Nat32.fromNat(if (list.elementIndex == 0) list.blockIndex - 1 else list.blockIndex)),
+        list.blocks.size()
       ),
-      func(i) = if (i < list.blocks.size()) VarArray.clone<?T>(list.blocks[i]) else [var]
+      func(i) = VarArray.clone<?T>(list.blocks[i])
     );
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex
@@ -297,12 +298,14 @@ module {
   ///
   /// Runtime: `O(size)`
   public func map<T, R>(list : List<T>, f : T -> R) : List<R> {
-    let realBlocks = if (list.elementIndex == 0) list.blockIndex - 1 : Nat else list.blockIndex;
-    let blocksCount = newIndexBlockLength(Nat32.fromNat(realBlocks));
+    let blocksCount = Nat.min(
+      newIndexBlockLength(Nat32.fromNat(if (list.elementIndex == 0) list.blockIndex - 1 else list.blockIndex)),
+      list.blocks.size()
+    );
     let blocks = VarArray.repeat<[var ?R]>([var], blocksCount);
 
     var i = 1;
-    label l while (i <= realBlocks) {
+    label l while (i < blocksCount) {
       let oldBlock = list.blocks[i];
       let blockSize = oldBlock.size();
       let newBlock = VarArray.repeat<?R>(null, blockSize);

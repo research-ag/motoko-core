@@ -2115,24 +2115,9 @@ module {
     }
   };
 
-  /// Returns a new array containing elements from `list` starting at index `fromInclusive` up to (but not including) index `toExclusive`.
-  /// If the indices are out of bounds, they are clamped to the array bounds.
-  ///
-  /// ```motoko include=import
-  /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
-  ///
-  /// let slice1 = List.subArray<Nat>(array, 1, 4);
-  /// assert slice1 == [2, 3, 4];
-  ///
-  /// let slice2 = List.subArray<Nat>(array, 1, -1);
-  /// assert slice2 == [2, 3, 4];
-  /// ```
-  ///
-  /// Runtime: O(toExclusive - fromInclusive)
-  ///
-  /// Space: O(toExclusive - fromInclusive)
-  public func sliceToArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T] {
-    let (start, end) = actualInterval(fromInclusive, toExclusive, size(list));
+  func sliceToArrayBase<T>(list : List<T>, start : Nat) : {
+    next(i : Nat) : T
+  } = object {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
@@ -2144,7 +2129,7 @@ module {
     var db : [var ?T] = list.blocks[blockIndex];
     var dbSize = db.size();
 
-    func generator(i : Nat) : T {
+    public func next(i : Nat) : T {
       if (elementIndex == dbSize) {
         blockIndex += 1;
         if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
@@ -2160,8 +2145,49 @@ module {
         };
         case null Prim.trap(INTERNAL_ERROR)
       }
-    };
-    Array.tabulate<T>(end - start, generator)
+    }
+  };
+
+  /// Returns a new array containing elements from `list` starting at index `fromInclusive` up to (but not including) index `toExclusive`.
+  /// If the indices are out of bounds, they are clamped to the array bounds.
+  ///
+  /// ```motoko include=import
+  /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
+  ///
+  /// let slice1 = List.sliceToArray<Nat>(array, 1, 4);
+  /// assert slice1 == [2, 3, 4];
+  ///
+  /// let slice2 = List.sliceToArray<Nat>(array, 1, -1);
+  /// assert slice2 == [2, 3, 4];
+  /// ```
+  ///
+  /// Runtime: O(toExclusive - fromInclusive)
+  ///
+  /// Space: O(toExclusive - fromInclusive)
+  public func sliceToArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T] {
+    let (start, end) = actualInterval(fromInclusive, toExclusive, size(list));
+    Array.tabulate<T>(end - start, sliceToArrayBase(list, start).next)
+  };
+
+  /// Returns a new var array containing elements from `list` starting at index `fromInclusive` up to (but not including) index `toExclusive`.
+  /// If the indices are out of bounds, they are clamped to the array bounds.
+  ///
+  /// ```motoko include=import
+  /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
+  ///
+  /// let slice1 = List.sliceToVarArray<Nat>(array, 1, 4);
+  /// assert slice1 == [var 2, 3, 4];
+  ///
+  /// let slice2 = List.sliceToVarArray<Nat>(array, 1, -1);
+  /// assert slice2 == [var 2, 3, 4];
+  /// ```
+  ///
+  /// Runtime: O(toExclusive - fromInclusive)
+  ///
+  /// Space: O(toExclusive - fromInclusive)
+  public func sliceToVarArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [var T] {
+    let (start, end) = actualInterval(fromInclusive, toExclusive, size(list));
+    VarArray.tabulate<T>(end - start, sliceToArrayBase(list, start).next)
   };
 
   /// Like `forEachEntryRev` but iterates through the list in reverse order,

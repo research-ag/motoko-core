@@ -1301,8 +1301,10 @@ func testSliceToArray(n : Nat) : Bool {
   for (left in Nat.range(0, n)) {
     for (right in Nat.range(left, n + 1)) {
       let slice = List.sliceToArray<Nat>(vec, left, right);
+      let sliceVar = List.sliceToVarArray<Nat>(vec, left, right);
       let expected = Array.tabulate<Nat>(right - left, func(i) = left + i);
-      if (slice != expected) {
+      let expectedVar = VarArray.tabulate<Nat>(right - left, func(i) = left + i);
+      if (slice != expected or not VarArray.equal<Nat>(sliceVar, expectedVar, Nat.equal)) {
         Debug.print(
           "Slice mismatch for left = " # Nat.toText(left) # ", right = " # Nat.toText(right) # ": expected " # debug_show (expected) # ", got " # debug_show (slice)
         );

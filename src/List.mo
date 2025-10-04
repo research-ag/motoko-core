@@ -608,171 +608,6 @@ module {
     }
   };
 
-  /// Applies `f` to each element of `list` in place,
-  /// retaining the original ordering of elements.
-  /// This modifies the original list.
-  ///
-  /// ```motoko include=import
-  /// import Nat "mo:core/Nat";
-  ///
-  /// let list = List.fromArray<Nat>([0, 1, 2, 3]);
-  /// List.mapInPlace<Nat>(list, func x = x * 3);
-  /// assert List.equal(list, List.fromArray<Nat>([0, 3, 6, 9]), Nat.equal);
-  /// ```
-  ///
-  /// Runtime: O(size)
-  ///
-  /// Space: O(size)
-  ///
-  /// *Runtime and space assumes that `f` runs in O(1) time and space.
-  public func mapInPlace<T>(list : List<T>, f : T -> T) {
-    let blocks = list.blocks;
-    let blockCount = blocks.size();
-
-    var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) db[j] := ?f(x);
-          case null return
-        };
-        j += 1
-      };
-      i += 1
-    }
-  };
-
-  /// Creates a new list by applying `f` to each element in `list` and its index.
-  /// Retains original ordering of elements.
-  ///
-  /// ```motoko include=import
-  /// import Nat "mo:core/Nat";
-  ///
-  /// let list = List.fromArray<Nat>([10, 10, 10, 10]);
-  /// let newList = List.mapEntries<Nat, Nat>(list, func (x, i) = i * x);
-  /// assert List.equal(newList, List.fromArray<Nat>([0, 10, 20, 30]), Nat.equal);
-  /// ```
-  ///
-  /// Runtime: O(size)
-  ///
-  /// Space: O(size)
-  ///
-  /// *Runtime and space assumes that `f` runs in O(1) time and space.
-  public func mapEntries<T, R>(list : List<T>, f : (T, Nat) -> R) : List<R> {
-    let blocks = VarArray.repeat<[var ?R]>([var], list.blocks.size());
-    let blocksCount = list.blocks.size();
-
-    var index = 0;
-
-    var i = 1;
-    while (i < blocksCount) {
-      let oldBlock = list.blocks[i];
-      let blockSize = oldBlock.size();
-      let newBlock = VarArray.repeat<?R>(null, blockSize);
-      blocks[i] := newBlock;
-      var j = 0;
-
-      while (j < blockSize) {
-        switch (oldBlock[j]) {
-          case (?item) newBlock[j] := ?f(item, index);
-          case null return {
-            var blocks = blocks;
-            var blockIndex = list.blockIndex;
-            var elementIndex = list.elementIndex
-          }
-        };
-        j += 1;
-        index += 1
-      };
-      i += 1
-    };
-
-    {
-      var blocks = blocks;
-      var blockIndex = list.blockIndex;
-      var elementIndex = list.elementIndex
-    }
-  };
-
-  /// Creates a new list by applying `f` to each element in `list`.
-  /// If any invocation of `f` produces an `#err`, returns an `#err`. Otherwise
-  /// returns an `#ok` containing the new list.
-  ///
-  /// ```motoko include=import
-  /// import Result "mo:core/Result";
-  ///
-  /// let list = List.fromArray<Nat>([4, 3, 2, 1, 0]);
-  /// // divide 100 by every element in the list
-  /// let result = List.mapResult<Nat, Nat, Text>(list, func x {
-  ///   if (x > 0) {
-  ///     #ok(100 / x)
-  ///   } else {
-  ///     #err "Cannot divide by zero"
-  ///   }
-  /// });
-  /// assert Result.isErr(result);
-  /// ```
-  ///
-  /// Runtime: O(size)
-  ///
-  /// Space: O(size)
-  ///
-  /// *Runtime and space assumes that `f` runs in O(1) time and space.
-  public func mapResult<T, R, E>(list : List<T>, f : T -> Result.Result<R, E>) : Result.Result<List<R>, E> {
-    var error : ?E = null;
-
-    let blocks = VarArray.repeat<[var ?R]>([var], list.blocks.size());
-    let blocksCount = list.blocks.size();
-
-    var i = 1;
-    while (i < blocksCount) {
-      let oldBlock = list.blocks[i];
-      let blockSize = oldBlock.size();
-      let newBlock = VarArray.repeat<?R>(null, blockSize);
-      blocks[i] := newBlock;
-      var j = 0;
-
-      while (j < blockSize) {
-        switch (oldBlock[j]) {
-          case (?item) newBlock[j] := switch (f(item)) {
-            case (#ok x) ?x;
-            case (#err e) switch (error) {
-              case (null) {
-                error := ?e;
-                null
-              };
-              case (?_) null
-            }
-          };
-          case null return switch (error) {
-            case (null) return #ok {
-              var blocks = blocks;
-              var blockIndex = list.blockIndex;
-              var elementIndex = list.elementIndex
-            };
-            case (?e) return #err e
-          }
-        };
-        j += 1
-      };
-      i += 1
-    };
-
-    switch (error) {
-      case (null) return #ok {
-        var blocks = blocks;
-        var blockIndex = list.blockIndex;
-        var elementIndex = list.elementIndex
-      };
-      case (?e) return #err e
-    }
-  };
-
   /// Returns a new list containing only the elements from `list` for which the predicate returns true.
   ///
   /// Example:
@@ -897,23 +732,8 @@ module {
     result
   };
 
-  /// Returns the current number of elements in the list.
-  ///
-  /// Example:
-  /// ```motoko include=import
-  /// let list = List.empty<Nat>();
-  /// assert List.size(list) == 0
-  /// ```
-  ///
-  /// Runtime: `O(1)` (with some internal calculations)
-  public func size<T>(
-    list : {
-      var blockIndex : Nat;
-      var elementIndex : Nat
-    }
-  ) : Nat {
-    let d = Nat32.fromNat(list.blockIndex);
-    let i = Nat32.fromNat(list.elementIndex);
+  func indexByBlockElement<T>(blockIndex : Nat, elementIndex : Nat) : Nat {
+    let d = Nat32.fromNat(blockIndex);
 
     // We call all data blocks of the same capacity an "epoch". We number the epochs 0,1,2,...
     // A data block is in epoch e iff the data block has capacity 2 ** e.
@@ -935,7 +755,7 @@ module {
 
     // there can be overflows, but the result is without overflows, so use addWrap and subWrap
     // we don't erase bits by >>, so to use <>> is ok
-    Nat32.toNat((d -% (1 <>> lz)) <>> lz +% Nat32.fromNat(element))
+    Nat32.toNat((d -% (1 <>> lz)) <>> lz +% Nat32.fromNat(elementIndex))
   };
 
   /// Returns the current number of elements in the list.

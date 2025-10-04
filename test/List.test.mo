@@ -1295,12 +1295,12 @@ func testRange(n : Nat) : Bool {
   true
 };
 
-func testSubArray(n : Nat) : Bool {
+func testSliceToArray(n : Nat) : Bool {
   if (n > 10) return true; // Skip large ranges for performance
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   for (left in Nat.range(0, n)) {
     for (right in Nat.range(left, n + 1)) {
-      let slice = List.subArray<Nat>(vec, left, right);
+      let slice = List.sliceToArray<Nat>(vec, left, right);
       let expected = Array.tabulate<Nat>(right - left, func(i) = left + i);
       if (slice != expected) {
         Debug.print(
@@ -1656,7 +1656,7 @@ func testNextIndexOf(n : Nat) : Bool {
   let vec = List.tabulate<Nat>(n, func(i) = i);
   for (from in Nat.range(0, n)) {
     for (element in Nat.range(0, n + 1)) {
-      let actual = List.nextIndexOf<Nat>(vec, element, from, Nat.equal);
+      let actual = List.nextIndexOf<Nat>(vec, Nat.equal, element, from);
       let expected = nextIndexOf(vec, element, from);
       if (expected != actual) {
         Debug.print(
@@ -1686,7 +1686,7 @@ func testPrevIndexOf(n : Nat) : Bool {
   let vec = List.tabulate<Nat>(n, func(i) = i);
   for (from in Nat.range(0, n + 1)) {
     for (element in Nat.range(0, n + 1)) {
-      let actual = List.prevIndexOf<Nat>(vec, element, from, Nat.equal);
+      let actual = List.prevIndexOf<Nat>(vec, Nat.equal, element, from);
       let expected = prevIndexOf(vec, element, from);
       if (expected != actual) {
         Debug.print(
@@ -1762,7 +1762,7 @@ func runAllTests() {
   runTest("testMapInPlace", testMapInPlace);
   runTest("testFlatMap", testFlatMap);
   runTest("testRange", testRange);
-  runTest("testSubArray", testSubArray);
+  runTest("testSliceToArray", testSliceToArray);
   runTest("testIndexOf", testIndexOf);
   runTest("testLastIndexOf", testLastIndexOf);
   runTest("testContains", testContains);

@@ -14,12 +14,9 @@
 
 import PureList "pure/List";
 import Prim "mo:⛔";
-import Result "Result";
 import Nat32 "Nat32";
 import Array "Array";
-import Iter "Iter";
 import Nat "Nat";
-import Order "Order";
 import Option "Option";
 import VarArray "VarArray";
 import Types "Types";
@@ -369,7 +366,7 @@ module {
   /// Runtime: O(number of elements in list)
   ///
   /// Space: O(number of elements in list)
-  public func join<T>(lists : Iter.Iter<List<T>>) : List<T> {
+  public func join<T>(lists : Types.Iter<List<T>>) : List<T> {
     var result = empty<T>();
     for (list in lists) {
       reserve(result, size(list));
@@ -558,7 +555,7 @@ module {
   /// Space: O(size)
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
-  public func mapResult<T, R, E>(list : List<T>, f : T -> Result.Result<R, E>) : Result.Result<List<R>, E> {
+  public func mapResult<T, R, E>(list : List<T>, f : T -> Types.Result<R, E>) : Types.Result<List<R>, E> {
     var error : ?E = null;
 
     let blocks = VarArray.repeat<[var ?R]>([var], list.blocks.size());
@@ -706,7 +703,7 @@ module {
   ///
   /// Space: O(size)
   /// *Runtime and space assumes that `k` runs in O(1) time and space.
-  public func flatMap<T, R>(list : List<T>, k : T -> Iter.Iter<R>) : List<R> {
+  public func flatMap<T, R>(list : List<T>, k : T -> Types.Iter<R>) : List<R> {
     let result = empty<R>();
 
     let blocks = list.blocks;
@@ -1045,7 +1042,7 @@ module {
   ///
   /// Space: O(size)
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func sortInPlace<T>(list : List<T>, compare : (T, T) -> Order.Order) {
+  public func sortInPlace<T>(list : List<T>, compare : (T, T) -> Types.Order) {
     if (size(list) < 2) return;
     let array = toVarArray(list);
 
@@ -1089,7 +1086,7 @@ module {
   ///
   /// Space: O(size)
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func sort<T>(list : List<T>, compare : (T, T) -> Order.Order) : List<T> {
+  public func sort<T>(list : List<T>, compare : (T, T) -> Types.Order) : List<T> {
     let array = toVarArray(list);
     VarArray.sortInPlace(array, compare);
     fromVarArray(array)
@@ -1117,7 +1114,7 @@ module {
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat {
     if (isEmpty(list)) return null;
-    nextIndexOf<T>(list, element, 0, equal)
+    nextIndexOf<T>(list, equal, element, 0)
   };
 
   /// Returns the index of the next occurence of `element` in the `list` starting from the `from` index (inclusive).
@@ -1137,7 +1134,7 @@ module {
   /// Space: O(1)
   ///
   /// *Runtime and space assumes that `equal` runs in O(1) time and space.
-  public func nextIndexOf<T>(list : List<T>, element : T, fromInclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
+  public func nextIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T, fromInclusive : Nat) : ?Nat {
     if (fromInclusive >= size(list)) Prim.trap "List index out of bounds in nextIndexOf";
 
     let (blockIndex, elementIndex) = locate(fromInclusive);
@@ -1182,9 +1179,9 @@ module {
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func lastIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T) : ?Nat = prevIndexOf<T>(
     list,
+    equal,
     element,
-    size(list),
-    equal
+    size(list)
   );
 
   /// Returns the index of the previous occurence of `element` in the `list` starting from the `from` index (exclusive).
@@ -1201,7 +1198,7 @@ module {
   /// Runtime: O(size)
   ///
   /// Space: O(1)
-  public func prevIndexOf<T>(list : List<T>, element : T, fromExclusive : Nat, equal : (T, T) -> Bool) : ?Nat {
+  public func prevIndexOf<T>(list : List<T>, equal : (T, T) -> Bool, element : T, fromExclusive : Nat) : ?Nat {
     if (fromExclusive > size(list)) Prim.trap "List index out of bounds in prevIndexOf";
 
     let blocks = list.blocks;
@@ -1349,7 +1346,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in `O(1)` time and space.
-  public func binarySearch<T>(list : List<T>, compare : (T, T) -> Order.Order, element : T) : {
+  public func binarySearch<T>(list : List<T>, compare : (T, T) -> Types.Order, element : T) : {
     #found : Nat;
     #insertionIndex : Nat
   } {
@@ -1512,7 +1509,7 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
-  public func values<T>(list : List<T>) : Iter.Iter<T> = object {
+  public func values<T>(list : List<T>) : Types.Iter<T> = object {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
@@ -1559,7 +1556,7 @@ module {
   /// Runtime: `O(1)`
   ///
   /// Warning: Allocates memory on the heap to store ?(Nat, T).
-  public func enumerate<T>(list : List<T>) : Iter.Iter<(Nat, T)> = object {
+  public func enumerate<T>(list : List<T>) : Types.Iter<(Nat, T)> = object {
     let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
@@ -1610,7 +1607,7 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
-  public func reverseValues<T>(list : List<T>) : Iter.Iter<T> = object {
+  public func reverseValues<T>(list : List<T>) : Types.Iter<T> = object {
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
     var db : [var ?T] = if (blockIndex < list.blocks.size()) {
@@ -1652,7 +1649,7 @@ module {
   /// Runtime: `O(1)`
   ///
   /// Warning: Allocates memory on the heap to store ?(T, Nat).
-  public func reverseEnumerate<T>(list : List<T>) : Iter.Iter<(Nat, T)> = object {
+  public func reverseEnumerate<T>(list : List<T>) : Types.Iter<(Nat, T)> = object {
     var i = size(list);
     var blockIndex = list.blockIndex;
     var elementIndex = list.elementIndex;
@@ -1698,7 +1695,7 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
-  public func keys<T>(list : List<T>) : Iter.Iter<Nat> = Nat.range(0, size(list));
+  public func keys<T>(list : List<T>) : Types.Iter<Nat> = Nat.range(0, size(list));
 
   /// Creates a new List containing all elements from the provided iterator.
   /// Elements are added in the order they are returned by the iterator.
@@ -1716,7 +1713,7 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
-  public func fromIter<T>(iter : Iter.Iter<T>) : List<T> {
+  public func fromIter<T>(iter : Types.Iter<T>) : List<T> {
     let list = empty<T>();
     for (element in iter) add(list, element);
     list
@@ -1741,7 +1738,7 @@ module {
   /// The maximum number of elements in a `List` is 2^32.
   ///
   /// Runtime: `O(size)`, where n is the size of iter.
-  public func addAll<T>(list : List<T>, iter : Iter.Iter<T>) {
+  public func addAll<T>(list : List<T>, iter : Types.Iter<T>) {
     for (element in iter) add(list, element)
   };
 
@@ -2086,7 +2083,7 @@ module {
   /// Runtime: O(1)
   ///
   /// Space: O(1)
-  public func range<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : Iter.Iter<T> = object {
+  public func range<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : Types.Iter<T> = object {
     let (start, end) = actualInterval(fromInclusive, toExclusive, size(list));
     let blocks = list.blocks.size();
     var blockIndex = 0;
@@ -2134,7 +2131,7 @@ module {
   /// Runtime: O(toExclusive - fromInclusive)
   ///
   /// Space: O(toExclusive - fromInclusive)
-  public func subArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T] {
+  public func sliceToArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T] {
     let (start, end) = actualInterval(fromInclusive, toExclusive, size(list));
     let blocks = list.blocks.size();
     var blockIndex = 0;
@@ -2300,7 +2297,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func max<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T {
+  public func max<T>(list : List<T>, compare : (T, T) -> Types.Order) : ?T {
     var maxSoFar : T = switch (first(list)) {
       case (?x) x;
       case null return null
@@ -2352,7 +2349,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func min<T>(list : List<T>, compare : (T, T) -> Order.Order) : ?T {
+  public func min<T>(list : List<T>, compare : (T, T) -> Types.Order) : ?T {
     var minSoFar : T = switch (first(list)) {
       case (?x) x;
       case null return null
@@ -2454,7 +2451,7 @@ module {
   /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order {
+  public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Types.Order) : Types.Order {
     let blocks1 = list1.blocks;
     let blocks2 = list2.blocks;
     let blockCount = Nat.min(blocks1.size(), blocks2.size());

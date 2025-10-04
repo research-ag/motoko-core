@@ -1,5 +1,9 @@
 ## Next
 
+* Add `isCleanReject` to `Error`, align reject code order with IC interface specification and improve comments (#401).
+* internal: updates `matchers` dev-dependency (#394).
+* Add `PriorityQueue` (#392).
+* Add support for Weak references (#388).
 * Clarify difference between `List` and `pure/List` in doc comments (#386).
 * Optimize methods in `List<T>` (#337).
 
@@ -7,6 +11,7 @@
 
 * Add `sliceToVarArray()` to `Array` and `VarArray` (#377).
 * **Breaking:** Standardize function argument order (#376).
+* Add `binarySearch()` to `Array`, `VarArray`, and `List` modules (#375).
 * Add example usage documentation to `Types` module (#374).
 * Address inconsistent treatment of empty iterators by range functions in `Int` and `Nat` (#369).
 * Fix corner cases in `Nat.rangeByInclusive()` (#368).

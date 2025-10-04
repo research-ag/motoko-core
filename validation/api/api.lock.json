@@ -4,6 +4,7 @@
     "exports": [
       "public func all<T>(array : [T], predicate : T -> Bool) : Bool",
       "public func any<T>(array : [T], predicate : T -> Bool) : Bool",
+      "public func binarySearch<T>(array : [T], compare : (T, T) -> Order.Order, element : T) : { #found : Nat; #insertionIndex : Nat }",
       "public func compare<T>(array1 : [T], array2 : [T], compare : (T, T) -> Order.Order) : Order.Order",
       "public func concat<T>(array1 : [T], array2 : [T]) : [T]",
       "public func empty<T>() : [T]",
@@ -27,7 +28,7 @@
       "public func lastIndexOf<T>(array : [T], equal : (T, T) -> Bool, element : T) : ?Nat",
       "public func map<T, R>(array : [T], f : T -> R) : [R]",
       "public func mapEntries<T, R>(array : [T], f : (T, Nat) -> R) : [R]",
-      "public func mapResult<T, R, E>(array : [T], f : T -> Result.Result<R, E>) : Result.Result<[R], E>",
+      "public func mapResult<T, R, E>(array : [T], f : T -> Types.Result<R, E>) : Types.Result<[R], E>",
       "public func nextIndexOf<T>(array : [T], equal : (T, T) -> Bool, element : T, fromInclusive : Nat) : ?Nat",
       "public func prevIndexOf<T>(array : [T], equal : (T, T) -> Bool, element : T, fromExclusive : Nat) : ?Nat",
       "public func range<T>(array : [T], fromInclusive : Int, toExclusive : Int) : Types.Iter<T>",
@@ -130,6 +131,7 @@
       "public let code : (error : Error) -> ErrorCode",
       "public type Error",
       "public type ErrorCode",
+      "public func isCleanReject(error : Error) : Bool",
       "public func isRetryPossible(error : Error) : Bool",
       "public let message : (error : Error) -> Text",
       "public let reject : (message : Text) -> Error"
@@ -514,6 +516,7 @@
       "public func all<T>(list : List<T>, predicate : T -> Bool) : Bool",
       "public func any<T>(list : List<T>, predicate : T -> Bool) : Bool",
       "public func at<T>(list : List<T>, index : Nat) : T",
+      "public func binarySearch<T>(list : List<T>, compare : (T, T) -> Order.Order, element : T) : { #found : Nat; #insertionIndex : Nat }",
       "public func clear<T>(list : List<T>)",
       "public func clone<T>(list : List<T>) : List<T>",
       "public func compare<T>(list1 : List<T>, list2 : List<T>, compare : (T, T) -> Order.Order) : Order.Order",
@@ -564,7 +567,7 @@
       "public func reverseInPlace<T>(list : List<T>)",
       "public func reverseValues<T>(list : List<T>) : Iter.Iter<T>",
       "public func singleton<T>(element : T) : List<T>",
-      "public func size<T>( list : { var blockIndex : Nat; var elementIndex : Nat } ) : Nat",
+      "public func size<T>(list : List<T>) : Nat",
       "public func sort<T>(list : List<T>, compare : (T, T) -> Order.Order) : List<T>",
       "public func sortInPlace<T>(list : List<T>, compare : (T, T) -> Order.Order)",
       "public func subArray<T>(list : List<T>, fromInclusive : Int, toExclusive : Int) : [T]",
@@ -916,6 +919,20 @@
     ]
   },
   {
+    "name": "PriorityQueue",
+    "exports": [
+      "public func clear<T>(priorityQueue : PriorityQueue<T>)",
+      "public func empty<T>() : PriorityQueue<T>",
+      "public func isEmpty<T>(priorityQueue : PriorityQueue<T>) : Bool",
+      "public func peek<T>(priorityQueue : PriorityQueue<T>) : ?T",
+      "public func pop<T>( priorityQueue : PriorityQueue<T>, compare : (T, T) -> Order.Order ) : ?T",
+      "public type PriorityQueue<T>",
+      "public func push<T>( priorityQueue : PriorityQueue<T>, compare : (T, T) -> Order.Order, element : T )",
+      "public func singleton<T>(element : T) : PriorityQueue<T>",
+      "public func size<T>(priorityQueue : PriorityQueue<T>) : Nat"
+    ]
+  },
+  {
     "name": "Queue",
     "exports": [
       "public func all<T>(queue : Queue<T>, predicate : T -> Bool) : Bool",
@@ -1200,6 +1217,7 @@
       "public type Order",
       "public type Pattern",
       "public type Principal",
+      "public type PriorityQueue<T>",
       "public type Queue<T>",
       "public type Region",
       "public type Result<T, E>",
@@ -1215,6 +1233,7 @@
     "exports": [
       "public func all<T>(array : [var T], predicate : T -> Bool) : Bool",
       "public func any<T>(array : [var T], predicate : T -> Bool) : Bool",
+      "public func binarySearch<T>(array : [var T], compare : (T, T) -> Order.Order, element : T) : { #found : Nat; #insertionIndex : Nat }",
       "public func clone<T>(array : [var T]) : [var T]",
       "public func compare<T>(array1 : [var T], array2 : [var T], compare : (T, T) -> Order.Order) : Order.Order",
       "public func concat<T>(array1 : [var T], array2 : [var T]) : [var T]",
@@ -1255,6 +1274,14 @@
       "public func tabulate<T>(size : Nat, generator : Nat -> T) : [var T]",
       "public func toText<T>(array : [var T], f : T -> Text) : Text",
       "public func values<T>(array : [var T]) : Types.Iter<T>"
+    ]
+  },
+  {
+    "name": "WeakReference",
+    "exports": [
+      "public func allocate<T>(obj : T) : WeakReference<T>",
+      "public func get<T>(weakRef : WeakReference<T>) : ?T",
+      "public func isLive<T>(weakRef : WeakReference<T>) : Bool"
     ]
   },
   {

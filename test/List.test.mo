@@ -18,6 +18,109 @@ import PureList "../src/pure/List";
 import VarArray "../src/VarArray";
 import Option "../src/Option";
 
+// IMPLEMENTATION DETAILS BEGIN
+
+// The structure of list is as follows:
+// number of block - size
+// 0 - 0
+// 1 - 1
+// 2 - 1
+// 3 - 2
+// ...
+// 5 - 2
+// 6 - 4
+// ...
+// 11 - 4
+// 12 - 8
+// ...
+// 23 - 8
+// 24 - 16
+// ...
+// 47 - 16
+// ..
+// 3 * 2 ** i - 2 ** (i + 1)
+// 3 * 2 ** (i + 1) - 2 ** (i + 1)
+// ...
+
+func locate_readable<X>(index : Nat) : (Nat, Nat) {
+  // index is any Nat32 except for
+  // blocks before super block s == 2 ** s
+  let i = Nat32.fromNat(index);
+  // element with index 0 located in data block with index 1
+  if (i == 0) {
+    return (1, 0)
+  };
+  let lz = Nat32.bitcountLeadingZero(i);
+  // super block s = bit length - 1 = (32 - leading zeros) - 1
+  // i in binary = zeroes; 1; bits blocks mask; bits element mask
+  // bit lengths =     lz; 1;     floor(s / 2);       ceil(s / 2)
+  let s = 31 - lz;
+  // floor(s / 2)
+  let down = s >> 1;
+  // ceil(s / 2) = floor((s + 1) / 2)
+  let up = (s + 1) >> 1;
+  // element mask = ceil(s / 2) ones in binary
+  let e_mask = 1 << up - 1;
+  //block mask = floor(s / 2) ones in binary
+  let b_mask = 1 << down - 1;
+  // data blocks in even super blocks before current = 2 ** ceil(s / 2)
+  // data blocks in odd super blocks before current = 2 ** floor(s / 2)
+  // data blocks before the super block = element mask + block mask
+  // elements before the super block = 2 ** s
+  // first floor(s / 2) bits in index after the highest bit = index of data block in super block
+  // the next ceil(s / 2) to the end of binary representation of index + 1 = index of element in data block
+  (Nat32.toNat(e_mask + b_mask + 2 + (i >> up) & b_mask), Nat32.toNat(i & e_mask))
+};
+
+// this was optimized in terms of instructions
+func locate_optimal<X>(index : Nat) : (Nat, Nat) {
+  // super block s = bit length - 1 = (32 - leading zeros) - 1
+  // blocks before super block s == 2 ** s
+  let i = Nat32.fromNat(index);
+  let lz = Nat32.bitcountLeadingZero(i);
+  let lz2 = lz >> 1;
+  // we split into cases to apply different optimizations in each one
+  if (lz & 1 == 0) {
+    // ceil(s / 2)  = 16 - lz2
+    // floor(s / 2) = 15 - lz2
+    // i in binary = zeroes; 1; bits blocks mask; bits element mask
+    // bit lengths =     lz; 1;         15 - lz2;          16 - lz2
+    // blocks before = 2 ** ceil(s / 2) + 2 ** floor(s / 2)
+
+    // so in order to calculate index of the data block
+    // we need to shift i by 16 - lz2 and set bit with number 16 - lz2, bit 15 - lz2 is already set
+
+    // element mask = 2 ** (16 - lz2) = (1 << 16) >> lz2 = 0xFFFF >> lz2
+    let mask = 0xFFFF >> lz2;
+    (Nat32.toNat(((i << lz2) >> 16) ^ (0x10000 >> lz2)), Nat32.toNat(i & mask))
+  } else {
+    // s / 2 = ceil(s / 2) = floor(s / 2) = 15 - lz2
+    // i in binary = zeroes; 1; bits blocks mask; bits element mask
+    // bit lengths =     lz; 1;         15 - lz2;          15 - lz2
+    // block mask = element mask = mask = 2 ** (s / 2) - 1 = 2 ** (15 - lz2) - 1 = (1 << 15) >> lz2 = 0x7FFF >> lz2
+    // blocks before = 2 * 2 ** (s / 2)
+
+    // so in order to calculate index of the data block
+    // we need to shift i by 15 - lz2, set bit with number 16 - lz2 and unset bit 15 - lz2
+
+    let mask = 0x7FFF >> lz2;
+    (Nat32.toNat(((i << lz2) >> 15) ^ (0x18000 >> lz2)), Nat32.toNat(i & mask))
+  }
+};
+
+let locate_n = 1_000;
+var i = 0;
+while (i < locate_n) {
+  assert (locate_readable(i) == locate_optimal(i));
+  assert (locate_readable(1_000_000 + i) == locate_optimal(1_000_000 + i));
+  assert (locate_readable(1_000_000_000 + i) == locate_optimal(1_000_000_000 + i));
+  assert (locate_readable(2_000_000_000 + i) == locate_optimal(2_000_000_000 + i));
+  assert (locate_readable(2 ** 32 - 1 - i : Nat) == locate_optimal(2 ** 32 - 1 - i : Nat));
+  i += 1
+};
+
+// IMPLEMENTATION DETAILS END
+
 func assertValid(list : List.List<Nat>) {
   let blocks = list.blocks;
   let blockCount = blocks.size();
@@ -1207,6 +1310,12 @@ func testClear(n : Nat) : Bool {
 };
 
 func testClone(n : Nat) : Bool {
+  if (n == 0) {
+    let vec1 = List.empty<Nat>();
+    let vec2 = List.clone(vec1);
+    assertValid(vec2);
+    if (not List.equal(vec1, vec2, Nat.equal)) return false
+  };
   let vec1 = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   assertValid(vec1);
   let vec2 = List.clone(vec1);
@@ -1215,6 +1324,11 @@ func testClone(n : Nat) : Bool {
 };
 
 func testMap(n : Nat) : Bool {
+  if (n == 0) {
+    let vec = List.map<Nat, Nat>(List.empty<Nat>(), func x = x * 2);
+    assertValid(vec);
+    if (not List.equal(List.empty<Nat>(), vec, Nat.equal)) return false
+  };
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   assertValid(vec);
   let mapped = List.map<Nat, Nat>(vec, func(x) = x * 2);
@@ -1341,9 +1455,15 @@ func testContains(n : Nat) : Bool {
 func testReverse(n : Nat) : Bool {
   let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i));
   assertValid(vec);
+  let reversed = List.reverse<Nat>(vec);
+  assertValid(reversed);
   List.reverseInPlace(vec);
   assertValid(vec);
-  List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal)
+
+  let inPlaceEqual = List.equal(vec, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal);
+  let reversedEqual = List.equal(reversed, List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = n - 1 - i)), Nat.equal);
+
+  inPlaceEqual and reversedEqual
 };
 
 func testSort(n : Nat) : Bool {
@@ -1496,6 +1616,38 @@ func testForEach(n : Nat) : Bool {
   };
 
   true
+};
+
+func testBinarySearch(n : Nat) : Bool {
+  let vec = List.fromArray<Nat>(Array.tabulate<Nat>(n, func(i) = i * 2));
+  if (n == 0) {
+    return List.binarySearch(vec, Nat.compare, 0) == #insertionIndex(0) and List.binarySearch(vec, Nat.compare, 1) == #insertionIndex(0)
+  };
+  for (i in Nat.range(0, n)) {
+    let value = i * 2;
+    let index = List.binarySearch(vec, Nat.compare, value);
+    if (index != #found i) {
+      Debug.print("binarySearch failed for value = " # Nat.toText(value) # ", expected #found " # Nat.toText(i) # ", got " # debug_show (index));
+      Debug.print("vec = " # debug_show (vec));
+      return false
+    };
+    let notFoundIndex = List.binarySearch(vec, Nat.compare, value + 1);
+    if (notFoundIndex != #insertionIndex(i + 1)) {
+      Debug.print("binarySearch should have returned null for value = " # Nat.toText(value + 1) # ", but got " # debug_show (notFoundIndex));
+      return false
+    }
+  };
+  do {
+    let vec = List.repeat<Nat>(0, n);
+    switch (List.binarySearch(vec, Nat.compare, 0)) {
+      case (#insertionIndex index) {
+        Debug.print("binarySearch on all-equal elements failed, expected #found 0, got #insertionIndex " # Nat.toText(index));
+        return false
+      };
+      case (_) {}
+    }
+  };
+  List.binarySearch(vec, Nat.compare, n * 2) == #insertionIndex(n)
 };
 
 func testFlatten(n : Nat) : Bool {
@@ -1707,6 +1859,7 @@ func runAllTests() {
   runTest("testPure", testPure);
   runTest("testReverseForEach", testReverseForEach);
   runTest("testForEach", testForEach);
+  runTest("testBinarySearch", testBinarySearch);
   runTest("testFlatten", testFlatten);
   runTest("testJoin", testJoin);
   runTest("testTabulate", testTabulate);
@@ -1822,6 +1975,82 @@ Test.suite(
       func() {
         Test.expect.bool(List.min(empty, Nat.compare) == null).equal(true);
         Test.expect.bool(List.min(emptied, Nat.compare) == null).equal(true)
+      }
+    );
+    Test.test(
+      "binarySearch",
+      func() {
+        let result1 = List.binarySearch<Nat>(empty, Nat.compare, 0);
+        let result2 = List.binarySearch<Nat>(emptied, Nat.compare, 0);
+        Test.expect.bool(result1 == #insertionIndex(0)).equal(true);
+        Test.expect.bool(result2 == #insertionIndex(0)).equal(true)
+      }
+    )
+  }
+);
+
+// Additional binarySearch tests
+Test.suite(
+  "binarySearch",
+  func() {
+    Test.test(
+      "found",
+      func() {
+        let list = List.fromArray<Nat>([1, 3, 5, 7, 9, 11]);
+        let result = List.binarySearch<Nat>(list, Nat.compare, 5);
+        Test.expect.bool(result == #found(2)).equal(true)
+      }
+    );
+    Test.test(
+      "not found",
+      func() {
+        let list = List.fromArray<Nat>([1, 3, 5, 7, 9, 11]);
+        let result = List.binarySearch<Nat>(list, Nat.compare, 6);
+        Test.expect.bool(result == #insertionIndex(3)).equal(true)
+      }
+    );
+    Test.test(
+      "first element",
+      func() {
+        let list = List.fromArray<Nat>([1, 3, 5, 7, 9, 11]);
+        let result = List.binarySearch<Nat>(list, Nat.compare, 1);
+        Test.expect.bool(result == #found(0)).equal(true)
+      }
+    );
+    Test.test(
+      "last element",
+      func() {
+        let list = List.fromArray<Nat>([1, 3, 5, 7, 9, 11]);
+        let result = List.binarySearch<Nat>(list, Nat.compare, 11);
+        Test.expect.bool(result == #found(5)).equal(true)
+      }
+    );
+    Test.test(
+      "single element found",
+      func() {
+        let list = List.fromArray<Nat>([42]);
+        let result = List.binarySearch<Nat>(list, Nat.compare, 42);
+        Test.expect.bool(result == #found(0)).equal(true)
+      }
+    );
+    Test.test(
+      "single element not found",
+      func() {
+        let list = List.fromArray<Nat>([42]);
+        let result = List.binarySearch<Nat>(list, Nat.compare, 43);
+        Test.expect.bool(result == #insertionIndex(1)).equal(true)
+      }
+    );
+    Test.test(
+      "duplicates",
+      func() {
+        let list = List.fromArray<Nat>([1, 2, 2, 2, 3]);
+        let result = List.binarySearch<Nat>(list, Nat.compare, 2);
+        let ok = switch result {
+          case (#found index) { index >= 1 and index <= 3 };
+          case _ { false }
+        };
+        Test.expect.bool(ok).equal(true)
       }
     )
   }

@@ -1122,11 +1122,11 @@ module {
   /// ```motoko include=import
   /// import Char "mo:core/Char";
   /// let list = List.fromArray<Char>(['c', 'o', 'f', 'f', 'e', 'e']);
-  /// assert List.nextIndexOf<Char>(list, 'c', 0, Char.equal) == ?0;
-  /// assert List.nextIndexOf<Char>(list, 'f', 0, Char.equal) == ?2;
-  /// assert List.nextIndexOf<Char>(list, 'f', 2, Char.equal) == ?2;
-  /// assert List.nextIndexOf<Char>(list, 'f', 3, Char.equal) == ?3;
-  /// assert List.nextIndexOf<Char>(list, 'f', 4, Char.equal) == null;
+  /// assert List.nextIndexOf<Char>(list, Char.equal, 'c', 0) == ?0;
+  /// assert List.nextIndexOf<Char>(list, Char.equal, 'f', 0) == ?2;
+  /// assert List.nextIndexOf<Char>(list, Char.equal, 'f', 2) == ?2;
+  /// assert List.nextIndexOf<Char>(list, Char.equal, 'f', 3) == ?3;
+  /// assert List.nextIndexOf<Char>(list, Char.equal, 'f', 4) == null;
   /// ```
   ///
   /// Runtime: O(size)
@@ -1189,10 +1189,10 @@ module {
   /// ```motoko include=import
   /// import Char "mo:core/Char";
   /// let list = List.fromArray<Char>(['c', 'o', 'f', 'f', 'e', 'e']);
-  /// assert List.prevIndexOf<Char>(list, 'c', List.size(list), Char.equal) == ?0;
-  /// assert List.prevIndexOf<Char>(list, 'e', List.size(list), Char.equal) == ?5;
-  /// assert List.prevIndexOf<Char>(list, 'e', 5, Char.equal) == ?4;
-  /// assert List.prevIndexOf<Char>(list, 'e', 4, Char.equal) == null;
+  /// assert List.prevIndexOf<Char>(list, Char.equal, 'c', List.size(list)) == ?0;
+  /// assert List.prevIndexOf<Char>(list, Char.equal, 'e', List.size(list)) == ?5;
+  /// assert List.prevIndexOf<Char>(list, Char.equal, 'e', 5) == ?4;
+  /// assert List.prevIndexOf<Char>(list, Char.equal, 'e', 4) == null;
   /// ```
   ///
   /// Runtime: O(size)
@@ -1671,7 +1671,7 @@ module {
           i -= 1;
           return ?(i, x)
         };
-        case (_) Prim.trap(INTERNAL_ERROR)
+        case (_) Prim.trap INTERNAL_ERROR
       }
     }
   };
@@ -1763,10 +1763,10 @@ module {
     func generator(_ : Nat) : T {
       if (elementIndex == sz) {
         blockIndex += 1;
-        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
+        if (blockIndex >= blocks) Prim.trap INTERNAL_ERROR;
         db := list.blocks[blockIndex];
         sz := db.size();
-        if (sz == 0) Prim.trap(INTERNAL_ERROR);
+        if (sz == 0) Prim.trap INTERNAL_ERROR;
         elementIndex := 0
       };
       switch (db[elementIndex]) {
@@ -1774,7 +1774,7 @@ module {
           elementIndex += 1;
           return x
         };
-        case (_) Prim.trap(INTERNAL_ERROR)
+        case (_) Prim.trap INTERNAL_ERROR
       }
     };
 
@@ -2118,7 +2118,6 @@ module {
   func sliceToArrayBase<T>(list : List<T>, start : Nat) : {
     next(i : Nat) : T
   } = object {
-    let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
     if (start != 0) {
@@ -2132,10 +2131,8 @@ module {
     public func next(i : Nat) : T {
       if (elementIndex == dbSize) {
         blockIndex += 1;
-        if (blockIndex >= blocks) Prim.trap(INTERNAL_ERROR);
         db := list.blocks[blockIndex];
         dbSize := db.size();
-        if (dbSize == 0) Prim.trap(INTERNAL_ERROR);
         elementIndex := 0
       };
       switch (db[elementIndex]) {
@@ -2143,7 +2140,7 @@ module {
           elementIndex += 1;
           return x
         };
-        case null Prim.trap(INTERNAL_ERROR)
+        case null Prim.trap INTERNAL_ERROR
       }
     }
   };
@@ -2176,10 +2173,10 @@ module {
   /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   ///
   /// let slice1 = List.sliceToVarArray<Nat>(array, 1, 4);
-  /// assert slice1 == [var 2, 3, 4];
+  /// assert VarArray.equal(slice1, [var 2, 3, 4], Nat.equal);
   ///
   /// let slice2 = List.sliceToVarArray<Nat>(array, 1, -1);
-  /// assert slice2 == [var 2, 3, 4];
+  /// assert VarArray.equal(slice2, [var 2, 3, 4], Nat.equal);
   /// ```
   ///
   /// Runtime: O(toExclusive - fromInclusive)

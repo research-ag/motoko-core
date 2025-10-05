@@ -2171,6 +2171,7 @@ module {
   ///
   /// ```motoko include=import
   /// import VarArray "mo:core/VarArray";
+  /// import Nat "mo:core/Nat";
   ///
   /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   ///

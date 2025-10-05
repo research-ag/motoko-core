@@ -2170,6 +2170,8 @@ module {
   /// If the indices are out of bounds, they are clamped to the array bounds.
   ///
   /// ```motoko include=import
+  /// import VarArray "mo:core/VarArray";
+  ///
   /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   ///
   /// let slice1 = List.sliceToVarArray<Nat>(array, 1, 4);

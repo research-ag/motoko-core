@@ -1754,7 +1754,6 @@ module {
   ///
   /// Runtime: `O(size)`
   public func toArray<T>(list : List<T>) : [T] {
-    let blocks = list.blocks.size();
     var blockIndex = 0;
     var elementIndex = 0;
     var sz = 0;
@@ -1763,10 +1762,8 @@ module {
     func generator(_ : Nat) : T {
       if (elementIndex == sz) {
         blockIndex += 1;
-        if (blockIndex >= blocks) Prim.trap INTERNAL_ERROR;
         db := list.blocks[blockIndex];
         sz := db.size();
-        if (sz == 0) Prim.trap INTERNAL_ERROR;
         elementIndex := 0
       };
       switch (db[elementIndex]) {

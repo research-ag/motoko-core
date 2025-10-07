@@ -1034,7 +1034,7 @@ module {
   /// List.add(list, 3);
   /// List.add(list, 1);
   /// List.add(list, 2);
-  /// List.sortInPlace(list, Nat.compare);
+  /// List.sort(list, Nat.compare);
   /// assert List.toArray(list) == [1, 2, 3];
   /// ```
   ///
@@ -1042,7 +1042,7 @@ module {
   ///
   /// Space: O(size)
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func sortInPlace<T>(list : List<T>, compare : (T, T) -> Types.Order) {
+  public func sort<T>(list : List<T>, compare : (T, T) -> Types.Order) {
     if (size(list) < 2) return;
     let array = toVarArray(list);
 
@@ -1070,26 +1070,6 @@ module {
       };
       i += 1
     }
-  };
-
-  /// Sorts the elements in the list according to `compare`.
-  /// Sort is deterministic and stable.
-  ///
-  /// ```motoko include=import
-  /// import Nat "mo:core/Nat";
-  ///
-  /// let list = List.fromArray<Nat>([4, 2, 6]);
-  /// let sorted = List.sort(list, Nat.compare);
-  /// assert List.toArray(sorted) == [2, 4, 6];
-  /// ```
-  /// Runtime: O(size * log(size))
-  ///
-  /// Space: O(size)
-  /// *Runtime and space assumes that `compare` runs in O(1) time and space.
-  public func sort<T>(list : List<T>, compare : (T, T) -> Types.Order) : List<T> {
-    let array = toVarArray(list);
-    VarArray.sortInPlace(array, compare);
-    fromVarArray(array)
   };
 
   /// Finds the first index of `element` in `list` using equality of elements defined

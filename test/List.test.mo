@@ -1141,7 +1141,7 @@ func testSort(n : Nat) : Bool {
   List.sortInPlace(vec, Int.compare);
 
   let expected = List.fromArray<Int>(Array.sort(array, Int.compare));
-  
+
   List.equal(vec, expected, Int.equal) and List.equal(sorted, expected, Int.equal)
 };
 

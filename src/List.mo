@@ -1110,7 +1110,7 @@ module {
   /// Runtime: O(size)
   ///
   /// Space: O(1)
-  public func isSorted<T>(list : List<T>, compare : (T, T) -> Order.Order) : Bool {
+  public func isSorted<T>(list : List<T>, compare : (T, T) -> Types.Order) : Bool {
     var prev = switch (first(list)) {
       case (?x) x;
       case _ return true

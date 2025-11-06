@@ -8,6 +8,18 @@
 * Add `PriorityQueue` (#392).
 * Add support for Weak references (#388).
 * Clarify difference between `List` and `pure/List` in doc comments (#386).
+* Added `tabulate` to `List` (#350).
+* Added `flatten` to `List` (#350).
+* Added `join` to `List` (#350).
+* Added `mapInPlace` to `List` (#350).
+* Added `mapEntries` to `List` (#350).
+* Added `mapResult` to `List` (#350).
+* Added `flatMap` to `List` (#350).
+* Added `nextIndexOf` to `List` (#350).
+* Added `prevIndexOf` to `List` (#350).
+* Added `range` to `List` (#350).
+* Added `sliceToArray` to `List` (#350).
+* Added `sliceToVarArray` to `List` (#350).
 * Optimize methods in `List<T>` (#337).
 
 ## 1.0.0

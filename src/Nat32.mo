@@ -64,7 +64,7 @@ module {
   /// ```
   /// @deprecated M0235
   public func fromNat8(x : Nat8) : Nat32 {
-    Prim.natToNat32(Prim.nat8ToNat(x))
+    Prim.nat16ToNat32(Prim.nat8ToNat16(x))
   };
 
   /// Converts a 16-bit unsigned integer to a 32-bit unsigned integer.

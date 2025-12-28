@@ -77,7 +77,7 @@ module {
   /// assert Int32.fromInt8(-123) == (-123 : Int32);
   /// ```
   public func fromInt8(x : Int8) : Int32 {
-    Prim.intToInt32(Prim.int8ToInt(x))
+    Prim.int16ToInt32(Prim.int8ToInt16(x))
   };
 
   /// Converts a 32-bit signed integer to an 8-bit signed integer.

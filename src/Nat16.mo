@@ -100,7 +100,7 @@ module {
   /// ```
   /// @deprecated M0235
   public func fromNat64(x : Nat64) : Nat16 {
-    Prim.natToNat16(Prim.nat64ToNat(x))
+    Prim.nat32ToNat16(Prim.nat64ToNat32(x))
   };
 
   /// Converts a 16-bit unsigned integer to a 64-bit unsigned integer.

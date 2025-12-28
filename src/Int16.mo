@@ -112,7 +112,7 @@ module {
   /// assert Int16.fromInt64(-12_345) == (-12_345 : Int16);
   /// ```
   public func fromInt64(x : Int64) : Int16 {
-    Prim.intToInt16(Prim.int64ToInt(x))
+    Prim.int32ToInt16(Prim.int64ToInt32(x))
   };
 
   /// Converts a 16-bit signed integer to a 64-bit signed integer.

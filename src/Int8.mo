@@ -118,8 +118,8 @@ module {
   /// ```motoko include=import
   /// assert Int8.toInt64(123) == (+123 : Int64);
   /// ```
-  public func toInt64(x : Int8) : Int64 {
-    Prim.int32ToInt64(Prim.int16ToInt32(Prim.int8ToInt16(x)))
+  public func toInt64(self : Int8) : Int64 {
+    Prim.int32ToInt64(Prim.int16ToInt32(Prim.int8ToInt16(self)))
   };
 
   /// Converts an unsigned 8-bit integer to a signed 8-bit integer.

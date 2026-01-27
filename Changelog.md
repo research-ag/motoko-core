@@ -1,8 +1,10 @@
 ## Next
 
+* Add Caffeine deprecation for `fromVarArray` and `fromArray` (#458).
 * **Breaking:** `Int8.fromInt32` no longer takes inappropriate `self` parameter (#456).
   Use `let` (not `func`) bindings to rebind `Prim` functions, reducing call overhead and some allocation.
 * Optimise various `fromIntX`, `toIntX` conversions (#455).
+* Optimize `VarArray/sortInPlace` (#453).
 * Fix error in documentation for `Float.nearest` (#449).
 * Makes `start` index in `List.reader` implicit with default `0`. (#447)
 

@@ -54,20 +54,19 @@ module {
   /// assert uri == "data:text/plain;base64,SGVsbG8=";
   /// ```
   public func encode(data : Blob) : Text {
-    let bytes = Blob.toArray(data);
     var result = "";
     var i = 0;
-    while (i < bytes.size()) {
-      let b1 = bytes[i];
-      let b2 : Nat8 = if (i + 1 < bytes.size()) bytes[i + 1] else 0;
-      let b3 : Nat8 = if (i + 2 < bytes.size()) bytes[i + 2] else 0;
+    while (i < data.size()) {
+      let b1 = data[i];
+      let b2 : Nat8 = if (i + 1 < data.size()) data[i + 1] else 0;
+      let b3 : Nat8 = if (i + 2 < data.size()) data[i + 2] else 0;
 
       let n = (Nat32.fromNat(Nat8.toNat(b1)) << 16) | (Nat32.fromNat(Nat8.toNat(b2)) << 8) | Nat32.fromNat(Nat8.toNat(b3));
 
       let c1 = Text.fromChar(alphabet[Nat32.toNat((n >> 18) & 0x3F)]);
       let c2 = Text.fromChar(alphabet[Nat32.toNat((n >> 12) & 0x3F)]);
-      let c3 = if (i + 1 < bytes.size()) Text.fromChar(alphabet[Nat32.toNat((n >> 6) & 0x3F)]) else "=";
-      let c4 = if (i + 2 < bytes.size()) Text.fromChar(alphabet[Nat32.toNat(n & 0x3F)]) else "=";
+      let c3 = if (i + 1 < data.size()) Text.fromChar(alphabet[Nat32.toNat((n >> 6) & 0x3F)]) else "=";
+      let c4 = if (i + 2 < data.size()) Text.fromChar(alphabet[Nat32.toNat(n & 0x3F)]) else "=";
 
       result #= c1 # c2 # c3 # c4;
       i += 3

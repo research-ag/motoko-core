@@ -67,12 +67,12 @@ module {
 
       let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
 
-      let c1 = alphabet[((n >> 18) & 0x3F).toNat()];
-      let c2 = alphabet[((n >> 12) & 0x3F).toNat()];
-      let c3 = alphabet[((n >> 6) & 0x3F).toNat()];
-      let c4 = alphabet[(n & 0x3F).toNat()];
+      result := result
+      # alphabet[((n >> 18) & 0x3F).toNat()]
+      # alphabet[((n >> 12) & 0x3F).toNat()]
+      # alphabet[((n >> 6) & 0x3F).toNat()]
+      # alphabet[(n & 0x3F).toNat()];
 
-      result := result # c1 # c2 # c3 # c4;
       i := next_i;
       next_i +%= 3
     };
@@ -88,7 +88,7 @@ module {
       let c3 = if (i +% 1 < sz) alphabet[((n >> 6) & 0x3F).toNat()] else "=";
       let c4 = if (i +% 2 < sz) alphabet[(n & 0x3F).toNat()] else "=";
 
-      result := result # c1 # c2 # c3 # c4;
+      result := result # c1 # c2 # c3 # c4
     };
     result
   };

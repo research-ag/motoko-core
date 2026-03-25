@@ -19,6 +19,7 @@
 import Nat8 "Nat8";
 import Nat16 "Nat16";
 import Nat32 "Nat32";
+import Nat64 "Nat64";
 import Text "Text";
 import Blob "Blob";
 
@@ -55,14 +56,14 @@ module {
   /// assert uri == "data:text/plain;base64,SGVsbG8=";
   /// ```
   public func encode(data : Blob) : Text {
-    let sz = data.size();
+    let sz = Nat64.fromIntWrap(data.size());
     var result = "";
-    var i = 0;
-    var next_i = 3;
+    var i = 0 : Nat64;
+    var next_i = 3 : Nat64;
     while (next_i <= sz) {
-      let b1 = data[i];
-      let b2 : Nat8 = data[i + 1];
-      let b3 : Nat8 = data[i + 2];
+      let b1 = data[i.toNat()];
+      let b2 : Nat8 = data[(i +% 1).toNat()];
+      let b3 : Nat8 = data[(i +% 2).toNat()];
 
       let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
 
@@ -73,19 +74,19 @@ module {
 
       result #= c1 # c2 # c3 # c4;
       i := next_i;
-      next_i += 3
+      next_i +%= 3
     };
     if (i < sz) {
-      let b1 = data[i];
-      let b2 : Nat8 = if (i + 1 < sz) data[i + 1] else 0;
-      let b3 : Nat8 = if (i + 2 < sz) data[i + 2] else 0;
+      let b1 = data[i.toNat()];
+      let b2 : Nat8 = if (i +% 1 < sz) data[(i +% 1).toNat()] else 0;
+      let b3 : Nat8 = if (i +% 2 < sz) data[(i +% 2).toNat()] else 0;
 
       let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
 
       let c1 = alphabet[((n >> 18) & 0x3F).toNat()];
       let c2 = alphabet[((n >> 12) & 0x3F).toNat()];
-      let c3 = if (i + 1 < sz) alphabet[((n >> 6) & 0x3F).toNat()] else "=";
-      let c4 = if (i + 2 < sz) alphabet[(n & 0x3F).toNat()] else "=";
+      let c3 = if (i +% 1 < sz) alphabet[((n >> 6) & 0x3F).toNat()] else "=";
+      let c4 = if (i +% 2 < sz) alphabet[(n & 0x3F).toNat()] else "=";
 
       result #= c1 # c2 # c3 # c4;
     };

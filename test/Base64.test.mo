@@ -16,6 +16,8 @@ suite(
         expect.text(Base64.encode("f" : Blob)).equal("Zg==");
         expect.text(Base64.encode("fo" : Blob)).equal("Zm8=");
         expect.text(Base64.encode("foo" : Blob)).equal("Zm9v");
+        expect.text(Base64.encode("foob" : Blob)).equal("Zm9vYg==");
+        expect.text(Base64.encode("fooba" : Blob)).equal("Zm9vYmE=");
         expect.text(Base64.encode("foobar" : Blob)).equal("Zm9vYmFy")
       }
     );

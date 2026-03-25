@@ -65,10 +65,10 @@ module {
 
       let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
 
-      let c1 = alphabet[Nat32.toNat((n >> 18) & 0x3F)];
-      let c2 = alphabet[Nat32.toNat((n >> 12) & 0x3F)];
-      let c3 = if (i + 1 < sz) alphabet[Nat32.toNat((n >> 6) & 0x3F)] else "=";
-      let c4 = if (i + 2 < sz) alphabet[Nat32.toNat(n & 0x3F)] else "=";
+      let c1 = alphabet[((n >> 18) & 0x3F).toNat()];
+      let c2 = alphabet[((n >> 12) & 0x3F).toNat()];
+      let c3 = if (i + 1 < sz) alphabet[((n >> 6) & 0x3F).toNat()] else "=";
+      let c4 = if (i + 2 < sz) alphabet[(n & 0x3F).toNat()] else "=";
 
       result #= c1 # c2 # c3 # c4;
       i += 3

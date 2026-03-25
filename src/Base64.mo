@@ -59,7 +59,7 @@ module {
     var result = "";
     var i = 0;
     var next_i = 3;
-    while (next_i < sz) {
+    while (next_i <= sz) {
       let b1 = data[i];
       let b2 : Nat8 = data[i + 1];
       let b3 : Nat8 = data[i + 2];

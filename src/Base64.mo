@@ -17,6 +17,7 @@
 /// ```
 
 import Nat8 "Nat8";
+import Nat16 "Nat16";
 import Nat32 "Nat32";
 import Text "Text";
 import Blob "Blob";
@@ -25,12 +26,12 @@ module {
 
   // Standard Base64 alphabet (RFC 4648 §4).
   // prettier-ignore
-  private let alphabet : [Char] = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
+  private let alphabet : [Text] = [
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+    "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "/"
   ];
 
   /// Encodes a `Blob` as a Base64 `Text` string (RFC 4648 §4).
@@ -54,23 +55,39 @@ module {
   /// assert uri == "data:text/plain;base64,SGVsbG8=";
   /// ```
   public func encode(data : Blob) : Text {
-    let bytes = Blob.toArray(data);
+    let sz = data.size();
     var result = "";
     var i = 0;
-    while (i < bytes.size()) {
-      let b1 = bytes[i];
-      let b2 : Nat8 = if (i + 1 < bytes.size()) bytes[i + 1] else 0;
-      let b3 : Nat8 = if (i + 2 < bytes.size()) bytes[i + 2] else 0;
+    var next_i = 3;
+    while (next_i <= sz) {
+      let b1 = data[i];
+      let b2 : Nat8 = data[i + 1];
+      let b3 : Nat8 = data[i + 2];
 
-      let n = (Nat32.fromNat(Nat8.toNat(b1)) << 16) | (Nat32.fromNat(Nat8.toNat(b2)) << 8) | Nat32.fromNat(Nat8.toNat(b3));
+      let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
 
-      let c1 = Text.fromChar(alphabet[Nat32.toNat((n >> 18) & 0x3F)]);
-      let c2 = Text.fromChar(alphabet[Nat32.toNat((n >> 12) & 0x3F)]);
-      let c3 = if (i + 1 < bytes.size()) Text.fromChar(alphabet[Nat32.toNat((n >> 6) & 0x3F)]) else "=";
-      let c4 = if (i + 2 < bytes.size()) Text.fromChar(alphabet[Nat32.toNat(n & 0x3F)]) else "=";
+      let c1 = alphabet[((n >> 18) & 0x3F).toNat()];
+      let c2 = alphabet[((n >> 12) & 0x3F).toNat()];
+      let c3 = alphabet[((n >> 6) & 0x3F).toNat()];
+      let c4 = alphabet[(n & 0x3F).toNat()];
 
       result #= c1 # c2 # c3 # c4;
-      i += 3
+      i := next_i;
+      next_i += 3
+    };
+    if (i < sz) {
+      let b1 = data[i];
+      let b2 : Nat8 = if (i + 1 < sz) data[i + 1] else 0;
+      let b3 : Nat8 = if (i + 2 < sz) data[i + 2] else 0;
+
+      let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
+
+      let c1 = alphabet[((n >> 18) & 0x3F).toNat()];
+      let c2 = alphabet[((n >> 12) & 0x3F).toNat()];
+      let c3 = if (i + 1 < sz) alphabet[((n >> 6) & 0x3F).toNat()] else "=";
+      let c4 = if (i + 2 < sz) alphabet[(n & 0x3F).toNat()] else "=";
+
+      result #= c1 # c2 # c3 # c4;
     };
     result
   };

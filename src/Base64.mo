@@ -25,12 +25,12 @@ module {
 
   // Standard Base64 alphabet (RFC 4648 §4).
   // prettier-ignore
-  private let alphabet : [Char] = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
+  private let alphabet : [Text] = [
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+    "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "/"
   ];
 
   /// Encodes a `Blob` as a Base64 `Text` string (RFC 4648 §4).
@@ -63,10 +63,10 @@ module {
 
       let n = (Nat32.fromNat(Nat8.toNat(b1)) << 16) | (Nat32.fromNat(Nat8.toNat(b2)) << 8) | Nat32.fromNat(Nat8.toNat(b3));
 
-      let c1 = Text.fromChar(alphabet[Nat32.toNat((n >> 18) & 0x3F)]);
-      let c2 = Text.fromChar(alphabet[Nat32.toNat((n >> 12) & 0x3F)]);
-      let c3 = if (i + 1 < data.size()) Text.fromChar(alphabet[Nat32.toNat((n >> 6) & 0x3F)]) else "=";
-      let c4 = if (i + 2 < data.size()) Text.fromChar(alphabet[Nat32.toNat(n & 0x3F)]) else "=";
+      let c1 = alphabet[Nat32.toNat((n >> 18) & 0x3F)];
+      let c2 = alphabet[Nat32.toNat((n >> 12) & 0x3F)];
+      let c3 = if (i + 1 < data.size()) alphabet[Nat32.toNat((n >> 6) & 0x3F)] else "=";
+      let c4 = if (i + 2 < data.size()) alphabet[Nat32.toNat(n & 0x3F)] else "=";
 
       result #= c1 # c2 # c3 # c4;
       i += 3

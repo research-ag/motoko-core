@@ -58,7 +58,24 @@ module {
     let sz = data.size();
     var result = "";
     var i = 0;
-    while (i < sz) {
+    var next_i = 3;
+    while (next_i < sz) {
+      let b1 = data[i];
+      let b2 : Nat8 = data[i + 1];
+      let b3 : Nat8 = data[i + 2];
+
+      let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
+
+      let c1 = alphabet[((n >> 18) & 0x3F).toNat()];
+      let c2 = alphabet[((n >> 12) & 0x3F).toNat()];
+      let c3 = alphabet[((n >> 6) & 0x3F).toNat()];
+      let c4 = alphabet[(n & 0x3F).toNat()];
+
+      result #= c1 # c2 # c3 # c4;
+      i := next_i;
+      next_i += 3
+    };
+    if (i < sz) {
       let b1 = data[i];
       let b2 : Nat8 = if (i + 1 < sz) data[i + 1] else 0;
       let b3 : Nat8 = if (i + 2 < sz) data[i + 2] else 0;
@@ -71,7 +88,6 @@ module {
       let c4 = if (i + 2 < sz) alphabet[(n & 0x3F).toNat()] else "=";
 
       result #= c1 # c2 # c3 # c4;
-      i += 3
     };
     result
   };

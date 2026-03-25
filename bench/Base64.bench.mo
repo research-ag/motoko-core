@@ -9,12 +9,12 @@ module {
   // Generate a Blob of zero bytes of given length
   func zeros(len : Nat) : Blob {
     Array.tabulate<Nat8>(len, func _ = 0)
-    |> Blob.fromArray(_);
+    |> Blob.fromArray(_)
   };
   // Generate a Blob of mixed bytes of given length
   func mixed(len : Nat) : Blob {
     Array.tabulate<Nat8>(len, func i = (i % 256).toNat8())
-    |> Blob.fromArray(_);
+    |> Blob.fromArray(_)
   };
 
   public func init() : Bench.V1 {
@@ -24,18 +24,21 @@ module {
       name = "Base64";
       description = "Compare zero bytes vs mixed bytes encoding to Base64";
       rows = Array.tabulate(nRows, func(i) = (10 ** i).toText());
-      cols = ["zero bytes", "mixed bytes"];
+      cols = ["zero bytes", "mixed bytes"]
     };
 
-    let inputs : [[Blob]] = Array.tabulate(
+    let routines : [[() -> ()]] = Array.tabulate(
       nRows,
-      func ri = [zeros(10 ** ri), mixed(10 ** ri)],
+      func(ri) {
+        let z = zeros(10 ** ri);
+        let m = mixed(10 ** ri);
+        [
+          func() { ignore Base64.encode(z) },
+          func() { ignore Base64.encode(m) }
+        ]
+      }
     );
 
-    let run : Bench.Runner = func(ri, ci) {
-      ignore Base64.encode(inputs[ri][ci]);
-    };
-
-    Bench.V1(schema, run);
-  };
-};
+    Bench.V1(schema, func(ri, ci) = routines[ri][ci]())
+  }
+}

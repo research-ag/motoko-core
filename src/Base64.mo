@@ -17,6 +17,7 @@
 /// ```
 
 import Nat8 "Nat8";
+import Nat16 "Nat16";
 import Nat32 "Nat32";
 import Text "Text";
 import Blob "Blob";
@@ -62,7 +63,7 @@ module {
       let b2 : Nat8 = if (i + 1 < sz) data[i + 1] else 0;
       let b3 : Nat8 = if (i + 2 < sz) data[i + 2] else 0;
 
-      let n = (Nat32.fromNat(Nat8.toNat(b1)) << 16) | (Nat32.fromNat(Nat8.toNat(b2)) << 8) | Nat32.fromNat(Nat8.toNat(b3));
+      let n = (b1.toNat16().toNat32() << 16) | (b2.toNat16().toNat32() << 8) | b3.toNat16().toNat32();
 
       let c1 = alphabet[Nat32.toNat((n >> 18) & 0x3F)];
       let c2 = alphabet[Nat32.toNat((n >> 12) & 0x3F)];

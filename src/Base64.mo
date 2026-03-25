@@ -72,7 +72,7 @@ module {
       let c3 = alphabet[((n >> 6) & 0x3F).toNat()];
       let c4 = alphabet[(n & 0x3F).toNat()];
 
-      result #= c1 # c2 # c3 # c4;
+      result := result # c1 # c2 # c3 # c4;
       i := next_i;
       next_i +%= 3
     };
@@ -88,7 +88,7 @@ module {
       let c3 = if (i +% 1 < sz) alphabet[((n >> 6) & 0x3F).toNat()] else "=";
       let c4 = if (i +% 2 < sz) alphabet[(n & 0x3F).toNat()] else "=";
 
-      result #= c1 # c2 # c3 # c4;
+      result := result # c1 # c2 # c3 # c4;
     };
     result
   };

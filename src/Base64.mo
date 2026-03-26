@@ -46,7 +46,6 @@ module {
     43, 47
   ];
 
-
   /// Encodes a `Blob` as a Base64 `Text` string (RFC 4648 §4).
   ///
   /// Output length is always a multiple of 4, padded with `=` as needed.
@@ -122,7 +121,7 @@ module {
         case (_) {}
       };
 
-      i +%= 3;
+      i +%= 3
     };
     result
   };

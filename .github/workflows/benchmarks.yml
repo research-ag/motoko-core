@@ -31,9 +31,6 @@ jobs:
         with:
           setup-dfx: true
 
-      - name: Install Node dependencies
-        run: npm ci
-
       - name: Checkout baseline benchmark-results from upstream
         if: github.event_name == 'pull_request'
         uses: actions/checkout@v6

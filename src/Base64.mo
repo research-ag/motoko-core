@@ -16,12 +16,13 @@
 /// import Base64 "mo:core/Base64";
 /// ```
 
+import Blob "Blob";
 import Nat8 "Nat8";
 import Nat16 "Nat16";
 import Nat32 "Nat32";
 import Nat64 "Nat64";
 import Text "Text";
-import Blob "Blob";
+import Prim "mo:prim";
 
 module {
 
@@ -71,6 +72,8 @@ module {
     var result = "";
     var i = 0 : Nat64;
     var next_i = 6 : Nat64;
+
+    // Process chunks of 6 input bytes at a time (8 output characters)
     while (next_i <= sz) {
       let b1 = data[i.toNat()];
       let b2 : Nat8 = data[(i +% 1).toNat()];
@@ -95,12 +98,16 @@ module {
 
       switch (Text.decodeUtf8(bytes)) {
         case (?t) result := result # t;
-        case (_) {}
+        case (_) {
+          Prim.trap("Cannot happen: Utf8 decode error in Base64.encode().")
+        }
       };
 
       i := next_i;
       next_i +%= 6
     };
+
+    // Process remaining 0-5 input bytes in chunks of 3
     while (i < sz) {
       let b1 = data[i.toNat()];
       let b2 : Nat8 = if (i +% 1 < sz) data[(i +% 1).toNat()] else 0;
@@ -118,7 +125,9 @@ module {
 
       switch (Text.decodeUtf8(bytes)) {
         case (?t) result := result # t;
-        case (_) {}
+        case (_) {
+          Prim.trap("Cannot happen: Utf8 decode error in Base64.encode().")
+        }
       };
 
       i +%= 3

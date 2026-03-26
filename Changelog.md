@@ -1,4 +1,5 @@
 ## Next
+* Test, benchmark and optimization for `Base64.encode`. 
 * Update `Base64.encode` doc example (#475).
 
 ## 2.3.1

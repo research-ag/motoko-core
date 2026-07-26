@@ -46,6 +46,24 @@ module {
 
   let INTERNAL_ERROR = "List: internal error";
 
+  // Capacity guard shift: a block index is beyond the capacity iff
+  // blockIndex >> CAPACITY_SHIFT != 0, i.e. the maximal data block index
+  // is 2^CAPACITY_SHIFT - 1 and the maximal index block length is
+  // 2^CAPACITY_SHIFT. Derivation: the capacity ends at the epoch midpoint
+  // whose index block length is 2^CAPACITY_SHIFT, so the List capacity is
+  // 2^(2 * (CAPACITY_SHIFT - 1)) elements -- 2^32 for CAPACITY_SHIFT = 17.
+  // Vice versa: for a desired capacity of 2^n elements (n even), set
+  // CAPACITY_SHIFT = n / 2 + 1 (and update the trap message below).
+  // Only even capacity exponents (epoch midpoints) are expressible this
+  // way, which is what keeps the guard a single shift test that the
+  // compiler folds (a named literal is propagated; any arithmetic on it
+  // would run per guard execution). The Nat32 index block arithmetic
+  // supports up to CAPACITY_SHIFT = 31 (capacity 2^60).
+  // test/List.indexBlock.test.mo runs 1-1 copies of the index block
+  // machinery with a smaller CAPACITY_SHIFT to exercise the capacity
+  // boundary, which is unreachable here (~32 GB of elements).
+  let CAPACITY_SHIFT : Nat32 = 17;
+
   /// Creates a new empty List for elements of type T.
   ///
   /// Example:
@@ -932,7 +950,9 @@ module {
     // adds. Without the guard the element would be written successfully
     // but get() would deny its existence (guarded at index < 2^32),
     // silently breaking the API's consistency.
-    if (blockIndex > 131_071) Prim.trap "List capacity of 2^32 elements exceeded";
+    // Covers arbitrary jump targets from the constructors, not just the
+    // incrementally growing add path.
+    if (blockIndex >> CAPACITY_SHIFT != 0) Prim.trap "List capacity of 2^32 elements exceeded";
     if (blockIndex <= 1) 2 else {
       let s = 30 - Nat32.bitcountLeadingZero(blockIndex);
       Nat32.toNat(((blockIndex >> s) +% 1) << s)
@@ -958,7 +978,7 @@ module {
     // at its exactly-full ladder length, and newIndexBlockLength of the
     // one-past index could only round up to the next rung), but that query
     // would trap on newIndexBlockLength's capacity guard, so return early.
-    if (blockIndex > 131_071) return;
+    if (blockIndex >> CAPACITY_SHIFT != 0) return;
     // kind of index of the first block in the super block
     if ((blockIndex << Nat32.bitcountLeadingZero(blockIndex)) << 2 == 0) {
       let newLength = newIndexBlockLength(blockIndex);

@@ -5,11 +5,11 @@
 // the list 2^32 elements (~32 GB), so this cannot be tested directly.
 // Instead the functions below are 1-1 copies of their src/List.mo
 // counterparts (dataBlockSize, newIndexBlockLength, growIndexBlockIfNeeded,
-// shrinkIndexBlockIfNeeded, add, removeLast) with a single change: the
-// capacity guard's threshold 131_071 is scaled down to 47. That gives max
-// data block index 47, maximum index block length 48 and capacity
-// 2 * 4^4 = 512 elements, so the boundary machinery runs for real on
-// 512-element lists. KEEP THE COPIES IN SYNC WITH src/List.mo.
+// shrinkIndexBlockIfNeeded, add, removeLast) with
+// a single change: CAPACITY_SHIFT is 6 instead of 17. That gives a
+// capacity of 2^(2 * 5) = 1024 elements with max data block index 63 and
+// maximum index block length 64, so the boundary machinery runs for real
+// on 1024-element lists. KEEP THE COPIES IN SYNC WITH src/List.mo.
 //
 // The copies operate on the real List<T> record, so the real List.size /
 // List.at can be used for assertions on the same list.
@@ -21,14 +21,16 @@ import VarArray "../src/VarArray";
 import Prim "mo:⛔";
 import { test } "mo:test";
 
-// ---- 1-1 copies from src/List.mo, scaled: guard threshold 131_071 -> 47 ----
+// ---- 1-1 copies from src/List.mo; the only change: CAPACITY_SHIFT ----
+
+let CAPACITY_SHIFT : Nat32 = 6;
 
 func dataBlockSize(blockIndex : Nat) : Nat {
   Nat32.toNat(1 <>> Nat32.bitcountLeadingZero(Nat.toNat32(blockIndex) / 3))
 };
 
 func newIndexBlockLength(blockIndex : Nat32) : Nat {
-  if (blockIndex > 47) Prim.trap "List capacity of 512 elements exceeded";
+  if (blockIndex >> CAPACITY_SHIFT != 0) Prim.trap "List capacity of 1024 elements exceeded";
   if (blockIndex <= 1) 2 else {
     let s = 30 - Nat32.bitcountLeadingZero(blockIndex);
     Nat32.toNat(((blockIndex >> s) +% 1) << s)
@@ -54,7 +56,7 @@ func shrinkIndexBlockIfNeeded<T>(list : List.List<T>) {
   // at its exactly-full ladder length, and newIndexBlockLength of the
   // one-past index could only round up to the next rung), but that query
   // would trap on newIndexBlockLength's capacity guard, so return early.
-  if (blockIndex > 47) return;
+  if (blockIndex >> CAPACITY_SHIFT != 0) return;
   // kind of index of the first block in the super block
   if ((blockIndex << Nat32.bitcountLeadingZero(blockIndex)) << 2 == 0) {
     let newLength = newIndexBlockLength(blockIndex);
@@ -192,7 +194,7 @@ test(
 
 // ---- tests (scaled copies) ----
 
-let capacity = 512;
+let capacity = 1_024;
 
 test(
   "grow to the (scaled) maximum: index block reaches its exactly-full length",
@@ -204,11 +206,11 @@ test(
       i += 1
     };
     assert List.size(l) == capacity;
-    assert l.blockIndex == 48;
+    assert l.blockIndex == 64;
     assert l.elementIndex == 0;
-    assert l.blocks.size() == 48; // exactly full, no slack at capacity
+    assert l.blocks.size() == 64; // exactly full, no slack at capacity
     assert List.at(l, 0) == 0;
-    assert List.at(l, 511) == 511
+    assert List.at(l, 1_023) == 1_023
   }
 );
 
@@ -223,12 +225,12 @@ test(
     };
 
     // the very first removeLast runs shrinkIndexBlockIfNeeded at the
-    // one-past-the-end state (48, 0), where newIndexBlockLength's
+    // one-past-the-end state (64, 0), where newIndexBlockLength's
     // capacity guard must not fire
-    assert removeLast(l) == ?511;
-    assert List.size(l) == 511;
+    assert removeLast(l) == ?1_023;
+    assert List.size(l) == 1_023;
 
-    var expected = 510;
+    var expected = 1_022;
     while (List.size(l) > 0) {
       assert removeLast(l) == ?expected;
       if (expected > 0) expected -= 1
@@ -236,7 +238,7 @@ test(
     assert List.size(l) == 0;
     assert removeLast(l) == null;
     // the index block shrank on the way down
-    assert l.blocks.size() < 48
+    assert l.blocks.size() < 64
   }
 );
 
@@ -251,11 +253,11 @@ test(
     };
     var k = 0;
     while (k < 3) {
-      assert removeLast(l) == ?511;
-      add(l, 511);
+      assert removeLast(l) == ?1_023;
+      add(l, 1_023);
       k += 1
     };
     assert List.size(l) == capacity;
-    assert List.at(l, 511) == 511
+    assert List.at(l, 1_023) == 1_023
   }
 )

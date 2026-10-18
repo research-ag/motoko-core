@@ -771,7 +771,7 @@ module {
   public func singleton<K, V>(key : K, value : V) : Map<K, V> {
     {
       size = 1;
-      root = #red(#leaf, key, value, #leaf)
+      root = ?(#red, null, key, value, null)
     }
   };
 
@@ -998,10 +998,10 @@ module {
 
   module Internal {
 
-    public func empty<K, V>() : Map<K, V> { { size = 0; root = #leaf } };
+    public func empty<K, V>() : Map<K, V> { { size = 0; root = null } };
 
     public func fromIter<K, V>(i : Iter.Iter<(K, V)>, compare : (K, K) -> Order.Order) : Map<K, V> {
-      var map = #leaf : Tree<K, V>;
+      var map = null : Tree<K, V>;
       var size = 0;
       for (val in i) {
         map := add(map, compare, val.0, val.1);
@@ -1036,7 +1036,7 @@ module {
       public func next() : ?(K, V) {
         switch (trees) {
           case (null) { null };
-          case (?(#tr(#leaf), ts)) {
+          case (?(#tr(null), ts)) {
             trees := ts;
             next()
           };
@@ -1044,11 +1044,7 @@ module {
             trees := ts;
             ?xy
           };
-          case (?(#tr(#red(l, x, y, r)), ts)) {
-            trees := mapTraverser(l, x, y, r, ts);
-            next()
-          };
-          case (?(#tr(#black(l, x, y, r)), ts)) {
+          case (?(#tr(?(_, l, x, y, r)), ts)) {
             trees := mapTraverser(l, x, y, r, ts);
             next()
           }
@@ -1059,12 +1055,9 @@ module {
     public func map<K, V1, V2>(map : Map<K, V1>, f : (K, V1) -> V2) : Map<K, V2> {
       func mapRec(m : Tree<K, V1>) : Tree<K, V2> {
         switch m {
-          case (#leaf) { #leaf };
-          case (#red(l, x, y, r)) {
-            #red(mapRec l, x, f(x, y), mapRec r)
-          };
-          case (#black(l, x, y, r)) {
-            #black(mapRec l, x, f(x, y), mapRec r)
+          case (null) { null };
+          case (?(c, l, x, y, r)) {
+            ?(c, mapRec l, x, f(x, y), mapRec r)
           }
         }
       };
@@ -1077,13 +1070,8 @@ module {
       combine : (Accum, Key, Value) -> Accum
     ) : Accum {
       switch (map) {
-        case (#leaf) { base };
-        case (#red(l, k, v, r)) {
-          let left = foldLeft(l, base, combine);
-          let middle = combine(left, k, v);
-          foldLeft(r, middle, combine)
-        };
-        case (#black(l, k, v, r)) {
+        case (null) { base };
+        case (?(_, l, k, v, r)) {
           let left = foldLeft(l, base, combine);
           let middle = combine(left, k, v);
           foldLeft(r, middle, combine)
@@ -1097,13 +1085,8 @@ module {
       combine : (Key, Value, Accum) -> Accum
     ) : Accum {
       switch (map) {
-        case (#leaf) { base };
-        case (#red(l, k, v, r)) {
-          let right = foldRight(r, base, combine);
-          let middle = combine(k, v, right);
-          foldRight(l, middle, combine)
-        };
-        case (#black(l, k, v, r)) {
+        case (null) { base };
+        case (?(_, l, k, v, r)) {
           let right = foldRight(r, base, combine);
           let middle = combine(k, v, right);
           foldRight(l, middle, combine)
@@ -1127,7 +1110,7 @@ module {
           add(acc, compare, key, value)
         } else acc
       };
-      { root = foldLeft(map.root, #leaf, combine); size }
+      { root = foldLeft(map.root, null, combine); size }
     };
 
     public func mapFilter<K, V1, V2>(map : Map<K, V1>, compare : (K, K) -> Order.Order, f : (K, V1) -> ?V2) : Map<K, V2> {
@@ -1141,26 +1124,19 @@ module {
           }
         }
       };
-      { root = foldLeft(map.root, #leaf, combine); size }
+      { root = foldLeft(map.root, null, combine); size }
     };
 
     public func get<K, V>(t : Tree<K, V>, compare : (K, K) -> Order.Order, x : K) : ?V {
       switch t {
-        case (#red(l, x1, y1, r)) {
+        case (?(_, l, x1, y1, r)) {
           switch (compare(x, x1)) {
             case (#less) { get(l, compare, x) };
             case (#equal) { ?y1 };
             case (#greater) { get(r, compare, x) }
           }
         };
-        case (#black(l, x1, y1, r)) {
-          switch (compare(x, x1)) {
-            case (#less) { get(l, compare, x) };
-            case (#equal) { ?y1 };
-            case (#greater) { get(r, compare, x) }
-          }
-        };
-        case (#leaf) { null }
+        case (null) { null }
       }
     };
 
@@ -1174,15 +1150,13 @@ module {
     public func maxEntry<K, V>(m : Tree<K, V>) : ?(K, V) {
       func rightmost(m : Tree<K, V>) : (K, V) {
         switch m {
-          case (#red(_, k, v, #leaf)) { (k, v) };
-          case (#red(_, _, _, r)) { rightmost(r) };
-          case (#black(_, k, v, #leaf)) { (k, v) };
-          case (#black(_, _, _, r)) { rightmost(r) };
-          case (#leaf) { Runtime.trap "pure/Map.maxEntry() impossible" }
+          case (?(_, _, k, v, null)) { (k, v) };
+          case (?(_, _, _, _, r)) { rightmost(r) };
+          case (null) { Runtime.trap "pure/Map.maxEntry() impossible" }
         }
       };
       switch m {
-        case (#leaf) { null };
+        case (null) { null };
         case (_) { ?rightmost(m) }
       }
     };
@@ -1190,46 +1164,38 @@ module {
     public func minEntry<K, V>(m : Tree<K, V>) : ?(K, V) {
       func leftmost(m : Tree<K, V>) : (K, V) {
         switch m {
-          case (#red(#leaf, k, v, _)) { (k, v) };
-          case (#red(l, _, _, _)) { leftmost(l) };
-          case (#black(#leaf, k, v, _)) { (k, v) };
-          case (#black(l, _, _, _)) { leftmost(l) };
-          case (#leaf) { Runtime.trap "pure/Map.minEntry() impossible" }
+          case (?(_, null, k, v, _)) { (k, v) };
+          case (?(_, l, _, _, _)) { leftmost(l) };
+          case (null) { Runtime.trap "pure/Map.minEntry() impossible" }
         }
       };
       switch m {
-        case (#leaf) { null };
+        case (null) { null };
         case (_) { ?leftmost(m) }
       }
     };
 
     public func all<K, V>(m : Tree<K, V>, pred : (K, V) -> Bool) : Bool {
       switch m {
-        case (#red(l, k, v, r)) {
+        case (?(_, l, k, v, r)) {
           pred(k, v) and all(l, pred) and all(r, pred)
         };
-        case (#black(l, k, v, r)) {
-          pred(k, v) and all(l, pred) and all(r, pred)
-        };
-        case (#leaf) { true }
+        case (null) { true }
       }
     };
 
     public func any<K, V>(m : Tree<K, V>, pred : (K, V) -> Bool) : Bool {
       switch m {
-        case (#red(l, k, v, r)) {
+        case (?(_, l, k, v, r)) {
           pred(k, v) or any(l, pred) or any(r, pred)
         };
-        case (#black(l, k, v, r)) {
-          pred(k, v) or any(l, pred) or any(r, pred)
-        };
-        case (#leaf) { false }
+        case (null) { false }
       }
     };
 
     func redden<K, V>(t : Tree<K, V>) : Tree<K, V> {
       switch t {
-        case (#black(l, x, y, r)) { (#red(l, x, y, r)) };
+        case (?(#black, l, x, y, r)) { (?(#red, l, x, y, r)) };
         case _ {
           Runtime.trap "pure/Map.redden() impossible"
         }
@@ -1238,48 +1204,52 @@ module {
 
     func lbalance<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
       switch (left, right) {
-        case (#red(#red(l1, x1, y1, r1), x2, y2, r2), r) {
-          #red(
-            #black(l1, x1, y1, r1),
+        case (?(#red, ?(#red, l1, x1, y1, r1), x2, y2, r2), r) {
+          ?(
+            #red,
+            ?(#black, l1, x1, y1, r1),
             x2,
             y2,
-            #black(r2, x, y, r)
+            ?(#black, r2, x, y, r)
           )
         };
-        case (#red(l1, x1, y1, #red(l2, x2, y2, r2)), r) {
-          #red(
-            #black(l1, x1, y1, l2),
+        case (?(#red, l1, x1, y1, ?(#red, l2, x2, y2, r2)), r) {
+          ?(
+            #red,
+            ?(#black, l1, x1, y1, l2),
             x2,
             y2,
-            #black(r2, x, y, r)
+            ?(#black, r2, x, y, r)
           )
         };
         case _ {
-          #black(left, x, y, right)
+          ?(#black, left, x, y, right)
         }
       }
     };
 
     func rbalance<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
       switch (left, right) {
-        case (l, #red(l1, x1, y1, #red(l2, x2, y2, r2))) {
-          #red(
-            #black(l, x, y, l1),
+        case (l, ?(#red, l1, x1, y1, ?(#red, l2, x2, y2, r2))) {
+          ?(
+            #red,
+            ?(#black, l, x, y, l1),
             x1,
             y1,
-            #black(l2, x2, y2, r2)
+            ?(#black, l2, x2, y2, r2)
           )
         };
-        case (l, #red(#red(l1, x1, y1, r1), x2, y2, r2)) {
-          #red(
-            #black(l, x, y, l1),
+        case (l, ?(#red, ?(#red, l1, x1, y1, r1), x2, y2, r2)) {
+          ?(
+            #red,
+            ?(#black, l, x, y, l1),
             x1,
             y1,
-            #black(r1, x2, y2, r2)
+            ?(#black, r1, x2, y2, r2)
           )
         };
         case _ {
-          #black(left, x, y, right)
+          ?(#black, left, x, y, right)
         }
       }
     };
@@ -1295,7 +1265,7 @@ module {
     ) : Tree<K, V> {
       func ins(tree : Tree<K, V>) : Tree<K, V> {
         switch tree {
-          case (#black(left, x, y, right)) {
+          case (?(#black, left, x, y, right)) {
             switch (compare(key, x)) {
               case (#less) {
                 lbalance(ins left, x, y, right)
@@ -1305,32 +1275,32 @@ module {
               };
               case (#equal) {
                 let newVal = onClash({ new = val; old = y });
-                #black(left, key, newVal, right)
+                ?(#black, left, key, newVal, right)
               }
             }
           };
-          case (#red(left, x, y, right)) {
+          case (?(#red, left, x, y, right)) {
             switch (compare(key, x)) {
               case (#less) {
-                #red(ins left, x, y, right)
+                ?(#red, ins left, x, y, right)
               };
               case (#greater) {
-                #red(left, x, y, ins right)
+                ?(#red, left, x, y, ins right)
               };
               case (#equal) {
                 let newVal = onClash { new = val; old = y };
-                #red(left, key, newVal, right)
+                ?(#red, left, key, newVal, right)
               }
             }
           };
-          case (#leaf) {
-            #red(#leaf, key, val, #leaf)
+          case (null) {
+            ?(#red, null, key, val, null)
           }
         }
       };
       switch (ins m) {
-        case (#red(left, x, y, right)) {
-          #black(left, x, y, right)
+        case (?(#red, left, x, y, right)) {
+          ?(#black, left, x, y, right)
         };
         case other { other }
       }
@@ -1360,20 +1330,22 @@ module {
 
     func balLeft<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
       switch (left, right) {
-        case (#red(l1, x1, y1, r1), r) {
-          #red(
-            #black(l1, x1, y1, r1),
+        case (?(#red, l1, x1, y1, r1), r) {
+          ?(
+            #red,
+            ?(#black, l1, x1, y1, r1),
             x,
             y,
             r
           )
         };
-        case (_, #black(l2, x2, y2, r2)) {
-          rbalance(left, x, y, #red(l2, x2, y2, r2))
+        case (_, ?(#black, l2, x2, y2, r2)) {
+          rbalance(left, x, y, ?(#red, l2, x2, y2, r2))
         };
-        case (_, #red(#black(l2, x2, y2, r2), x3, y3, r3)) {
-          #red(
-            #black(left, x, y, l2),
+        case (_, ?(#red, ?(#black, l2, x2, y2, r2), x3, y3, r3)) {
+          ?(
+            #red,
+            ?(#black, left, x, y, l2),
             x2,
             y2,
             rbalance(r2, x3, y3, redden r3)
@@ -1385,23 +1357,25 @@ module {
 
     func balRight<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
       switch (left, right) {
-        case (l, #red(l1, x1, y1, r1)) {
-          #red(
+        case (l, ?(#red, l1, x1, y1, r1)) {
+          ?(
+            #red,
             l,
             x,
             y,
-            #black(l1, x1, y1, r1)
+            ?(#black, l1, x1, y1, r1)
           )
         };
-        case (#black(l1, x1, y1, r1), r) {
-          lbalance(#red(l1, x1, y1, r1), x, y, r)
+        case (?(#black, l1, x1, y1, r1), r) {
+          lbalance(?(#red, l1, x1, y1, r1), x, y, r)
         };
-        case (#red(l1, x1, y1, #black(l2, x2, y2, r2)), r3) {
-          #red(
+        case (?(#red, l1, x1, y1, ?(#black, l2, x2, y2, r2)), r3) {
+          ?(
+            #red,
             lbalance(redden l1, x1, y1, l2),
             x2,
             y2,
-            #black(r2, x, y, r3)
+            ?(#black, r2, x, y, r3)
           )
         };
         case _ { Runtime.trap "pure/Map.balRight() impossible" }
@@ -1410,40 +1384,42 @@ module {
 
     func append<K, V>(left : Tree<K, V>, right : Tree<K, V>) : Tree<K, V> {
       switch (left, right) {
-        case (#leaf, _) { right };
-        case (_, #leaf) { left };
+        case (null, _) { right };
+        case (_, null) { left };
         case (
-          #red(l1, x1, y1, r1),
-          #red(l2, x2, y2, r2)
+          ?(#red, l1, x1, y1, r1),
+          ?(#red, l2, x2, y2, r2)
         ) {
           switch (append(r1, l2)) {
-            case (#red(l3, x3, y3, r3)) {
-              #red(
-                #red(l1, x1, y1, l3),
+            case (?(#red, l3, x3, y3, r3)) {
+              ?(
+                #red,
+                ?(#red, l1, x1, y1, l3),
                 x3,
                 y3,
-                #red(r3, x2, y2, r2)
+                ?(#red, r3, x2, y2, r2)
               )
             };
             case r1l2 {
-              #red(l1, x1, y1, #red(r1l2, x2, y2, r2))
+              ?(#red, l1, x1, y1, ?(#red, r1l2, x2, y2, r2))
             }
           }
         };
-        case (t1, #red(l2, x2, y2, r2)) {
-          #red(append(t1, l2), x2, y2, r2)
+        case (t1, ?(#red, l2, x2, y2, r2)) {
+          ?(#red, append(t1, l2), x2, y2, r2)
         };
-        case (#red(l1, x1, y1, r1), t2) {
-          #red(l1, x1, y1, append(r1, t2))
+        case (?(#red, l1, x1, y1, r1), t2) {
+          ?(#red, l1, x1, y1, append(r1, t2))
         };
-        case (#black(l1, x1, y1, r1), #black(l2, x2, y2, r2)) {
+        case (?(#black, l1, x1, y1, r1), ?(#black, l2, x2, y2, r2)) {
           switch (append(r1, l2)) {
-            case (#red(l3, x3, y3, r3)) {
-              #red(
-                #black(l1, x1, y1, l3),
+            case (?(#red, l3, x3, y3, r3)) {
+              ?(
+                #red,
+                ?(#black, l1, x1, y1, l3),
                 x3,
                 y3,
-                #black(r3, x2, y2, r2)
+                ?(#black, r3, x2, y2, r2)
               )
             };
             case r1l2 {
@@ -1451,7 +1427,7 @@ module {
                 l1,
                 x1,
                 y1,
-                #black(r1l2, x2, y2, r2)
+                ?(#black, r1l2, x2, y2, r2)
               )
             }
           }
@@ -1468,22 +1444,22 @@ module {
           case (#less) {
             let newLeft = del left;
             switch left {
-              case (#black(_, _, _, _)) {
+              case (?(#black, _, _, _, _)) {
                 balLeft(newLeft, x1, y1, right)
               };
               case _ {
-                #red(newLeft, x1, y1, right)
+                ?(#red, newLeft, x1, y1, right)
               }
             }
           };
           case (#greater) {
             let newRight = del right;
             switch right {
-              case (#black(_, _, _, _)) {
+              case (?(#black, _, _, _, _)) {
                 balRight(left, x1, y1, newRight)
               };
               case _ {
-                #red(left, x1, y1, newRight)
+                ?(#red, left, x1, y1, newRight)
               }
             }
           };
@@ -1495,19 +1471,16 @@ module {
       };
       func del(tree : Tree<K, V>) : Tree<K, V> {
         switch tree {
-          case (#red(left, x, y, right)) {
+          case (?(_, left, x, y, right)) {
             delNode(left, x, y, right)
           };
-          case (#black(left, x, y, right)) {
-            delNode(left, x, y, right)
-          };
-          case (#leaf) {
+          case (null) {
             tree
           }
         }
       };
       switch (del(tree)) {
-        case (#red(left, x, y, right)) { (#black(left, x, y, right), y0) };
+        case (?(#red, left, x, y, right)) { (?(#black, left, x, y, right), y0) };
         case other { (other, y0) }
       }
     };
@@ -1527,14 +1500,14 @@ module {
         leftBlacks
       };
       switch node {
-        case (#leaf) 0;
-        case (#red(left, key, _, right)) {
+        case (null) 0;
+        case (?(#red, left, key, _, right)) {
           let leftBlacks = checkNode(left, key, right);
           assert (not isRed(left));
           assert (not isRed(right));
           leftBlacks
         };
-        case (#black(left, key, _, right)) {
+        case (?(#black, left, key, _, right)) {
           checkNode(left, key, right) + 1
         }
       }
@@ -1542,18 +1515,15 @@ module {
 
     func isRed<K, V>(node : Tree<K, V>) : Bool {
       switch node {
-        case (#red(_, _, _, _)) true;
+        case (?(#red, _, _, _, _)) true;
         case _ false
       }
     };
 
     func checkKey<K, V>(node : Tree<K, V>, isValid : K -> Bool) {
       switch node {
-        case (#leaf) {};
-        case (#red(_, key, _, _)) {
-          assert (isValid(key))
-        };
-        case (#black(_, key, _, _)) {
+        case (null) {};
+        case (?(_, _, key, _, _)) {
           assert (isValid(key))
         }
       }

@@ -1496,7 +1496,7 @@
     "name": "Types.Pure.Map",
     "exports": [
       "type Map<K, V> = { size : Nat; root : Tree<K, V> }",
-      "type Tree<K, V> = { #red : (Tree<K, V>, K, V, Tree<K, V>); #black : (Tree<K, V>, K, V, Tree<K, V>); #leaf }"
+      "type Tree<K, V> = ?({ #red; #black }, Tree<K, V>, K, V, Tree<K, V>)"
     ]
   },
   {

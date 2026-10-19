@@ -339,9 +339,10 @@ module {
   /// Garbage collecting one of maps (e.g. after an assignment `map := Map.delete(map, compare, k).0`)
   /// causes collecting `O(log(n))` nodes.
   public func remove<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Order.Order), key : K) : Map<K, V> {
-    switch (Internal.remove(self.root, compare, key)) {
-      case (_, null) self;
-      case (t, ?_) { { root = t; size = self.size - 1 } }
+    let (t, y) = Internal.remove(self.root, compare, key);
+    switch y {
+      case null self;
+      case (?_) { { root = t; size = self.size - 1 } }
     }
   };
 
@@ -379,9 +380,10 @@ module {
   /// Garbage collecting one of maps (e.g. after an assignment `map := Map.delete(map, compare, k).0`)
   /// causes collecting `O(log(n))` nodes.
   public func delete<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Order.Order), key : K) : (Map<K, V>, Bool) {
-    switch (Internal.remove(self.root, compare, key)) {
-      case (_, null) { (self, false) };
-      case (t, ?_) { ({ root = t; size = self.size - 1 }, true) }
+    let (t, y) = Internal.remove(self.root, compare, key);
+    switch y {
+      case null { (self, false) };
+      case (?_) { ({ root = t; size = self.size - 1 }, true) }
     }
   };
 
@@ -418,9 +420,10 @@ module {
   /// Garbage collecting one of maps (e.g. after an assignment `map := Map.remove(map, compare, key)`)
   /// causes collecting `O(log(n))` nodes.
   public func take<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Order.Order), key : K) : (Map<K, V>, ?V) {
-    switch (Internal.remove(self.root, compare, key)) {
-      case (t, null) { ({ root = t; size = self.size }, null) };
-      case (t, v) { ({ root = t; size = self.size - 1 }, v) }
+    let (t, y) = Internal.remove(self.root, compare, key);
+    switch y {
+      case null { (self, null) };
+      case (?_) { ({ root = t; size = self.size - 1 }, y) }
     }
   };
 

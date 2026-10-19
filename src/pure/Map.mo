@@ -1352,100 +1352,114 @@ module {
     };
 
     func balLeft<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
-      switch (left, right) {
-        case (#red(l1, x1, y1, r1), r) {
+      switch left {
+        case (#red(l1, x1, y1, r1)) {
           #red(
             #black(l1, x1, y1, r1),
             x,
             y,
-            r
+            right
           )
         };
-        case (_, #black(l2, x2, y2, r2)) {
-          rbalance(left, x, y, #red(l2, x2, y2, r2))
-        };
-        case (_, #red(#black(l2, x2, y2, r2), x3, y3, r3)) {
-          #red(
-            #black(left, x, y, l2),
-            x2,
-            y2,
-            rbalance(r2, x3, y3, redden r3)
-          )
-        };
-        case _ { Runtime.trap "pure/Map.balLeft() impossible" }
+        case _ {
+          switch right {
+            case (#black(l2, x2, y2, r2)) {
+              rbalance(left, x, y, #red(l2, x2, y2, r2))
+            };
+            case (#red(#black(l2, x2, y2, r2), x3, y3, r3)) {
+              #red(
+                #black(left, x, y, l2),
+                x2,
+                y2,
+                rbalance(r2, x3, y3, redden r3)
+              )
+            };
+            case _ { Runtime.trap "pure/Map.balLeft() impossible" }
+          }
+        }
       }
     };
 
     func balRight<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
-      switch (left, right) {
-        case (l, #red(l1, x1, y1, r1)) {
+      switch right {
+        case (#red(l1, x1, y1, r1)) {
           #red(
-            l,
+            left,
             x,
             y,
             #black(l1, x1, y1, r1)
           )
         };
-        case (#black(l1, x1, y1, r1), r) {
-          lbalance(#red(l1, x1, y1, r1), x, y, r)
-        };
-        case (#red(l1, x1, y1, #black(l2, x2, y2, r2)), r3) {
-          #red(
-            lbalance(redden l1, x1, y1, l2),
-            x2,
-            y2,
-            #black(r2, x, y, r3)
-          )
-        };
-        case _ { Runtime.trap "pure/Map.balRight() impossible" }
+        case _ {
+          switch left {
+            case (#black(l1, x1, y1, r1)) {
+              lbalance(#red(l1, x1, y1, r1), x, y, right)
+            };
+            case (#red(l1, x1, y1, #black(l2, x2, y2, r2))) {
+              #red(
+                lbalance(redden l1, x1, y1, l2),
+                x2,
+                y2,
+                #black(r2, x, y, right)
+              )
+            };
+            case _ { Runtime.trap "pure/Map.balRight() impossible" }
+          }
+        }
       }
     };
 
     func append<K, V>(left : Tree<K, V>, right : Tree<K, V>) : Tree<K, V> {
-      switch (left, right) {
-        case (#leaf, _) { right };
-        case (_, #leaf) { left };
-        case (
-          #red(l1, x1, y1, r1),
-          #red(l2, x2, y2, r2)
-        ) {
-          switch (append(r1, l2)) {
-            case (#red(l3, x3, y3, r3)) {
-              #red(
-                #red(l1, x1, y1, l3),
-                x3,
-                y3,
-                #red(r3, x2, y2, r2)
-              )
+      switch left {
+        case (#leaf) { right };
+        case (#red(l1, x1, y1, r1)) {
+          switch right {
+            case (#leaf) { left };
+            case (#red(l2, x2, y2, r2)) {
+              switch (append(r1, l2)) {
+                case (#red(l3, x3, y3, r3)) {
+                  #red(
+                    #red(l1, x1, y1, l3),
+                    x3,
+                    y3,
+                    #red(r3, x2, y2, r2)
+                  )
+                };
+                case r1l2 {
+                  #red(l1, x1, y1, #red(r1l2, x2, y2, r2))
+                }
+              }
             };
-            case r1l2 {
-              #red(l1, x1, y1, #red(r1l2, x2, y2, r2))
+            case (#black(_, _, _, _)) {
+              #red(l1, x1, y1, append(r1, right))
             }
           }
         };
-        case (t1, #red(l2, x2, y2, r2)) {
-          #red(append(t1, l2), x2, y2, r2)
-        };
-        case (#red(l1, x1, y1, r1), t2) {
-          #red(l1, x1, y1, append(r1, t2))
-        };
-        case (#black(l1, x1, y1, r1), #black(l2, x2, y2, r2)) {
-          switch (append(r1, l2)) {
-            case (#red(l3, x3, y3, r3)) {
-              #red(
-                #black(l1, x1, y1, l3),
-                x3,
-                y3,
-                #black(r3, x2, y2, r2)
-              )
+        case (#black(l1, x1, y1, r1)) {
+          switch right {
+            case (#leaf) { left };
+            case (#red(l2, x2, y2, r2)) {
+              #red(append(left, l2), x2, y2, r2)
             };
-            case r1l2 {
-              balLeft(
-                l1,
-                x1,
-                y1,
-                #black(r1l2, x2, y2, r2)
-              )
+            case (#black(l2, x2, y2, r2)) {
+              switch (append(r1, l2)) {
+                case (#red(l3, x3, y3, r3)) {
+                  #red(
+                    #black(l1, x1, y1, l3),
+                    x3,
+                    y3,
+                    #black(r3, x2, y2, r2)
+                  )
+                };
+                case r1l2 {
+                  balLeft(
+                    l1,
+                    x1,
+                    y1,
+                    #black(r1l2, x2, y2, r2)
+                  )
+                }
+              }
             }
           }
         }

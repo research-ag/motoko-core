@@ -11,9 +11,9 @@ module {
     let bench = Bench.Bench();
 
     bench.name("pure/Map");
-    bench.description("Red-black tree `pure/Map<Nat, Nat>` with `n` keys inserted in random order. Each operation is applied to all `n` keys (`add (existing)` overwrites the value of every key in the full map, `get` misses to `n` keys that are absent, `remove` to every second key, `remove (misses)` to `n` absent keys, each removed from the full map). `map` builds a structural copy (new nodes, keys and values shared), so its Heap value is the memory of the tree.");
+    bench.description("Red-black tree `pure/Map<Nat, Nat>` with `n` keys inserted in random order. Each operation is applied to all `n` keys (`add (existing)` overwrites the value of every key in the full map, `get` misses to `n` keys that are absent, `remove` to every second key, `remove (misses)` to `n` absent keys, each removed from the full map). `map` builds a structural copy (new nodes, keys and values shared), so its Heap value is the memory of the tree. `equal` and `compare` compare the map with an equal copy built separately.");
 
-    bench.rows(["add", "add (existing)", "get (hits)", "get (misses)", "remove", "remove (misses)", "map"]);
+    bench.rows(["add", "add (existing)", "get (hits)", "get (misses)", "remove", "remove (misses)", "map", "equal", "compare"]);
     bench.cols(["100", "1000", "10000"]);
 
     // Distinct keys in a deterministic random order: an LCG permutation.
@@ -42,6 +42,7 @@ module {
       m;
     };
     let built = present.map(build);
+    let copies = present.map(build);
     var held : Any = ();
 
     bench.runner(
@@ -64,6 +65,8 @@ module {
           };
           case "remove (misses)" for (k in absent[ci].values()) ignore m.remove(Nat.compare, k);
           case "map" held := m.map(func(_, v) = v);
+          case "equal" ignore m.equal(copies[ci], Nat.compare, Nat.equal);
+          case "compare" ignore m.compare(copies[ci], Nat.compare, Nat.compare);
           case _ {};
         };
       }

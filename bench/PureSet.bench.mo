@@ -11,9 +11,9 @@ module {
     let bench = Bench.Bench();
 
     bench.name("pure/Set");
-    bench.description("Red-black tree `pure/Set<Nat>` with `n` elements inserted in random order. Each operation is applied to all `n` elements: `add` builds the set, `add (existing)` adds every element again to the full set, `contains (misses)` and `remove (misses)` use `n` absent elements, `remove` removes every second element.");
+    bench.description("Red-black tree `pure/Set<Nat>` with `n` elements inserted in random order. Each operation is applied to all `n` elements: `add` builds the set, `add (existing)` adds every element again to the full set, `contains (misses)` and `remove (misses)` use `n` absent elements, `remove` removes every second element. `equal`, `isSubset` and `compare` compare the set with an equal copy built separately.");
 
-    bench.rows(["add", "add (existing)", "contains (hits)", "contains (misses)", "remove", "remove (misses)"]);
+    bench.rows(["add", "add (existing)", "contains (hits)", "contains (misses)", "remove", "remove (misses)", "equal", "isSubset", "compare"]);
     bench.cols(["100", "1000", "10000"]);
 
     // Distinct elements in a deterministic random order: an LCG permutation.
@@ -42,6 +42,7 @@ module {
       s;
     };
     let built = present.map(build);
+    let copies = present.map(build);
     var held : Any = ();
 
     bench.runner(
@@ -63,6 +64,9 @@ module {
             held := r;
           };
           case "remove (misses)" for (e in absent[ci].values()) ignore s.remove(Nat.compare, e);
+          case "equal" ignore s.equal(copies[ci], Nat.compare);
+          case "isSubset" ignore s.isSubset(copies[ci], Nat.compare);
+          case "compare" ignore s.compare(copies[ci], Nat.compare);
           case _ {};
         };
       }

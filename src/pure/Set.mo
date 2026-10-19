@@ -39,6 +39,7 @@ import Iter "../Iter";
 import Types "../Types";
 import Nat "../Nat";
 import Order "../Order";
+import Option "../Option";
 
 module {
 
@@ -624,27 +625,25 @@ module {
   };
 
   func isSubsetHelper<T>(t1 : Tree<T>, t2 : Tree<T>, compare : (T, T) -> Order.Order) : Bool {
-    switch t1 {
-      case (#leaf) { true };
-      case (#red(t1l, x1, t1r) or #black(t1l, x1, t1r)) {
-        switch t2 {
-          case (#leaf) { false };
-          case (#red(t2l, x2, t2r) or #black(t2l, x2, t2r)) {
-            switch (compare(x1, x2)) {
-              case (#equal) {
-                isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2r, compare)
-              };
-              // x1 < x2 ==> x1 \in t2l /\ t1l \subset t2l
-              case (#less) {
-                Internal.contains(t2l, compare, x1) and isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2, compare)
-              };
-              // x2 < x1 ==> x1 \in t2r /\ t1r \subset t2r
-              case (#greater) {
-                Internal.contains(t2r, compare, x1) and isSubsetHelper(t1l, t2, compare) and isSubsetHelper(t1r, t2r, compare)
-              }
-            }
-          }
-        }
+    let (t1l, x1, t1r) = switch t1 {
+      case (#leaf) return true;
+      case (#red(l, x, r) or #black(l, x, r)) (l, x, r)
+    };
+    let (t2l, x2, t2r) = switch t2 {
+      case (#leaf) return false;
+      case (#red(l, x, r) or #black(l, x, r)) (l, x, r)
+    };
+    switch (compare(x1, x2)) {
+      case (#equal) {
+        isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2r, compare)
+      };
+      // x1 < x2 ==> x1 \in t2l /\ t1l \subset t2l
+      case (#less) {
+        Internal.contains(t2l, compare, x1) and isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2, compare)
+      };
+      // x2 < x1 ==> x1 \in t2r /\ t1r \subset t2r
+      case (#greater) {
+        Internal.contains(t2r, compare, x1) and isSubsetHelper(t1l, t2, compare) and isSubsetHelper(t1r, t2r, compare)
       }
     }
   };
@@ -690,21 +689,11 @@ module {
     let iterator1 = values(self);
     let iterator2 = values(other);
     loop {
-      switch (iterator1.next()) {
-        case null {
-          return switch (iterator2.next()) { case null #equal; case _ #less }
-        };
-        case (?element1) {
-          switch (iterator2.next()) {
-            case null return #greater;
-            case (?element2) {
-              let comparison = compare(element1, element2);
-              if (comparison != #equal) {
-                return comparison
-              }
-            }
-          }
-        }
+      let ?element1 = iterator1.next() else return if (Option.isNull(iterator2.next())) #equal else #less;
+      let ?element2 = iterator2.next() else return #greater;
+      let comparison = compare(element1, element2);
+      if (comparison != #equal) {
+        return comparison
       }
     }
   };

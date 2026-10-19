@@ -50,6 +50,7 @@
 /// * Stefan Kahrs, "Red-black trees with types", Journal of Functional Programming, 11(4): 425-432 (2001), [version 1 in web appendix](http://www.cs.ukc.ac.uk/people/staff/smk/redblack/rb.html).
 
 import Order "../Order";
+import Option "../Option";
 import Iter "../Iter";
 import Types "../Types";
 import Runtime "../Runtime";
@@ -924,20 +925,10 @@ module {
     let iterator1 = entries(self);
     let iterator2 = entries(other);
     loop {
-      switch (iterator1.next()) {
-        case null {
-          return switch (iterator2.next()) { case null true; case _ false }
-        };
-        case (?(key1, value1)) {
-          switch (iterator2.next()) {
-            case null { return false };
-            case (?(key2, value2)) {
-              if (not (compare(key1, key2) == #equal) or not equal(value1, value2)) {
-                return false
-              }
-            }
-          }
-        }
+      let ?(key1, value1) = iterator1.next() else return Option.isNull(iterator2.next());
+      let ?(key2, value2) = iterator2.next() else return false;
+      if (not (compare(key1, key2) == #equal) or not equal(value1, value2)) {
+        return false
       }
     }
   };
@@ -986,25 +977,15 @@ module {
     let iterator1 = entries(self);
     let iterator2 = entries(other);
     loop {
-      switch (iterator1.next()) {
-        case null {
-          return switch (iterator2.next()) { case null #equal; case _ #less }
-        };
-        case (?(key1, value1)) {
-          switch (iterator2.next()) {
-            case null return #greater;
-            case (?(key2, value2)) {
-              let keyComparison = compareKey(key1, key2);
-              if (keyComparison != #equal) {
-                return keyComparison
-              };
-              let valueComparison = compareValue(value1, value2);
-              if (valueComparison != #equal) {
-                return valueComparison
-              }
-            }
-          }
-        }
+      let ?(key1, value1) = iterator1.next() else return if (Option.isNull(iterator2.next())) #equal else #less;
+      let ?(key2, value2) = iterator2.next() else return #greater;
+      let keyComparison = compareKey(key1, key2);
+      if (keyComparison != #equal) {
+        return keyComparison
+      };
+      let valueComparison = compareValue(value1, value2);
+      if (valueComparison != #equal) {
+        return valueComparison
       }
     }
   };

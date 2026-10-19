@@ -1,4 +1,5 @@
 ## Next
+* `pure/Map.remove`, `delete` and `take` of an absent key return the map without allocating (they used to rebuild the path to the key and take about 6 times as many instructions as `get`); removing an existing key takes 9% fewer instructions and allocates 7% less (#13).
 
 ## 2.7.0
 * Derive `toText` implicit arguments for variants: import the new `Variants` module, plus the new `Unit` module for cases without a payload, and a variant renders the way `debug_show` prints it, for example `#active` or `#banned(3, abuse)`. Add the `toText`, `equal`, and `compare` functions that derivation needs but that were missing: `Blob.toText`, `Order.compare`, `Order.toText`, and `PriorityQueue.equal`, `PriorityQueue.compare`, and `PriorityQueue.toText`, which list elements in priority order (#560).

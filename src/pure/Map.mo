@@ -1461,12 +1461,15 @@ module {
 
     public func delete<K, V>(m : Tree<K, V>, compare : (K, K) -> Order.Order, key : K) : Tree<K, V> = remove(m, compare, key).0;
 
+    func isNull<V>(o : ?V) : Bool = switch o { case null true; case _ false };
+
     public func remove<K, V>(tree : Tree<K, V>, compare : (K, K) -> Order.Order, x : K) : (Tree<K, V>, ?V) {
       var y0 : ?V = null;
-      func delNode(left : Tree<K, V>, x1 : K, y1 : V, right : Tree<K, V>) : Tree<K, V> {
+      func delNode(tree : Tree<K, V>, left : Tree<K, V>, x1 : K, y1 : V, right : Tree<K, V>) : Tree<K, V> {
         switch (compare(x, x1)) {
           case (#less) {
             let newLeft = del left;
+            if (isNull(y0)) return tree; // key absent: subtree unchanged
             switch left {
               case (#black(_, _, _, _)) {
                 balLeft(newLeft, x1, y1, right)
@@ -1478,6 +1481,7 @@ module {
           };
           case (#greater) {
             let newRight = del right;
+            if (isNull(y0)) return tree; // key absent: subtree unchanged
             switch right {
               case (#black(_, _, _, _)) {
                 balRight(left, x1, y1, newRight)
@@ -1496,10 +1500,10 @@ module {
       func del(tree : Tree<K, V>) : Tree<K, V> {
         switch tree {
           case (#red(left, x, y, right)) {
-            delNode(left, x, y, right)
+            delNode(tree, left, x, y, right)
           };
           case (#black(left, x, y, right)) {
-            delNode(left, x, y, right)
+            delNode(tree, left, x, y, right)
           };
           case (#leaf) {
             tree

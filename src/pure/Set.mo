@@ -1266,19 +1266,19 @@ module {
     };
 
     func lbalance<T>(left : Tree<T>, x : T, right : Tree<T>) : Tree<T> {
-      switch (left, right) {
-        case (#red(#red(l1, x1, r1), x2, r2), r) {
+      switch left {
+        case (#red(#red(l1, x1, r1), x2, r2)) {
           #red(
             #black(l1, x1, r1),
             x2,
-            #black(r2, x, r)
+            #black(r2, x, right)
           )
         };
-        case (#red(l1, x1, #red(l2, x2, r2)), r) {
+        case (#red(l1, x1, #red(l2, x2, r2))) {
           #red(
             #black(l1, x1, l2),
             x2,
-            #black(r2, x, r)
+            #black(r2, x, right)
           )
         };
         case _ {
@@ -1288,17 +1288,17 @@ module {
     };
 
     func rbalance<T>(left : Tree<T>, x : T, right : Tree<T>) : Tree<T> {
-      switch (left, right) {
-        case (l, #red(l1, x1, #red(l2, x2, r2))) {
+      switch right {
+        case (#red(l1, x1, #red(l2, x2, r2))) {
           #red(
-            #black(l, x, l1),
+            #black(left, x, l1),
             x1,
             #black(l2, x2, r2)
           )
         };
-        case (l, #red(#red(l1, x1, r1), x2, r2)) {
+        case (#red(#red(l1, x1, r1), x2, r2)) {
           #red(
-            #black(l, x, l1),
+            #black(left, x, l1),
             x1,
             #black(r1, x2, r2)
           )

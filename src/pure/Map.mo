@@ -1240,21 +1240,21 @@ module {
     };
 
     func lbalance<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
-      switch (left, right) {
-        case (#red(#red(l1, x1, y1, r1), x2, y2, r2), r) {
+      switch left {
+        case (#red(#red(l1, x1, y1, r1), x2, y2, r2)) {
           #red(
             #black(l1, x1, y1, r1),
             x2,
             y2,
-            #black(r2, x, y, r)
+            #black(r2, x, y, right)
           )
         };
-        case (#red(l1, x1, y1, #red(l2, x2, y2, r2)), r) {
+        case (#red(l1, x1, y1, #red(l2, x2, y2, r2))) {
           #red(
             #black(l1, x1, y1, l2),
             x2,
             y2,
-            #black(r2, x, y, r)
+            #black(r2, x, y, right)
           )
         };
         case _ {
@@ -1264,18 +1264,18 @@ module {
     };
 
     func rbalance<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
-      switch (left, right) {
-        case (l, #red(l1, x1, y1, #red(l2, x2, y2, r2))) {
+      switch right {
+        case (#red(l1, x1, y1, #red(l2, x2, y2, r2))) {
           #red(
-            #black(l, x, y, l1),
+            #black(left, x, y, l1),
             x1,
             y1,
             #black(l2, x2, y2, r2)
           )
         };
-        case (l, #red(#red(l1, x1, y1, r1), x2, y2, r2)) {
+        case (#red(#red(l1, x1, y1, r1), x2, y2, r2)) {
           #red(
-            #black(l, x, y, l1),
+            #black(left, x, y, l1),
             x1,
             y1,
             #black(r1, x2, y2, r2)

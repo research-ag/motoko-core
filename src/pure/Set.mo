@@ -1314,7 +1314,8 @@ module {
       compare : (T, T) -> Order.Order,
       elem : T
     ) : Set<T> {
-      insert(set, compare, elem).0
+      let (s, _) = insert(set, compare, elem);
+      s
     };
 
     func ins<T>(tree : Tree<T>, compare : (T, T) -> Order.Order, elem : T) : (Tree<T>, Bool) {
@@ -1476,7 +1477,8 @@ module {
     };
 
     public func remove<T>(set : Set<T>, compare : (T, T) -> Order.Order, elem : T) : Set<T> {
-      delete(set, compare, elem).0
+      let (s, _) = delete(set, compare, elem);
+      s
     };
 
     public func delete<T>(s : Set<T>, compare : (T, T) -> Order.Order, x : T) : (Set<T>, Bool) {

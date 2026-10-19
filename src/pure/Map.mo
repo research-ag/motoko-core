@@ -1361,58 +1361,56 @@ module {
     func balLeft<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
       switch left {
         case (#red(l1, x1, y1, r1)) {
-          #red(
+          return #red(
             #black(l1, x1, y1, r1),
             x,
             y,
             right
           )
         };
-        case _ {
-          switch right {
-            case (#black(l2, x2, y2, r2)) {
-              rbalance(left, x, y, #red(l2, x2, y2, r2))
-            };
-            case (#red(#black(l2, x2, y2, r2), x3, y3, r3)) {
-              #red(
-                #black(left, x, y, l2),
-                x2,
-                y2,
-                rbalance(r2, x3, y3, redden r3)
-              )
-            };
-            case _ { Runtime.trap "pure/Map.balLeft() impossible" }
-          }
-        }
+        case _ {}
+      };
+      switch right {
+        case (#black(l2, x2, y2, r2)) {
+          rbalance(left, x, y, #red(l2, x2, y2, r2))
+        };
+        case (#red(#black(l2, x2, y2, r2), x3, y3, r3)) {
+          #red(
+            #black(left, x, y, l2),
+            x2,
+            y2,
+            rbalance(r2, x3, y3, redden r3)
+          )
+        };
+        case _ { Runtime.trap "pure/Map.balLeft() impossible" }
       }
     };
 
     func balRight<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
       switch right {
         case (#red(l1, x1, y1, r1)) {
-          #red(
+          return #red(
             left,
             x,
             y,
             #black(l1, x1, y1, r1)
           )
         };
-        case _ {
-          switch left {
-            case (#black(l1, x1, y1, r1)) {
-              lbalance(#red(l1, x1, y1, r1), x, y, right)
-            };
-            case (#red(l1, x1, y1, #black(l2, x2, y2, r2))) {
-              #red(
-                lbalance(redden l1, x1, y1, l2),
-                x2,
-                y2,
-                #black(r2, x, y, right)
-              )
-            };
-            case _ { Runtime.trap "pure/Map.balRight() impossible" }
-          }
-        }
+        case _ {}
+      };
+      switch left {
+        case (#black(l1, x1, y1, r1)) {
+          lbalance(#red(l1, x1, y1, r1), x, y, right)
+        };
+        case (#red(l1, x1, y1, #black(l2, x2, y2, r2))) {
+          #red(
+            lbalance(redden l1, x1, y1, l2),
+            x2,
+            y2,
+            #black(r2, x, y, right)
+          )
+        };
+        case _ { Runtime.trap "pure/Map.balRight() impossible" }
       }
     };
 

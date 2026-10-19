@@ -1388,46 +1388,44 @@ module {
     func balLeft<T>(left : Tree<T>, x : T, right : Tree<T>) : Tree<T> {
       switch left {
         case (#red(l1, x1, r1)) {
-          #red(#black(l1, x1, r1), x, right)
+          return #red(#black(l1, x1, r1), x, right)
         };
-        case _ {
-          switch right {
-            case (#black(l2, x2, r2)) {
-              rbalance(left, x, #red(l2, x2, r2))
-            };
-            case (#red(#black(l2, x2, r2), x3, r3)) {
-              #red(
-                #black(left, x, l2),
-                x2,
-                rbalance(r2, x3, redden r3)
-              )
-            };
-            case _ { Runtime.trap "pure/Set.balLeft() impossible" }
-          }
-        }
+        case _ {}
+      };
+      switch right {
+        case (#black(l2, x2, r2)) {
+          rbalance(left, x, #red(l2, x2, r2))
+        };
+        case (#red(#black(l2, x2, r2), x3, r3)) {
+          #red(
+            #black(left, x, l2),
+            x2,
+            rbalance(r2, x3, redden r3)
+          )
+        };
+        case _ { Runtime.trap "pure/Set.balLeft() impossible" }
       }
     };
 
     func balRight<T>(left : Tree<T>, x : T, right : Tree<T>) : Tree<T> {
       switch right {
         case (#red(l1, x1, r1)) {
-          #red(left, x, #black(l1, x1, r1))
+          return #red(left, x, #black(l1, x1, r1))
         };
-        case _ {
-          switch left {
-            case (#black(l1, x1, r1)) {
-              lbalance(#red(l1, x1, r1), x, right)
-            };
-            case (#red(l1, x1, #black(l2, x2, r2))) {
-              #red(
-                lbalance(redden l1, x1, l2),
-                x2,
-                #black(r2, x, right)
-              )
-            };
-            case _ { Runtime.trap "pure/Set.balRight() impossible" }
-          }
-        }
+        case _ {}
+      };
+      switch left {
+        case (#black(l1, x1, r1)) {
+          lbalance(#red(l1, x1, r1), x, right)
+        };
+        case (#red(l1, x1, #black(l2, x2, r2))) {
+          #red(
+            lbalance(redden l1, x1, l2),
+            x2,
+            #black(r2, x, right)
+          )
+        };
+        case _ { Runtime.trap "pure/Set.balRight() impossible" }
       }
     };
 

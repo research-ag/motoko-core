@@ -624,21 +624,25 @@ module {
   };
 
   func isSubsetHelper<T>(t1 : Tree<T>, t2 : Tree<T>, compare : (T, T) -> Order.Order) : Bool {
-    switch (t1, t2) {
-      case (#leaf, _) { true };
-      case (_, #leaf) { false };
-      case ((#red(t1l, x1, t1r) or #black(t1l, x1, t1r)), (#red(t2l, x2, t2r)) or #black(t2l, x2, t2r)) {
-        switch (compare(x1, x2)) {
-          case (#equal) {
-            isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2r, compare)
-          };
-          // x1 < x2 ==> x1 \in t2l /\ t1l \subset t2l
-          case (#less) {
-            Internal.contains(t2l, compare, x1) and isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2, compare)
-          };
-          // x2 < x1 ==> x1 \in t2r /\ t1r \subset t2r
-          case (#greater) {
-            Internal.contains(t2r, compare, x1) and isSubsetHelper(t1l, t2, compare) and isSubsetHelper(t1r, t2r, compare)
+    switch t1 {
+      case (#leaf) { true };
+      case (#red(t1l, x1, t1r) or #black(t1l, x1, t1r)) {
+        switch t2 {
+          case (#leaf) { false };
+          case (#red(t2l, x2, t2r) or #black(t2l, x2, t2r)) {
+            switch (compare(x1, x2)) {
+              case (#equal) {
+                isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2r, compare)
+              };
+              // x1 < x2 ==> x1 \in t2l /\ t1l \subset t2l
+              case (#less) {
+                Internal.contains(t2l, compare, x1) and isSubsetHelper(t1l, t2l, compare) and isSubsetHelper(t1r, t2, compare)
+              };
+              // x2 < x1 ==> x1 \in t2r /\ t1r \subset t2r
+              case (#greater) {
+                Internal.contains(t2r, compare, x1) and isSubsetHelper(t1l, t2, compare) and isSubsetHelper(t1r, t2r, compare)
+              }
+            }
           }
         }
       }
@@ -686,14 +690,19 @@ module {
     let iterator1 = values(self);
     let iterator2 = values(other);
     loop {
-      switch (iterator1.next(), iterator2.next()) {
-        case (null, null) return #equal;
-        case (null, _) return #less;
-        case (_, null) return #greater;
-        case (?element1, ?element2) {
-          let comparison = compare(element1, element2);
-          if (comparison != #equal) {
-            return comparison
+      switch (iterator1.next()) {
+        case null {
+          return switch (iterator2.next()) { case null #equal; case _ #less }
+        };
+        case (?element1) {
+          switch (iterator2.next()) {
+            case null return #greater;
+            case (?element2) {
+              let comparison = compare(element1, element2);
+              if (comparison != #equal) {
+                return comparison
+              }
+            }
           }
         }
       }

@@ -196,9 +196,10 @@ module {
   /// Garbage collecting one of maps (e.g. after an assignment `m := Map.add(m, cmp, k, v)`)
   /// causes collecting `O(log(n))` nodes.
   public func insert<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Order.Order), key : K, value : V) : (Map<K, V>, Bool) {
-    switch (swap(self, compare, key, value)) {
-      case (map1, null) (map1, true);
-      case (map1, _) (map1, false)
+    let (map1, old) = swap(self, compare, key, value);
+    switch old {
+      case null (map1, true);
+      case _ (map1, false)
     }
   };
 
@@ -232,7 +233,8 @@ module {
   /// Garbage collecting one of maps (e.g. after an assignment `m := Map.add(m, cmp, k, v)`)
   /// causes collecting `O(log(n))` nodes.
   public func add<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Order.Order), key : K, value : V) : Map<K, V> {
-    swap(self, compare, key, value).0
+    let (map1, _) = swap(self, compare, key, value);
+    map1
   };
 
   /// Given `map` ordered by `compare`, add a mapping from `key` to `value`. Overwrites any existing entry with key `key`.
@@ -269,9 +271,10 @@ module {
   /// Garbage collecting one of maps (e.g. after an assignment `m := Map.swap(m, Nat.compare, k, v).0`)
   /// causes collecting `O(log(n))` nodes.
   public func swap<K, V>(self : Map<K, V>, compare : (implicit : (K, K) -> Order.Order), key : K, value : V) : (Map<K, V>, ?V) {
-    switch (Internal.swap(self.root, compare, key, value)) {
-      case (t, null) { ({ root = t; size = self.size + 1 }, null) };
-      case (t, v) { ({ root = t; size = self.size }, v) }
+    let (t, old) = Internal.swap(self.root, compare, key, value);
+    switch old {
+      case null { ({ root = t; size = self.size + 1 }, null) };
+      case _ { ({ root = t; size = self.size }, old) }
     }
   };
 
@@ -1343,7 +1346,10 @@ module {
       compare : (K, K) -> Order.Order,
       key : K,
       val : V
-    ) : Tree<K, V> = swap(m, compare, key, val).0;
+    ) : Tree<K, V> {
+      let (t, _) = swap(m, compare, key, val);
+      t
+    };
 
     func balLeft<K, V>(left : Tree<K, V>, x : K, y : V, right : Tree<K, V>) : Tree<K, V> {
       switch (left, right) {

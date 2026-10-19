@@ -924,18 +924,20 @@ module {
     let iterator1 = entries(self);
     let iterator2 = entries(other);
     loop {
-      let next1 = iterator1.next();
-      let next2 = iterator2.next();
-      switch (next1, next2) {
-        case (null, null) {
-          return true
+      switch (iterator1.next()) {
+        case null {
+          return switch (iterator2.next()) { case null true; case _ false }
         };
-        case (?(key1, value1), ?(key2, value2)) {
-          if (not (compare(key1, key2) == #equal) or not equal(value1, value2)) {
-            return false
+        case (?(key1, value1)) {
+          switch (iterator2.next()) {
+            case null { return false };
+            case (?(key2, value2)) {
+              if (not (compare(key1, key2) == #equal) or not equal(value1, value2)) {
+                return false
+              }
+            }
           }
-        };
-        case _ { return false }
+        }
       }
     }
   };
@@ -984,18 +986,23 @@ module {
     let iterator1 = entries(self);
     let iterator2 = entries(other);
     loop {
-      switch (iterator1.next(), iterator2.next()) {
-        case (null, null) return #equal;
-        case (null, _) return #less;
-        case (_, null) return #greater;
-        case (?(key1, value1), ?(key2, value2)) {
-          let keyComparison = compareKey(key1, key2);
-          if (keyComparison != #equal) {
-            return keyComparison
-          };
-          let valueComparison = compareValue(value1, value2);
-          if (valueComparison != #equal) {
-            return valueComparison
+      switch (iterator1.next()) {
+        case null {
+          return switch (iterator2.next()) { case null #equal; case _ #less }
+        };
+        case (?(key1, value1)) {
+          switch (iterator2.next()) {
+            case null return #greater;
+            case (?(key2, value2)) {
+              let keyComparison = compareKey(key1, key2);
+              if (keyComparison != #equal) {
+                return keyComparison
+              };
+              let valueComparison = compareValue(value1, value2);
+              if (valueComparison != #equal) {
+                return valueComparison
+              }
+            }
           }
         }
       }

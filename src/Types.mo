@@ -154,11 +154,10 @@ module {
         size : Nat;
         root : Tree<K, V>
       };
-      public type Tree<K, V> = {
-        #red : (Tree<K, V>, K, V, Tree<K, V>);
-        #black : (Tree<K, V>, K, V, Tree<K, V>);
-        #leaf
-      };
+      // A node is one tuple with its color as a field; `null` is a leaf.
+      // (An option around a tuple is not boxed, so a node is a single heap
+      // object.)
+      public type Tree<K, V> = ?({ #red; #black }, Tree<K, V>, K, V, Tree<K, V>);
 
     };
     public type Map<K, V> = Map.Map<K, V>;

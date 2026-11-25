@@ -1,5 +1,6 @@
 ## Next
 * `pure/Map` and `pure/Set` no longer allocate closures in `add`, `swap`, `insert`, `remove`, `delete`, `take` and `pure/Set.contains`, and removing an absent key or element, or adding an element that is already in a `pure/Set`, returns the original without rebuilding the path to it. With moc 2.2.4, `add` takes 11–14% fewer instructions, `remove` 9–11% fewer, `pure/Set.contains` 7–8% fewer, and removing an absent key or re-adding a present element 71–78% fewer (#567).
+* **Breaking (stable type):** store each `pure/Map` node as a single tuple with its color as a field, `?(#red or #black, left, key, value, right)` with `null` for a leaf, instead of a variant around a tuple. A node takes 64 instead of 88 bytes on the 64-bit heap (27% less memory); with moc 2.2.4, `add` takes 17–20% fewer instructions, `remove` 16–28% fewer and `get` 13–15% fewer. `bench/PureMap.bench.mo` measures this. A canister that keeps a `pure/Map` in a stable variable needs an explicit migration function to upgrade: convert the old tree `#red(l, k, v, r)` / `#black(l, k, v, r)` / `#leaf` to `?(#red, l, k, v, r)` / `?(#black, l, k, v, r)` / `null` (#12).
 
 ## 2.7.1
 * Speed up `Int.toText` and `Nat.toText`, by up to 97% on large numbers: they convert 18 digits per big-number division instead of one (#570).

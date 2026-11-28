@@ -1981,15 +1981,16 @@ func canonicalIndexBlockLength(list : List.List<Nat>) : Nat {
   List.fromArray<Nat>(list.toArray()).blocks.size()
 };
 
-// Checks that `list` has the canonical index block length, then runs
+// Checks that `list` has an index block no longer than the canonical one
+// (an empty List may have the shorter one of List.empty), then runs
 // assertValid. The length is read first because assertValid adds and
 // removes an element, which can grow the index block.
 func isCompactAndValid(name : Text, list : List.List<Nat>) : Bool {
   let length = list.blocks.size();
   let expected = canonicalIndexBlockLength(list);
   assertValid(list);
-  if (length != expected) {
-    Debug.print(name # ": index block length " # length.toText() # ", expected " # expected.toText());
+  if (length > expected) {
+    Debug.print(name # ": index block length " # length.toText() # ", expected at most " # expected.toText());
     return false
   };
   true
@@ -2246,6 +2247,86 @@ func testConstructorsAtBlockBoundaries(n : Nat) : Bool {
   true
 };
 
+func testBuildersAtBlockBoundaries(n : Nat) : Bool {
+  if (n != 0) return true;
+  func check(name : Text, size : Nat, list : List.List<Nat>, expected : [Nat]) : Bool {
+    assertValid(list);
+    if (list.toArray() != expected) {
+      Debug.print(name # " mismatch for size " # size.toText());
+      return false
+    };
+    true
+  };
+  // sizes up to 130 cover data blocks of up to 16 elements and keep the
+  // interpreted test fast
+  for (size in blockBoundarySizes.values()) if (size <= 130) {
+    let all = Array.tabulate(size, func i = i);
+    let evens = Array.tabulate((size + 1) / 2, func i = 2 * i);
+    let vec = List.fromArray<Nat>(all);
+
+    if (not check("fromIter", size, List.fromIter(all.values()), all)) return false;
+    if (not check("fromPure", size, List.fromPure(vec.toPure()), all)) return false;
+    if (not check("clone", size, vec.clone(), all)) return false;
+    if (not check("filter (all)", size, vec.filter(func _ = true), all)) return false;
+    if (not check("filter (evens)", size, vec.filter(func x = x % 2 == 0), evens)) return false;
+    if (not check("filterMap (evens)", size, vec.filterMap(func x = if (x % 2 == 0) ?x else null), evens)) return false;
+    if (not check("flatMap (twice)", size, vec.flatMap(func x = [x, x].values()), Array.tabulate(2 * size, func i = i / 2))) return false;
+    if (not check("reverse", size, vec.reverse(), Array.tabulate(size, func i = size - 1 - i : Nat))) return false;
+
+    // pieces of every length around the block boundaries
+    let pieces = List.fromArray<List.List<Nat>>([vec, List.empty(), List.fromArray(evens), vec]);
+    let joinedExpected = [all, evens, all].flatten();
+    if (not check("flatten", size, pieces.flatten(), joinedExpected)) return false;
+    if (not check("join", size, pieces.values().join(), joinedExpected)) return false;
+
+    let appended = List.fromArray<Nat>(evens);
+    appended.append(vec);
+    if (not check("append", size, appended, evens.concat(all))) return false;
+    let doubled = vec.clone();
+    doubled.append(doubled);
+    if (not check("append (to itself)", size, doubled, all.concat(all))) return false;
+
+    let retained = vec.clone();
+    retained.retain(func x = x % 2 == 0);
+    if (not check("retain", size, retained, evens)) return false;
+    let pairs = List.tabulate<Nat>(2 * size, func i = i / 2);
+    pairs.deduplicate(Nat.equal);
+    if (not check("deduplicate", size, pairs, all)) return false;
+
+    let added = List.empty<Nat>();
+    for (x in all.values()) added.add(x);
+    if (not check("add", size, added, all)) return false;
+    var removed = 0;
+    while (added.removeLast() != null) removed += 1;
+    if (removed != size or not check("removeLast", size, added, [])) return false;
+
+    if (vec.toVarArray().toArray() != all) return false;
+    if (vec.values().toArray() != all) return false;
+    if (vec.reverseValues().toArray() != Array.tabulate(size, func i = size - 1 - i : Nat)) return false;
+    if (vec.enumerate().toArray() != Array.tabulate(size, func i = (i, i))) return false;
+    if (vec.reverseEnumerate().toArray() != Array.tabulate(size, func i = (size - 1 - i : Nat, size - 1 - i : Nat))) return false
+  };
+  true
+};
+
+func testIteratorsAfterEnd(n : Nat) : Bool {
+  // an exhausted iterator keeps returning null
+  let vec = List.tabulate<Nat>(n, func i = i);
+  let values = vec.values();
+  let reverseValues = vec.reverseValues();
+  let enumerate = vec.enumerate();
+  let reverseEnumerate = vec.reverseEnumerate();
+  for (_ in values) {};
+  for (_ in reverseValues) {};
+  for (_ in enumerate) {};
+  for (_ in reverseEnumerate) {};
+  for (_ in Nat.range(0, 3)) {
+    if (values.next() != null or reverseValues.next() != null) return false;
+    if (enumerate.next() != null or reverseEnumerate.next() != null) return false
+  };
+  true
+};
+
 func runAllTests() {
   runTest("testNew", testNew);
   runTest("testInit", testInit);
@@ -2304,7 +2385,9 @@ func runAllTests() {
   runTest("testReverseIterShrinking", testReverseIterShrinking);
   runTest("testBinarySearchBoundaries", testBinarySearchBoundaries);
   runTest("testRangesAtBlockBoundaries", testRangesAtBlockBoundaries);
-  runTest("testConstructorsAtBlockBoundaries", testConstructorsAtBlockBoundaries)
+  runTest("testConstructorsAtBlockBoundaries", testConstructorsAtBlockBoundaries);
+  runTest("testBuildersAtBlockBoundaries", testBuildersAtBlockBoundaries);
+  runTest("testIteratorsAfterEnd", testIteratorsAfterEnd)
 };
 
 // Run all tests

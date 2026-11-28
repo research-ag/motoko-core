@@ -1974,6 +1974,41 @@ func testReader(n : Nat) : Bool {
 };
 
 // Run all tests
+func testAppendToItself(n : Nat) : Bool {
+  // a list built directly, and one with a spare data block left by removeLast
+  let direct = List.tabulate<Nat>(n, func i = i);
+  let shrunk = List.tabulate<Nat>(n + 3, func i = i);
+  for (_ in Nat.range(0, 3)) ignore shrunk.removeLast();
+  let expected = Array.tabulate(2 * n, func i = i % n);
+  for (list in [direct, shrunk].values()) {
+    list.append(list);
+    assertValid(list);
+    if (list.toArray() != expected) {
+      Debug.print("append to itself: expected " # debug_show (expected) # ", got " # debug_show (list.toArray()));
+      return false
+    }
+  };
+  true
+};
+
+func testIteratorsAfterEnd(n : Nat) : Bool {
+  // an exhausted iterator keeps returning null
+  let vec = List.tabulate<Nat>(n, func i = i);
+  let values = vec.values();
+  let reverseValues = vec.reverseValues();
+  let enumerate = vec.enumerate();
+  let reverseEnumerate = vec.reverseEnumerate();
+  for (_ in values) {};
+  for (_ in reverseValues) {};
+  for (_ in enumerate) {};
+  for (_ in reverseEnumerate) {};
+  for (_ in Nat.range(0, 3)) {
+    if (values.next() != null or reverseValues.next() != null) return false;
+    if (enumerate.next() != null or reverseEnumerate.next() != null) return false
+  };
+  true
+};
+
 func runAllTests() {
   runTest("testNew", testNew);
   runTest("testInit", testInit);
@@ -2023,7 +2058,9 @@ func runAllTests() {
   runTest("testPrevIndexOf", testPrevIndexOf);
   runTest("testMin", testMin);
   runTest("testMax", testMax);
-  runTest("testReader", testReader)
+  runTest("testReader", testReader);
+  runTest("testAppendToItself", testAppendToItself);
+  runTest("testIteratorsAfterEnd", testIteratorsAfterEnd)
 };
 
 // Run all tests

@@ -1814,8 +1814,10 @@ module {
         if (blockIndex >= blocks) return null;
         db := self.blocks[blockIndex];
         dbSize := db.size();
-        if (dbSize == 0) return null;
-        elementIndex := 0
+        // reset before a possible return, so that later calls keep
+        // returning null instead of reading past the empty block
+        elementIndex := 0;
+        if (dbSize == 0) return null
       };
       switch (db[elementIndex]) {
         case (?x) {
@@ -1862,8 +1864,10 @@ module {
         if (blockIndex >= blocks) return null;
         db := self.blocks[blockIndex];
         size := db.size();
-        if (size == 0) return null;
-        elementIndex := 0
+        // reset before a possible return, so that later calls keep
+        // returning null instead of reading past the empty block
+        elementIndex := 0;
+        if (size == 0) return null
       };
       switch (db[elementIndex]) {
         case (?x) {
@@ -1910,8 +1914,10 @@ module {
       if (elementIndex != 0) {
         elementIndex -= 1
       } else {
+        // the first data block is exhausted: stay there, so that later
+        // calls keep returning null instead of underflowing blockIndex
+        if (blockIndex <= 1) return null;
         blockIndex -= 1;
-        if (blockIndex == 0) return null;
         db := self.blocks[blockIndex];
         elementIndex := db.size() - 1
       };
@@ -1953,8 +1959,10 @@ module {
       if (elementIndex != 0) {
         elementIndex -= 1
       } else {
+        // the first data block is exhausted: stay there, so that later
+        // calls keep returning null instead of underflowing blockIndex
+        if (blockIndex <= 1) return null;
         blockIndex -= 1;
-        if (blockIndex == 0) return null;
         db := self.blocks[blockIndex];
         elementIndex := db.size() - 1
       };
@@ -2045,8 +2053,13 @@ module {
   ///
   /// Space: `O(size(added))`
   public func append<T>(self : List<T>, added : List<T>) {
-    reserve(self, size(added));
+    let count = size(added);
+    reserve(self, count);
 
+    // Copy exactly `count` elements: when `added` is `self`, the copies
+    // written at the end must not be read again. The blocks are read after
+    // reserve, which may have replaced the index block.
+    var remaining = count;
     let blocks = added.blocks;
     let blockCount = blocks.size();
 
@@ -2058,10 +2071,12 @@ module {
 
       var j = 0;
       while (j < sz) {
+        if (remaining == 0) return;
         switch (db[j]) {
           case (?x) addUnsafe(self, x);
           case null return
         };
+        remaining -= 1;
         j += 1
       };
       i += 1

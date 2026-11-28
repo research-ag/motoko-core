@@ -1974,6 +1974,155 @@ func testReader(n : Nat) : Bool {
 };
 
 // Run all tests
+// The index block length a freshly built List of the same contents has.
+// In-place compaction (retain, deduplicate) and copies (clone, map,
+// mapEntries, mapResult, flatten) must not keep a longer index block.
+func canonicalIndexBlockLength(list : List.List<Nat>) : Nat {
+  List.fromArray<Nat>(list.toArray()).blocks.size()
+};
+
+// Checks that `list` has the canonical index block length, then runs
+// assertValid. The length is read first because assertValid adds and
+// removes an element, which can grow the index block.
+func isCompactAndValid(name : Text, list : List.List<Nat>) : Bool {
+  let length = list.blocks.size();
+  let expected = canonicalIndexBlockLength(list);
+  assertValid(list);
+  if (length != expected) {
+    Debug.print(name # ": index block length " # length.toText() # ", expected " # expected.toText());
+    return false
+  };
+  true
+};
+
+func testRetainIndexBlock(n : Nat) : Bool {
+  for (mod in Nat.range(1, 4)) {
+    let vec = List.tabulate<Nat>(n, func i = i);
+    vec.retain(func x = x % mod == 0);
+    if (not isCompactAndValid("retain mod " # mod.toText(), vec)) return false
+  };
+  let vec = List.tabulate<Nat>(n, func i = i);
+  vec.retain(func _ = false);
+  vec.isEmpty() and isCompactAndValid("retain none", vec)
+};
+
+func testDeduplicateRuns(n : Nat) : Bool {
+  // runs of length 3: 0, 0, 0, 1, 1, 1, ...
+  let vec = List.tabulate<Nat>(n, func i = i / 3);
+  vec.deduplicate(Nat.equal);
+  if (not isCompactAndValid("deduplicate", vec)) return false;
+  vec.equal(List.tabulate<Nat>((n + 2) / 3, func i = i), Nat.equal)
+};
+
+func testMapEntriesIndexBlock(n : Nat) : Bool {
+  // shrink with removeLast so the source keeps spare index block capacity
+  for (m in Nat.range(0, n + 1)) {
+    let vec = List.tabulate<Nat>(n, func i = i);
+    while (vec.size() > m) ignore vec.removeLast();
+    let expectedLength = vec.clone().blocks.size();
+
+    let entries = vec.mapEntries<Nat, Nat>(func(x, i) = x + i);
+    let results = switch (vec.mapResult<Nat, Nat, Text>(func x = #ok(x + 1))) {
+      case (#ok r) r;
+      case (#err _) return false
+    };
+    if (entries.blocks.size() != expectedLength or results.blocks.size() != expectedLength) {
+      Debug.print(
+        "copy index block mismatch for m = " # m.toText() # ": clone " # expectedLength.toText() # ", mapEntries " # entries.blocks.size().toText() # ", mapResult " # results.blocks.size().toText()
+      );
+      return false
+    };
+    assertValid(entries);
+    assertValid(results);
+    if (not entries.equal(List.tabulate<Nat>(m, func i = 2 * i), Nat.equal)) return false;
+    if (not results.equal(List.tabulate<Nat>(m, func i = i + 1), Nat.equal)) return false
+  };
+  true
+};
+
+func testFlattenWithEmpty(n : Nat) : Bool {
+  // sublist sizes cycle through 0, 1, 2, so every third sublist is empty
+  let sublists = Array.tabulate(n, func i = List.repeat<Nat>(i, i % 3));
+  let flattened = List.fromArray<List.List<Nat>>(sublists).flatten();
+  if (not isCompactAndValid("flatten", flattened)) return false;
+  let joined = sublists.values().join();
+  assertValid(joined);
+  if (not flattened.equal(joined, Nat.equal)) return false;
+
+  let allEmpty = List.fromArray<List.List<Nat>>(Array.tabulate(n, func _ = List.empty<Nat>())).flatten();
+  allEmpty.isEmpty() and isCompactAndValid("flatten all empty", allEmpty)
+};
+
+func testFind(n : Nat) : Bool {
+  let vec = List.tabulate<Nat>(n, func i = i);
+  for (i in Nat.range(0, n)) {
+    if (vec.find(func x = x == i) != ?i) return false;
+    // the first match wins
+    if (vec.find(func x = x >= i) != ?i) return false
+  };
+  vec.find(func x = x >= n) == null
+};
+
+func testReverseIterShrinking(n : Nat) : Bool {
+  // Removing the element just visited keeps the iteration going; removing
+  // one more, the element the iterator visits next, ends the iteration
+  // instead of trapping. Both reverse iterators behave the same.
+  for (removals in Nat.range(1, 3)) {
+    let expected = if (removals == 1) n else Nat.min(n, 1);
+
+    let a = List.tabulate<Nat>(n, func i = i);
+    var countA = 0;
+    for (_ in a.reverseValues()) {
+      countA += 1;
+      for (_ in Nat.range(0, removals)) ignore a.removeLast()
+    };
+
+    let b = List.tabulate<Nat>(n, func i = i);
+    var countB = 0;
+    for ((i, x) in b.reverseEnumerate()) {
+      if (i != x) return false;
+      countB += 1;
+      for (_ in Nat.range(0, removals)) ignore b.removeLast()
+    };
+
+    if (countA != expected or countB != expected) {
+      Debug.print("reverse iteration with " # removals.toText() # " removals: " # countA.toText() # ", " # countB.toText() # ", expected " # expected.toText());
+      return false
+    }
+  };
+  true
+};
+
+// sizes on either side of every data block boundary up to 600 elements
+let blockBoundarySizes : [Nat] = do {
+  let boundaries = List.empty<Nat>();
+  let vec = List.empty<Nat>();
+  while (vec.size() < 600) {
+    vec.add(0);
+    if (vec.elementIndex == 0) boundaries.add(vec.size())
+  };
+  boundaries.flatMap<Nat, Nat>(func b = [b - 1 : Nat, b, b + 1].values()).toArray()
+};
+
+func testBinarySearchBoundaries(n : Nat) : Bool {
+  if (n != 0) return true;
+  for (size in blockBoundarySizes.values()) {
+    let vec = List.tabulate<Nat>(size, func i = 2 * i + 1);
+    if (vec.binarySearch(Nat.compare, 0) != #insertionIndex(0)) return false;
+    for (i in Nat.range(0, size)) {
+      if (vec.binarySearch(Nat.compare, 2 * i + 1) != #found(i)) {
+        Debug.print("binarySearch boundary: size " # size.toText() # ", index " # i.toText());
+        return false
+      };
+      if (vec.binarySearch(Nat.compare, 2 * i + 2) != #insertionIndex(i + 1)) {
+        Debug.print("binarySearch boundary insertion: size " # size.toText() # ", index " # i.toText());
+        return false
+      }
+    }
+  };
+  true
+};
+
 func runAllTests() {
   runTest("testNew", testNew);
   runTest("testInit", testInit);
@@ -2023,7 +2172,14 @@ func runAllTests() {
   runTest("testPrevIndexOf", testPrevIndexOf);
   runTest("testMin", testMin);
   runTest("testMax", testMax);
-  runTest("testReader", testReader)
+  runTest("testReader", testReader);
+  runTest("testRetainIndexBlock", testRetainIndexBlock);
+  runTest("testDeduplicateRuns", testDeduplicateRuns);
+  runTest("testMapEntriesIndexBlock", testMapEntriesIndexBlock);
+  runTest("testFlattenWithEmpty", testFlattenWithEmpty);
+  runTest("testFind", testFind);
+  runTest("testReverseIterShrinking", testReverseIterShrinking);
+  runTest("testBinarySearchBoundaries", testBinarySearchBoundaries)
 };
 
 // Run all tests

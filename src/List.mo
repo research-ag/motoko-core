@@ -1308,16 +1308,20 @@ module {
   ///
   /// Space: `O(1)`
   public func get<T>(self : List<T>, index : Nat) : ?T {
-    // No valid index is >= 2^61 (the size limit). 2^61 - 1 is still a
-    // compact Nat, so this is a cheap comparison, and it makes the wrapping
-    // conversion below exact.
-    if (index > 0x1FFF_FFFF_FFFF_FFFF) return null;
+    // An index >= 2^64 wraps to some other value; converting back detects
+    // that. For an index in range both sides are the same compact Nat, so
+    // the equality returns on its first check and allocates nothing, also
+    // on 32-bit builds (legacy persistence), where compact Nats are below
+    // 2^30 and a comparison with a larger constant would box the index.
+    let i = Nat64.fromIntWrap(index);
+    if (i.toNat() != index) return null;
     // inlined version of locate. The two cases are written out in full and
     // the bounds checks are done on Nat64 values: both avoid bignum-capable
     // Nat comparisons and the boxing of a (Nat64, Nat64) tuple.
     // A data block is either empty or of full capacity, and the element
-    // index computed by locate always fits a full one.
-    let i = Nat64.fromIntWrap(index);
+    // index computed by locate always fits a full one. Indices in
+    // [size, 2^64) give a block index beyond the index block or an empty
+    // data block.
     let lz = Nat64.bitcountLeadingZero(i);
     let lz2 = lz >> 1;
     let blocks = self.blocks;

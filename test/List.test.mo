@@ -1981,15 +1981,16 @@ func canonicalIndexBlockLength(list : List.List<Nat>) : Nat {
   List.fromArray<Nat>(list.toArray()).blocks.size()
 };
 
-// Checks that `list` has the canonical index block length, then runs
+// Checks that `list` has an index block no longer than the canonical one
+// (an empty List may have the shorter one of List.empty), then runs
 // assertValid. The length is read first because assertValid adds and
 // removes an element, which can grow the index block.
 func isCompactAndValid(name : Text, list : List.List<Nat>) : Bool {
   let length = list.blocks.size();
   let expected = canonicalIndexBlockLength(list);
   assertValid(list);
-  if (length != expected) {
-    Debug.print(name # ": index block length " # length.toText() # ", expected " # expected.toText());
+  if (length > expected) {
+    Debug.print(name # ": index block length " # length.toText() # ", expected at most " # expected.toText());
     return false
   };
   true
@@ -2123,6 +2124,209 @@ func testBinarySearchBoundaries(n : Nat) : Bool {
   true
 };
 
+// positions on and just after every data block boundary of a list of
+// size 100, plus both ends
+let boundaryPositions : [Nat] = do {
+  let positions = List.singleton<Nat>(0);
+  let vec = List.empty<Nat>();
+  while (vec.size() < 100) {
+    vec.add(0);
+    if (vec.elementIndex == 0) {
+      positions.add(vec.size());
+      if (vec.size() < 100) positions.add(vec.size() + 1)
+    }
+  };
+  positions.toArray()
+};
+
+func testRangesAtBlockBoundaries(n : Nat) : Bool {
+  if (n != 0) return true;
+  let size = 100;
+  let vec = List.tabulate<Nat>(size, func i = i);
+  for (left in boundaryPositions.values()) {
+    for (right in boundaryPositions.values()) {
+      if (left <= right) {
+        let expected = Array.tabulate(right - left : Nat, func i = left + i);
+        if (vec.range(left, right).toArray() != expected) {
+          Debug.print("range " # left.toText() # ".." # right.toText());
+          return false
+        };
+        if (vec.sliceToArray(left, right) != expected) {
+          Debug.print("sliceToArray " # left.toText() # ".." # right.toText());
+          return false
+        };
+        if (vec.sliceToVarArray(left, right).toArray() != expected) {
+          Debug.print("sliceToVarArray " # left.toText() # ".." # right.toText());
+          return false
+        };
+        let visited = List.empty<Nat>();
+        vec.forEachInRange(func x = visited.add(x), left, right);
+        if (visited.toArray() != expected) {
+          Debug.print("forEachInRange " # left.toText() # ".." # right.toText());
+          return false
+        };
+        if (left < size) {
+          let next = vec.reader(left);
+          if (Array.tabulate(right - left : Nat, func _ = next()) != expected) {
+            Debug.print("reader " # left.toText() # ".." # right.toText());
+            return false
+          }
+        }
+      }
+    }
+  };
+  // values equal indices, so every lookup has a known answer
+  for (from in boundaryPositions.values()) {
+    for (x in boundaryPositions.values()) {
+      if (from < size and x < size) {
+        let expected = if (x >= from) ?x else null;
+        if (vec.nextIndexOf(Nat.equal, x, from) != expected) {
+          Debug.print("nextIndexOf " # x.toText() # " from " # from.toText());
+          return false
+        }
+      };
+      if (x < size) {
+        let expected = if (x < from) ?x else null;
+        if (vec.prevIndexOf(Nat.equal, x, from) != expected) {
+          Debug.print("prevIndexOf " # x.toText() # " from " # from.toText());
+          return false
+        }
+      }
+    }
+  };
+  true
+};
+
+func testConstructorsAtBlockBoundaries(n : Nat) : Bool {
+  if (n != 0) return true;
+  // sizes up to 260 cover data blocks of up to 32 elements and keep the
+  // interpreted test fast
+  for (size in blockBoundarySizes.values()) if (size <= 260) {
+    let expected = Array.tabulate(size, func i = i);
+    let lists = [
+      List.tabulate<Nat>(size, func i = i),
+      List.fromArray<Nat>(expected),
+      List.fromVarArray<Nat>(expected.toVarArray())
+    ];
+    for (list in lists.values()) {
+      assertValid(list);
+      if (list.toArray() != expected) {
+        Debug.print("constructor mismatch for size " # size.toText());
+        return false
+      }
+    };
+
+    let repeated = List.repeat<Nat>(7, size);
+    assertValid(repeated);
+    if (not repeated.all(func x = x == 7) or repeated.size() != size) return false;
+
+    let appended = List.repeat<Nat>(1, size / 2);
+    appended.addRepeat(2, size - size / 2 : Nat);
+    assertValid(appended);
+    if (appended.toArray() != Array.tabulate(size, func i = if (i < size / 2) 1 else 2)) {
+      Debug.print("addRepeat mismatch for size " # size.toText());
+      return false
+    };
+
+    let reversed = List.tabulate<Nat>(size, func i = i);
+    reversed.reverseInPlace();
+    assertValid(reversed);
+    if (reversed.toArray() != Array.tabulate(size, func i = size - 1 - i : Nat)) {
+      Debug.print("reverseInPlace mismatch for size " # size.toText());
+      return false
+    };
+
+    let truncated = List.tabulate<Nat>(size + 5, func i = i);
+    truncated.truncate(size);
+    assertValid(truncated);
+    if (truncated.toArray() != expected) {
+      Debug.print("truncate mismatch for size " # size.toText());
+      return false
+    }
+  };
+  true
+};
+
+func testBuildersAtBlockBoundaries(n : Nat) : Bool {
+  if (n != 0) return true;
+  func check(name : Text, size : Nat, list : List.List<Nat>, expected : [Nat]) : Bool {
+    assertValid(list);
+    if (list.toArray() != expected) {
+      Debug.print(name # " mismatch for size " # size.toText());
+      return false
+    };
+    true
+  };
+  // sizes up to 130 cover data blocks of up to 16 elements and keep the
+  // interpreted test fast
+  for (size in blockBoundarySizes.values()) if (size <= 130) {
+    let all = Array.tabulate(size, func i = i);
+    let evens = Array.tabulate((size + 1) / 2, func i = 2 * i);
+    let vec = List.fromArray<Nat>(all);
+
+    if (not check("fromIter", size, List.fromIter(all.values()), all)) return false;
+    if (not check("fromPure", size, List.fromPure(vec.toPure()), all)) return false;
+    if (not check("clone", size, vec.clone(), all)) return false;
+    if (not check("filter (all)", size, vec.filter(func _ = true), all)) return false;
+    if (not check("filter (evens)", size, vec.filter(func x = x % 2 == 0), evens)) return false;
+    if (not check("filterMap (evens)", size, vec.filterMap(func x = if (x % 2 == 0) ?x else null), evens)) return false;
+    if (not check("flatMap (twice)", size, vec.flatMap(func x = [x, x].values()), Array.tabulate(2 * size, func i = i / 2))) return false;
+    if (not check("reverse", size, vec.reverse(), Array.tabulate(size, func i = size - 1 - i : Nat))) return false;
+
+    // pieces of every length around the block boundaries
+    let pieces = List.fromArray<List.List<Nat>>([vec, List.empty(), List.fromArray(evens), vec]);
+    let joinedExpected = [all, evens, all].flatten();
+    if (not check("flatten", size, pieces.flatten(), joinedExpected)) return false;
+    if (not check("join", size, pieces.values().join(), joinedExpected)) return false;
+
+    let appended = List.fromArray<Nat>(evens);
+    appended.append(vec);
+    if (not check("append", size, appended, evens.concat(all))) return false;
+    let doubled = vec.clone();
+    doubled.append(doubled);
+    if (not check("append (to itself)", size, doubled, all.concat(all))) return false;
+
+    let retained = vec.clone();
+    retained.retain(func x = x % 2 == 0);
+    if (not check("retain", size, retained, evens)) return false;
+    let pairs = List.tabulate<Nat>(2 * size, func i = i / 2);
+    pairs.deduplicate(Nat.equal);
+    if (not check("deduplicate", size, pairs, all)) return false;
+
+    let added = List.empty<Nat>();
+    for (x in all.values()) added.add(x);
+    if (not check("add", size, added, all)) return false;
+    var removed = 0;
+    while (added.removeLast() != null) removed += 1;
+    if (removed != size or not check("removeLast", size, added, [])) return false;
+
+    if (vec.toVarArray().toArray() != all) return false;
+    if (vec.values().toArray() != all) return false;
+    if (vec.reverseValues().toArray() != Array.tabulate(size, func i = size - 1 - i : Nat)) return false;
+    if (vec.enumerate().toArray() != Array.tabulate(size, func i = (i, i))) return false;
+    if (vec.reverseEnumerate().toArray() != Array.tabulate(size, func i = (size - 1 - i : Nat, size - 1 - i : Nat))) return false
+  };
+  true
+};
+
+func testIteratorsAfterEnd(n : Nat) : Bool {
+  // an exhausted iterator keeps returning null
+  let vec = List.tabulate<Nat>(n, func i = i);
+  let values = vec.values();
+  let reverseValues = vec.reverseValues();
+  let enumerate = vec.enumerate();
+  let reverseEnumerate = vec.reverseEnumerate();
+  for (_ in values) {};
+  for (_ in reverseValues) {};
+  for (_ in enumerate) {};
+  for (_ in reverseEnumerate) {};
+  for (_ in Nat.range(0, 3)) {
+    if (values.next() != null or reverseValues.next() != null) return false;
+    if (enumerate.next() != null or reverseEnumerate.next() != null) return false
+  };
+  true
+};
+
 func runAllTests() {
   runTest("testNew", testNew);
   runTest("testInit", testInit);
@@ -2179,7 +2383,11 @@ func runAllTests() {
   runTest("testFlattenWithEmpty", testFlattenWithEmpty);
   runTest("testFind", testFind);
   runTest("testReverseIterShrinking", testReverseIterShrinking);
-  runTest("testBinarySearchBoundaries", testBinarySearchBoundaries)
+  runTest("testBinarySearchBoundaries", testBinarySearchBoundaries);
+  runTest("testRangesAtBlockBoundaries", testRangesAtBlockBoundaries);
+  runTest("testConstructorsAtBlockBoundaries", testConstructorsAtBlockBoundaries);
+  runTest("testBuildersAtBlockBoundaries", testBuildersAtBlockBoundaries);
+  runTest("testIteratorsAfterEnd", testIteratorsAfterEnd)
 };
 
 // Run all tests
@@ -2412,6 +2620,49 @@ func fakeList(blockCount : Nat, blockIndex : Nat, elementIndex : Nat) : List.Lis
   var blocks = VarArray.repeat<[var ?Nat]>([var], blockCount);
   var blockIndex = blockIndex;
   var elementIndex = elementIndex
+};
+
+// size() computes d / 3 for d = blockIndex as (d * 0xAAAA_AAAB) >> 33,
+// which is exact only for d < 2^32. Check size() against locate on crafted
+// insertion positions (the data blocks are not needed) around every data
+// block boundary up to the maximum size 2^61, whose blockIndex 3 * 2^30 is
+// the largest d that occurs.
+do {
+  func checkSize(size : Nat) {
+    let (b, e) = locate_optimal64(size);
+    let got = fakeList(1, b, e).size();
+    if (got != size) Runtime.trap("size() of crafted list: expected " # size.toText() # ", got " # got.toText())
+  };
+  var k = 1;
+  while (k <= 61) {
+    let p = 2 ** k;
+    let q = 3 * 2 ** (k - 1 : Nat);
+    var d = 0;
+    while (d < 8) {
+      if (p + d <= 2 ** 61) checkSize(p + d);
+      if (d < p) checkSize(p - d - 1 : Nat);
+      if (q + d <= 2 ** 61) checkSize(q + d);
+      if (d < q) checkSize(q - d - 1 : Nat);
+      d += 1
+    };
+    k += 1
+  };
+  checkSize(2 ** 61);
+  // and the multiply-shift itself on the edge of its stated range
+  for (d in [0, 1, 2, 3, 4, 5, 3 * 2 ** 30 - 1, 3 * 2 ** 30, 3 * 2 ** 30 + 1, 2 ** 32 - 3, 2 ** 32 - 2, 2 ** 32 - 1].values()) {
+    let d64 = d.toNat64();
+    assert (d64 *% 0xAAAA_AAAB) >> 33 == d64 / 3
+  }
+};
+
+// get() returns null for every index at or beyond the size, including
+// indices whose low 64 bits would wrap to a valid one
+do {
+  let vec = List.tabulate<Nat>(10, func i = i);
+  for (index in [10, 2 ** 61 - 1, 2 ** 61, 2 ** 62, 2 ** 64 - 1, 2 ** 64, 2 ** 64 + 1, 2 ** 65 + 3, 2 ** 100].values()) {
+    if (vec.get(index) != null) Runtime.trap("get(" # index.toText() # ") should be null")
+  };
+  assert vec.get(9) == ?9
 };
 
 // A size as large as 2^32 cannot be reached by actually adding elements

@@ -50,6 +50,54 @@ module {
 
   let INTERNAL_ERROR = "List: internal error";
 
+  // Cost model behind the loops in this module
+  //
+  // The choices below were measured with `mops bench --query` on moc
+  // 1.16.0 and 2.2.4, see bench/ListAccess.bench.mo and
+  // bench/ListTraversal.bench.mo. Re-measure before changing a hot loop.
+  //
+  // - Nat arithmetic and comparisons compile to runtime calls (B_add,
+  //   B_lt, B_eq, ...) of about 15-25 instructions each, because a Nat may
+  //   be a bignum. Hot loops therefore count in Nat64 locals, which
+  //   compile to single wasm instructions, and convert to Nat only to
+  //   subscript an array. On 32-bit builds (legacy persistence) a Nat
+  //   above 2^30 is a bignum, so comparing with such a constant allocates:
+  //   see the guard in get.
+  // - `for (x in a.values())` and `for (i in a.keys())` compile to plain
+  //   loops without calls or bounds checks, so whole data blocks are
+  //   walked with them.
+  // - State captured by a closure or an object (iterators, reader,
+  //   sliceToArray) lives in heap boxes: a Nat there needs the runtime
+  //   calls above and a Nat64 a range check on every write, while a Nat32
+  //   is boxed by a shift. Positions within a data block (below 2^31) are
+  //   therefore kept as Nat32 there, and each field is read once per call.
+  // - Every `self.field` read is a lookup by field hash: read a field once
+  //   into a local. A (Nat64, Nat64) tuple returned by an `if` is boxed:
+  //   write both branches out instead (at, get, put).
+  // - Calls are not inlined. Calling add, or a closure, per element
+  //   dominates the cost of a builder, so the functions that fill a fresh
+  //   List keep its insertion point in locals (see nextOutBlock).
+  // - Storing a pointer into an existing array goes through the write
+  //   barrier of the incremental GC: every store checks whether a GC
+  //   increment is running, and while one is, the barrier records the
+  //   overwritten pointer for the mark phase and resolves forwarding
+  //   pointers after objects were moved. VarArray.tabulate fills a fresh
+  //   array with plain stores instead, at the price of a closure call per
+  //   element. Hence:
+  //   - a fresh data block whose element j depends only on slot j of
+  //     another block (map, mapResult, clone) is built with
+  //     VarArray.tabulate;
+  //   - one that needs another running index (tabulate, fromArray,
+  //     fromVarArray, mapEntries) is allocated with VarArray.repeat and
+  //     filled in a loop: a `base + j` Nat addition in the closure, or a
+  //     counter captured in a heap box, costs more than the barrier check
+  //     (measured +7% to +60%);
+  //   - in-place updates (put, fill, mapInPlace, retain, ...) pay the
+  //     barrier in any case.
+  //   The benchmarks run as queries, where no GC increment runs, so they
+  //   measure only the check; the full barrier makes store loops costlier
+  //   in update calls.
+
   /// Creates a new empty List for elements of type T.
   ///
   /// Example:
@@ -99,13 +147,17 @@ module {
       i += 1
     };
     if (elementIndex != 0) {
-      dataBlocks[blockIndex] := if (Option.isNull(initValue)) VarArray.repeat(
-        null,
-        dataBlockSize(blockIndex)
-      ) else VarArray.tabulate(
-        dataBlockSize(blockIndex),
-        func i = if (i < elementIndex) initValue else null
-      )
+      let db = VarArray.repeat<?T>(null, dataBlockSize(blockIndex));
+      if (not Option.isNull(initValue)) {
+        // Nat64 position, see nextIndexOf
+        var j : Nat64 = 0;
+        let stop = Nat64.fromIntWrap(elementIndex);
+        while (j < stop) {
+          db[j.toNat()] := initValue;
+          j +%= 1
+        }
+      };
+      dataBlocks[blockIndex] := db
     };
 
     {
@@ -142,22 +194,28 @@ module {
   /// Space: `O(1)`
   public func fill<T>(self : List<T>, value : T) {
     let blocks = self.blocks;
-    let blockCount = blocks.size();
     let blockIndex = self.blockIndex;
-    let elementIndex = self.elementIndex;
+    // wrapped once instead of per element
+    let slot = ?value;
 
+    // the data blocks before blockIndex are full
     var i = 1;
-    while (i < blockCount) {
+    while (i < blockIndex) {
       let db = blocks[i];
-      let sz = if (i == blockIndex) elementIndex else db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
-        db[j] := ?value;
-        j += 1
-      };
+      for (j in db.keys()) db[j] := slot;
       i += 1
+    };
+
+    let elementIndex = self.elementIndex;
+    if (elementIndex != 0) {
+      let db = blocks[blockIndex];
+      // Nat64 position, see nextIndexOf
+      var j : Nat64 = 0;
+      let stop = Nat64.fromIntWrap(elementIndex);
+      while (j < stop) {
+        db[j.toNat()] := slot;
+        j +%= 1
+      }
     }
   };
 
@@ -185,11 +243,11 @@ module {
 
     while (i > 0) {
       let db = blocks[i];
-      let sz = db.size();
-      var j = if (i == blockIndex) elementIndex else sz;
+      // Nat64 position, see nextIndexOf
+      var j = Nat64.fromIntWrap(if (i == blockIndex) elementIndex else db.size());
       while (j > 0) {
-        j -= 1;
-        switch (db[j]) {
+        j -%= 1;
+        switch (db[j.toNat()]) {
           case (?x) result := ?(x, result);
           case null Prim.trap INTERNAL_ERROR
         }
@@ -215,15 +273,28 @@ module {
   /// Space: `O(size)`
   /// @deprecated M0235
   public func fromPure<T>(pure : PureList.List<T>) : List<T> {
-    var p = pure;
     let list = empty<T>();
+    // local insertion point, see nextOutBlock
+    var out : [var ?T] = [var];
+    var e : Nat64 = 0;
+    var outSize : Nat64 = 0;
+    var p = pure;
     loop {
       switch (p) {
         case (?(x, xs)) {
-          add(list, x);
+          if (e == outSize) {
+            out := nextOutBlock(list, outSize);
+            outSize := Nat64.fromIntWrap(out.size());
+            e := 0
+          };
+          out[e.toNat()] := ?x;
+          e +%= 1;
           p := xs
         };
-        case null return list
+        case null {
+          finishOut(list, e, outSize);
+          return list
+        }
       }
     }
   };
@@ -266,10 +337,14 @@ module {
       let to = Nat.min(elementIndex + cnt, dbSize);
       cnt -= to - elementIndex;
 
-      while (elementIndex < to) {
-        block[elementIndex] := initValue;
-        elementIndex += 1
+      // Nat64 position, see nextIndexOf
+      var j = Nat64.fromIntWrap(elementIndex);
+      let stop = Nat64.fromIntWrap(to);
+      while (j < stop) {
+        block[j.toNat()] := initValue;
+        j +%= 1
       };
+      elementIndex := to;
 
       if (elementIndex == dbSize) {
         elementIndex := 0;
@@ -342,11 +417,12 @@ module {
     };
     if (elementIndex != 0) {
       let block = newBlocks[blockIndex];
-      var i = elementIndex;
-      let to = block.size();
-      while (i < to) {
-        block[i] := null;
-        i += 1
+      // Nat64 position, see nextIndexOf
+      var j = Nat64.fromIntWrap(elementIndex);
+      let stop = Nat64.fromIntWrap(block.size());
+      while (j < stop) {
+        block[j.toNat()] := null;
+        j +%= 1
       }
     }
   };
@@ -393,20 +469,33 @@ module {
     let blocks = newIndexBlockLength(Nat.toNat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
+    // Each data block is allocated null-filled and then written in a loop
+    // over its keys, which the compiler turns into a plain loop: there is
+    // no closure call per element as with VarArray.tabulate. The running
+    // index is Nat64 so that it advances without bignum-capable Nat
+    // arithmetic.
     var i = 1;
-    var pos = 0;
+    var pos : Nat64 = 0;
 
     while (i < blockIndex) {
-      let len = dataBlockSize(i);
-      dataBlocks[i] := VarArray.tabulate(len, func i = ?generator(pos + i));
-      pos += len;
+      let db = VarArray.repeat<?T>(null, dataBlockSize(i));
+      for (j in db.keys()) {
+        db[j] := ?generator(pos.toNat());
+        pos +%= 1
+      };
+      dataBlocks[i] := db;
       i += 1
     };
     if (elementIndex != 0 and blockIndex < blocks) {
-      dataBlocks[i] := VarArray.tabulate(
-        dataBlockSize(blockIndex),
-        func i = if (i < elementIndex) ?generator(pos + i) else null
-      )
+      let db = VarArray.repeat<?T>(null, dataBlockSize(blockIndex));
+      var j : Nat64 = 0;
+      let stop = Nat64.fromIntWrap(elementIndex);
+      while (j < stop) {
+        db[j.toNat()] := ?generator(pos.toNat());
+        j +%= 1;
+        pos +%= 1
+      };
+      dataBlocks[i] := db
     };
 
     {
@@ -438,24 +527,31 @@ module {
   ///
   /// Space: O(number of elements in list)
   public func flatten<T>(self : List<List<T>>) : List<T> {
-    var sz = 0;
-    forEach(self, func(sublist) = sz += size(sublist));
-
-    // reserve all data blocks up front, then write without capacity checks
     let result = empty<T>();
-    reserve(result, sz);
+    // local insertion point, see nextOutBlock
+    var out : [var ?T] = [var];
+    var e : Nat64 = 0;
+    var outSize : Nat64 = 0;
 
-    forEach(
-      self,
-      func(sublist) {
-        forEach(
-          sublist,
-          func(item) {
-            addUnsafe(result, item)
-          }
-        )
-      }
-    );
+    let blocks = self.blocks;
+    let blockCount = blocks.size();
+    var i = 1;
+    label l while (i < blockCount) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?sublist) {
+            let (o, e1, s1) = copyOut(result, sublist, out, e, outSize);
+            out := o;
+            e := e1;
+            outSize := s1
+          };
+          case null break l
+        }
+      };
+      i += 1
+    };
+
+    finishOut(result, e, outSize);
     result
   };
 
@@ -478,10 +574,17 @@ module {
   public func join<T>(self : Types.Iter<List<T>>) : List<T> {
     // ignore-self-type-check
     let result = empty<T>();
+    // local insertion point, see nextOutBlock
+    var out : [var ?T] = [var];
+    var e : Nat64 = 0;
+    var outSize : Nat64 = 0;
     for (list in self) {
-      reserve(result, size(list));
-      forEach(list, func item = addUnsafe(result, item))
+      let (o, e1, s1) = copyOut(result, list, out, e, outSize);
+      out := o;
+      e := e1;
+      outSize := s1
     };
+    finishOut(result, e, outSize);
     result
   };
 
@@ -500,6 +603,9 @@ module {
   ///
   /// Space: `O(size)`
   public func clone<T>(self : List<T>) : List<T> = {
+    // VarArray.clone initializes each copy without the write barrier that a
+    // copy loop would pay per element, which is faster even with a closure
+    // call per element
     var blocks = VarArray.tabulate(
       copyIndexBlockLength(self),
       func(i) = self.blocks[i].clone()
@@ -524,26 +630,23 @@ module {
   ///
   /// Space: `O(size)`
   public func map<T, R>(self : List<T>, f : T -> R) : List<R> {
-    let blocksCount = copyIndexBlockLength(self);
-    let blocks = VarArray.repeat<[var ?R]>([var], blocksCount);
-
-    var i = 1;
-    label l while (i < blocksCount) {
-      let oldBlock = self.blocks[i];
-      let blockSize = oldBlock.size();
-      let newBlock = VarArray.repeat<?R>(null, blockSize);
-      blocks[i] := newBlock;
-      var j = 0;
-
-      while (j < blockSize) {
-        switch (oldBlock[j]) {
-          case (?item) newBlock[j] := ?f(item);
-          case null break l
-        };
-        j += 1
-      };
-      i += 1
-    };
+    let oldBlocks = self.blocks;
+    // Building each data block with VarArray.tabulate avoids the write
+    // barrier that a store per element would pay, which costs more than
+    // the closure call per element. Unused slots stay null.
+    let blocks = VarArray.tabulate(
+      copyIndexBlockLength(self),
+      func i {
+        let oldBlock = oldBlocks[i];
+        VarArray.tabulate(
+          oldBlock.size(),
+          func j = switch (oldBlock[j]) {
+            case (?item) ?f(item);
+            case null null
+          }
+        )
+      }
+    );
 
     {
       var blocks = blocks;
@@ -573,19 +676,15 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // loops over the keys of a block compile to plain loops, see clone
     var i = 1;
     while (i < blockCount) {
       let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
+      for (j in db.keys()) {
         switch (db[j]) {
           case (?x) db[j] := ?f(x);
           case null return
-        };
-        j += 1
+        }
       };
       i += 1
     }
@@ -610,24 +709,22 @@ module {
   public func mapEntries<T, R>(self : List<T>, f : (T, Nat) -> R) : List<R> {
     let blocksCount = copyIndexBlockLength(self);
     let blocks = VarArray.repeat<[var ?R]>([var], blocksCount);
+    let oldBlocks = self.blocks;
 
-    var index = 0;
+    // the running index is Nat64, see nextIndexOf
+    var index : Nat64 = 0;
 
     var i = 1;
     label l while (i < blocksCount) {
-      let oldBlock = self.blocks[i];
-      let blockSize = oldBlock.size();
-      let newBlock = VarArray.repeat<?R>(null, blockSize);
+      let oldBlock = oldBlocks[i];
+      let newBlock = VarArray.repeat<?R>(null, oldBlock.size());
       blocks[i] := newBlock;
-      var j = 0;
-
-      while (j < blockSize) {
+      for (j in oldBlock.keys()) {
         switch (oldBlock[j]) {
-          case (?item) newBlock[j] := ?f(item, index);
+          case (?item) newBlock[j] := ?f(item, index.toNat());
           case null break l
         };
-        j += 1;
-        index += 1
+        index +%= 1
       };
       i += 1
     };
@@ -666,50 +763,36 @@ module {
   public func mapResult<T, R, E>(self : List<T>, f : T -> Types.Result<R, E>) : Types.Result<List<R>, E> {
     var error : ?E = null;
 
-    let blocksCount = copyIndexBlockLength(self);
-    let blocks = VarArray.repeat<[var ?R]>([var], blocksCount);
-
-    var i = 1;
-    while (i < blocksCount) {
-      let oldBlock = self.blocks[i];
-      let blockSize = oldBlock.size();
-      let newBlock = VarArray.repeat<?R>(null, blockSize);
-      blocks[i] := newBlock;
-      var j = 0;
-
-      while (j < blockSize) {
-        switch (oldBlock[j]) {
-          case (?item) newBlock[j] := switch (f(item)) {
-            case (#ok x) ?x;
-            case (#err e) switch (error) {
-              case (null) {
-                error := ?e;
+    let oldBlocks = self.blocks;
+    // data blocks are built with VarArray.tabulate, see map
+    let blocks = VarArray.tabulate(
+      copyIndexBlockLength(self),
+      func i {
+        let oldBlock = oldBlocks[i];
+        VarArray.tabulate(
+          oldBlock.size(),
+          func j = switch (oldBlock[j]) {
+            case (?item) switch (f(item)) {
+              case (#ok x) ?x;
+              case (#err e) {
+                // only the first error is kept
+                if (Option.isNull(error)) error := ?e;
                 null
-              };
-              case (?_) null
-            }
-          };
-          case null return switch (error) {
-            case (null) return #ok {
-              var blocks = blocks;
-              var blockIndex = self.blockIndex;
-              var elementIndex = self.elementIndex
+              }
             };
-            case (?e) return #err e
+            case null null
           }
-        };
-        j += 1
-      };
-      i += 1
-    };
+        )
+      }
+    );
 
     switch (error) {
-      case (null) return #ok {
+      case (null) #ok {
         var blocks = blocks;
         var blockIndex = self.blockIndex;
         var elementIndex = self.elementIndex
       };
-      case (?e) return #err e
+      case (?e) #err e
     }
   };
 
@@ -729,27 +812,34 @@ module {
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func filter<T>(self : List<T>, predicate : T -> Bool) : List<T> {
     let filtered = empty<T>();
+    // local insertion point, see nextOutBlock
+    var out : [var ?T] = [var];
+    var e : Nat64 = 0;
+    var outSize : Nat64 = 0;
 
     let blocks = self.blocks;
     let blockCount = blocks.size();
-
     var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return filtered;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) if (predicate(x)) add(filtered, x);
-          case null return filtered
-        };
-        j += 1
+    label l while (i < blockCount) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) if (predicate(x)) {
+            if (e == outSize) {
+              out := nextOutBlock(filtered, outSize);
+              outSize := Nat64.fromIntWrap(out.size());
+              e := 0
+            };
+            // the stored option is reused as is
+            out[e.toNat()] := slot;
+            e +%= 1
+          };
+          case null break l
+        }
       };
       i += 1
     };
 
+    finishOut(filtered, e, outSize);
     filtered
   };
 
@@ -767,29 +857,39 @@ module {
   ///
   /// Space: `O(sqrt(size))` if `list` was truncated otherwise `O(1)`
   public func retain<T>(self : List<T>, predicate : T -> Bool) {
-    self.blockIndex := 1;
-    self.elementIndex := 0;
-
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // The kept elements are compacted to the front, in place: the write
+    // cursor (wb, we) in data block `out` never passes the read position,
+    // so every block it moves to is already allocated.
+    var wb = 1;
+    var out : [var ?T] = if (blockCount > 1) blocks[1] else [var];
+    var we : Nat64 = 0;
+    var outSize = Nat64.fromIntWrap(out.size());
+
     var i = 1;
     label l while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) break l;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) if (predicate(x)) addUnsafe(self, x);
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) if (predicate(x)) {
+            if (we == outSize) {
+              wb += 1;
+              out := blocks[wb];
+              outSize := Nat64.fromIntWrap(out.size());
+              we := 0
+            };
+            out[we.toNat()] := slot;
+            we +%= 1
+          };
           case null break l
-        };
-        j += 1
+        }
       };
       i += 1
     };
 
+    setInsertionPoint(self, wb, we, outSize);
+    // clears the slots after the kept elements and shrinks the index block
     truncate(self, size(self))
   };
 
@@ -810,30 +910,36 @@ module {
   /// *Runtime and space assumes that `f` runs in `O(1)` time and space.
   public func filterMap<T, R>(self : List<T>, f : T -> ?R) : List<R> {
     let filtered = empty<R>();
+    // local insertion point, see nextOutBlock
+    var out : [var ?R] = [var];
+    var e : Nat64 = 0;
+    var outSize : Nat64 = 0;
 
     let blocks = self.blocks;
     let blockCount = blocks.size();
-
     var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return filtered;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+    label l while (i < blockCount) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) switch (f(x)) {
-            case (?y) add(filtered, y);
+            case (?y) {
+              if (e == outSize) {
+                out := nextOutBlock(filtered, outSize);
+                outSize := Nat64.fromIntWrap(out.size());
+                e := 0
+              };
+              out[e.toNat()] := ?y;
+              e +%= 1
+            };
             case null {}
           };
-          case null return filtered
-        };
-        j += 1
+          case null break l
+        }
       };
       i += 1
     };
 
+    finishOut(filtered, e, outSize);
     filtered
   };
 
@@ -853,32 +959,41 @@ module {
   /// *Runtime and space assumes that `k` runs in O(1) time and space.
   public func flatMap<T, R>(self : List<T>, k : T -> Types.Iter<R>) : List<R> {
     let result = empty<R>();
+    // local insertion point, see nextOutBlock
+    var out : [var ?R] = [var];
+    var e : Nat64 = 0;
+    var outSize : Nat64 = 0;
 
     let blocks = self.blocks;
     let blockCount = blocks.size();
-
     var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return result;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) for (y in k(x)) add(result, y);
-          case _ return result
-        };
-        j += 1
+    label l while (i < blockCount) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) for (y in k(x)) {
+            if (e == outSize) {
+              out := nextOutBlock(result, outSize);
+              outSize := Nat64.fromIntWrap(out.size());
+              e := 0
+            };
+            out[e.toNat()] := ?y;
+            e +%= 1
+          };
+          case null break l
+        }
       };
       i += 1
     };
 
+    finishOut(result, e, outSize);
     result
   };
 
   func indexByBlockElement<T>(blockIndex : Nat, elementIndex : Nat) : Nat {
-    let d = blockIndex.toNat64();
+    // Both arguments are compact Nats (blockIndex <= 3 * 2^30,
+    // elementIndex < 2^31), so the wrapping conversions are exact and skip
+    // the overflow check of toNat64.
+    let d = Nat64.fromIntWrap(blockIndex);
 
     // We call all data blocks of the same capacity an "epoch". We number the epochs 0,1,2,...
     // A data block is in epoch e iff the data block has capacity 2 ** e.
@@ -887,7 +1002,9 @@ module {
 
     // epoch of position's data block
     // e = 64 - lz
-    let lz = Nat64.bitcountLeadingZero(d / 3);
+    // d / 3 is computed as (d * 0xAAAA_AAAB) >> 33, which is exact for
+    // d < 2^32 and cheaper than a division.
+    let lz = Nat64.bitcountLeadingZero((d *% 0xAAAA_AAAB) >> 33);
 
     // capacity of all prior epochs combined
     // capacity_before_e = 2 * 4 ** (e - 1)
@@ -904,7 +1021,7 @@ module {
     // value is exact whenever the true result fits in 64 bits. A plain >>
     // would erase the shifted-out bits and break this argument, which is
     // why the rotation <>> is used.
-    ((d -% (1 <>> lz)) <>> lz +% elementIndex.toNat64()).toNat()
+    ((d -% (1 <>> lz)) <>> lz +% Nat64.fromIntWrap(elementIndex)).toNat()
   };
 
   /// Returns the current number of elements in the list.
@@ -921,10 +1038,11 @@ module {
   public func size<T>(self : List<T>) : Nat {
     // due to the design of List (blockIndex, elementIndex) pair points
     // exactly to the place where size-th element should be added
-    // so, it's the inlined version of indexByBlockElement
-    let d = self.blockIndex.toNat64();
-    let lz = Nat64.bitcountLeadingZero(d / 3);
-    Nat64.toNat((d -% (1 <>> lz)) <>> lz +% self.elementIndex.toNat64())
+    // so, it's the inlined version of indexByBlockElement (see there for
+    // the wrapping conversions and the division by 3)
+    let d = Nat64.fromIntWrap(self.blockIndex);
+    let lz = Nat64.bitcountLeadingZero((d *% 0xAAAA_AAAB) >> 33);
+    Nat64.toNat((d -% (1 <>> lz)) <>> lz +% Nat64.fromIntWrap(self.elementIndex))
   };
 
   // Returns the size of data block blockIndex, i.e. 2^e where e is the
@@ -1013,7 +1131,8 @@ module {
   ///
   /// Amortized Space: `O(1)`, Worst Case Space: `O(sqrt(n))`
   public func add<T>(self : List<T>, element : T) {
-    var elementIndex = self.elementIndex;
+    // Nat64 position, see nextIndexOf; elementIndex is a compact Nat
+    var elementIndex = Nat64.fromIntWrap(self.elementIndex);
     if (elementIndex == 0) {
       growIndexBlockIfNeeded(self);
       let blockIndex = self.blockIndex;
@@ -1029,28 +1148,91 @@ module {
 
     let lastDataBlock = self.blocks[self.blockIndex];
 
-    lastDataBlock[elementIndex] := ?element;
+    lastDataBlock[elementIndex.toNat()] := ?element;
 
-    elementIndex += 1;
-    if (elementIndex == lastDataBlock.size()) {
+    elementIndex +%= 1;
+    if (elementIndex == Nat64.fromIntWrap(lastDataBlock.size())) {
       elementIndex := 0;
       self.blockIndex += 1
     };
-    self.elementIndex := elementIndex
+    self.elementIndex := elementIndex.toNat()
   };
 
   // Add an element without checking and resizing the List
-  private func addUnsafe<T>(list : List<T>, element : T) {
-    var elementIndex = list.elementIndex;
-    let lastDataBlock = list.blocks[list.blockIndex];
-    lastDataBlock[elementIndex] := ?element;
+  // Local insertion point. A function that appends many elements to a
+  // List it has just created (filter, filterMap, flatMap, fromIter,
+  // fromPure, flatten, join) keeps the insertion point in locals instead
+  // of calling add per element: the current data block `out`, the
+  // position `e` in it and its size `outSize`, all Nat64 so that the
+  // fast path runs without bignum-capable Nat arithmetic. `out = [var]`
+  // and `e = outSize = 0` stand for the insertion point of an empty List.
+  // The List's fields are only updated when a data block is full
+  // (nextOutBlock) and at the end (finishOut); the List's elementIndex
+  // stays 0 in between.
 
-    elementIndex += 1;
-    if (elementIndex == lastDataBlock.size()) {
-      elementIndex := 0;
-      list.blockIndex += 1
+  // Moves the insertion point of `list` past the full data block of size
+  // `filled` (no block when `filled == 0`) and returns the next data
+  // block, allocating it and growing the index block as add does.
+  func nextOutBlock<T>(list : List<T>, filled : Nat64) : [var ?T] {
+    if (filled != 0) list.blockIndex += 1;
+    growIndexBlockIfNeeded(list);
+    let blocks = list.blocks;
+    let blockIndex = list.blockIndex;
+    if (blocks[blockIndex].size() == 0) {
+      blocks[blockIndex] := VarArray.repeat(null, dataBlockSize(blockIndex))
     };
-    list.elementIndex := elementIndex
+    blocks[blockIndex]
+  };
+
+  // Stores the local insertion point (position `e` in a data block of size
+  // `outSize`) back into `list`.
+  func finishOut<T>(list : List<T>, e : Nat64, outSize : Nat64) {
+    if (outSize == 0) return; // nothing was written
+    if (e == outSize) {
+      list.blockIndex += 1;
+      list.elementIndex := 0
+    } else list.elementIndex := e.toNat()
+  };
+
+  // Appends all elements of `source` to `list` through the local
+  // insertion point (out, e, outSize) and returns the updated one.
+  func copyOut<T>(list : List<T>, source : List<T>, out0 : [var ?T], e0 : Nat64, outSize0 : Nat64) : ([var ?T], Nat64, Nat64) {
+    var out = out0;
+    var e = e0;
+    var outSize = outSize0;
+    let blocks = source.blocks;
+    let blockCount = blocks.size();
+    var i = 1;
+    label l while (i < blockCount) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?_) {
+            if (e == outSize) {
+              out := nextOutBlock(list, outSize);
+              outSize := Nat64.fromIntWrap(out.size());
+              e := 0
+            };
+            out[e.toNat()] := slot;
+            e +%= 1
+          };
+          case null break l
+        }
+      };
+      i += 1
+    };
+    (out, e, outSize)
+  };
+
+  // Sets the insertion point of `list` to position `e` of data block `b`
+  // of size `outSize`, moving past the block when it is full.
+  func setInsertionPoint<T>(list : List<T>, b : Nat, e : Nat64, outSize : Nat64) {
+    if (e == outSize and outSize != 0) {
+      list.blockIndex := b + 1;
+      list.elementIndex := 0
+    } else {
+      list.blockIndex := b;
+      list.elementIndex := e.toNat()
+    }
   };
 
   /// Removes and returns the last item in the list or `null` if
@@ -1070,7 +1252,8 @@ module {
   ///
   /// Amortized Space: `O(1)`, Worst Case Space: `O(sqrt(n))`
   public func removeLast<T>(self : List<T>) : ?T {
-    var elementIndex = self.elementIndex;
+    // Nat64 position, see nextIndexOf; elementIndex is a compact Nat
+    var elementIndex = Nat64.fromIntWrap(self.elementIndex);
     if (elementIndex == 0) {
       var blockIndex = self.blockIndex;
       if (blockIndex == 1) {
@@ -1080,21 +1263,22 @@ module {
       shrinkIndexBlockIfNeeded(self);
 
       blockIndex -= 1;
-      elementIndex := self.blocks[blockIndex].size();
+      elementIndex := Nat64.fromIntWrap(self.blocks[blockIndex].size());
 
       // Keep one totally empty block when removing
       if (blockIndex + 2 < self.blocks.size()) self.blocks[blockIndex + 2] := [var];
 
       self.blockIndex := blockIndex
     };
-    elementIndex -= 1;
+    elementIndex -%= 1;
 
     let lastDataBlock = self.blocks[self.blockIndex];
 
-    let element = lastDataBlock[elementIndex];
-    lastDataBlock[elementIndex] := null;
+    let e = elementIndex.toNat();
+    let element = lastDataBlock[e];
+    lastDataBlock[e] := null;
 
-    self.elementIndex := elementIndex;
+    self.elementIndex := e;
     return element
   };
 
@@ -1172,27 +1356,36 @@ module {
   ///
   /// Space: `O(1)`
   public func get<T>(self : List<T>, index : Nat) : ?T {
-    // The guard only rejects index >= 2^64. Any index in `[size, 2^64)` falls
-    // through to the physical checks below: a block index beyond blocks.size()
-    // or a null slot, so null is returned.
-    if (Prim.shiftRight(index, 64) != 0) return null;
-    // inlined version of locate
-    let (a, b) = do {
-      // the guard above ensures index < 2^64, so the wrap cannot trigger
-      let i = Nat64.fromIntWrap(index);
-      let lz = Nat64.bitcountLeadingZero(i);
-      let lz2 = lz >> 1;
-      if (lz & 1 == 0) {
-        ((((i << lz2) >> 32) ^ (0x1_0000_0000 >> lz2)).toNat(), (i & (0xFFFF_FFFF >> lz2)).toNat())
-      } else {
-        ((((i << lz2) >> 31) ^ (0x1_8000_0000 >> lz2)).toNat(), (i & (0x7FFF_FFFF >> lz2)).toNat())
-      }
-    };
+    // An index >= 2^64 wraps to some other value; converting back detects
+    // that. For an index in range both sides are the same compact Nat, so
+    // the equality returns on its first check and allocates nothing, also
+    // on 32-bit builds (legacy persistence), where compact Nats are below
+    // 2^30 and a comparison with a larger constant would box the index.
+    let i = Nat64.fromIntWrap(index);
+    if (i.toNat() != index) return null;
+    // inlined version of locate. The two cases are written out in full and
+    // the bounds checks are done on Nat64 values: both avoid bignum-capable
+    // Nat comparisons and the boxing of a (Nat64, Nat64) tuple.
+    // A data block is either empty or of full capacity, and the element
+    // index computed by locate always fits a full one. Indices in
+    // [size, 2^64) give a block index beyond the index block or an empty
+    // data block.
+    let lz = Nat64.bitcountLeadingZero(i);
+    let lz2 = lz >> 1;
     let blocks = self.blocks;
-    if (a < blocks.size()) {
-      let db = blocks[a];
-      if (b < db.size()) db[b] else null
-    } else null
+    if (lz & 1 == 0) {
+      let a = ((i << lz2) >> 32) ^ (0x1_0000_0000 >> lz2);
+      if (a >= Nat64.fromIntWrap(blocks.size())) return null;
+      let db = blocks[a.toNat()];
+      let b = i & (0xFFFF_FFFF >> lz2);
+      if (b < Nat64.fromIntWrap(db.size())) db[b.toNat()] else null
+    } else {
+      let a = ((i << lz2) >> 31) ^ (0x1_8000_0000 >> lz2);
+      if (a >= Nat64.fromIntWrap(blocks.size())) return null;
+      let db = blocks[a.toNat()];
+      let b = i & (0x7FFF_FFFF >> lz2);
+      if (b < Nat64.fromIntWrap(db.size())) db[b.toNat()] else null
+    }
   };
 
   /// Overwrites the current element at `index` with `element`.
@@ -1253,7 +1446,8 @@ module {
 
     array.sortInPlace(compare);
 
-    var index = 0;
+    // Nat64 index, see nextIndexOf
+    var index : Nat64 = 0;
 
     let blocks = self.blocks;
     let blockCount = blocks.size();
@@ -1261,17 +1455,12 @@ module {
     var i = 1;
     while (i < blockCount) {
       let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
+      for (j in db.keys()) {
         switch (db[j]) {
-          case (?_) db[j] := ?array[index];
+          case (?_) db[j] := ?array[index.toNat()];
           case _ return
         };
-        index += 1;
-        j += 1
+        index +%= 1
       };
       i += 1
     }
@@ -1324,22 +1513,18 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // block 1 holds only the first element; the array iterator compiles to
+    // a plain loop
     var i = 2;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return true;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) switch (compare(x, prev)) {
             case (#greater or #equal) prev := x;
             case (#less) return false
           };
           case null return true
-        };
-        j += 1
+        }
       };
       i += 1
     };
@@ -1367,34 +1552,41 @@ module {
       case _ return
     };
 
-    self.blockIndex := 1;
-    self.elementIndex := 0;
-
-    addUnsafe(self, prev);
-
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // The kept elements are compacted to the front, in place, as in
+    // retain. The first element stays; block 1 holds only it.
+    var wb = 1;
+    var out : [var ?T] = blocks[1];
+    var we : Nat64 = 1;
+    var outSize : Nat64 = 1;
+
     var i = 2;
     label l while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) break l;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) {
-            if (not equal(x, prev)) addUnsafe(self, x);
+            if (not equal(x, prev)) {
+              if (we == outSize) {
+                wb += 1;
+                out := blocks[wb];
+                outSize := Nat64.fromIntWrap(out.size());
+                we := 0
+              };
+              out[we.toNat()] := slot;
+              we +%= 1
+            };
             prev := x
           };
           case null break l
-        };
-        j += 1
+        }
       };
       i += 1
     };
 
+    setInsertionPoint(self, wb, we, outSize);
+    // clears the slots after the kept elements and shrinks the index block
     truncate(self, size(self))
   };
 
@@ -1448,26 +1640,41 @@ module {
     if (fromInclusive >= size(self)) Prim.trap "List index out of bounds in nextIndexOf";
 
     let (blockIndex, elementIndex) = locate(fromInclusive);
-
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
-    var i = blockIndex;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return null;
-
-      var j = if (i == blockIndex) elementIndex else 0;
+    // The first data block is scanned from elementIndex on. Positions are
+    // Nat64 so that the loop runs without bignum-capable Nat arithmetic.
+    do {
+      let db = blocks[blockIndex];
+      let sz = Nat64.fromIntWrap(db.size());
+      var j = Nat64.fromIntWrap(elementIndex);
       while (j < sz) {
-        switch (db[j]) {
-          case (?x) if (equal(x, element)) return ?indexByBlockElement(i, j);
+        switch (db[j.toNat()]) {
+          case (?x) if (equal(x, element)) return ?indexByBlockElement(blockIndex, j.toNat());
           case null return null
         };
-        j += 1
+        j +%= 1
+      }
+    };
+
+    // The following data blocks are scanned whole, with the array iterator
+    // that the compiler turns into a plain loop without bounds checks.
+    // Empty data blocks only follow the last used one, so the scan stops
+    // at the first null either way.
+    var i = blockIndex + 1;
+    while (i < blockCount) {
+      var j : Nat64 = 0;
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) if (equal(x, element)) return ?indexByBlockElement(i, j.toNat());
+          case null return null
+        };
+        j +%= 1
       };
       i += 1
     };
+
     null
   };
 
@@ -1521,15 +1728,14 @@ module {
 
     var i = blockIndex;
     if (elementIndex == 0) i -= 1;
-
     while (i > 0) {
       let db = blocks[i];
-      let sz = db.size();
-      var j = if (i == blockIndex) elementIndex else sz;
+      // Nat64 position, see nextIndexOf
+      var j = Nat64.fromIntWrap(if (i == blockIndex) elementIndex else db.size());
       while (j > 0) {
-        j -= 1;
-        switch (db[j]) {
-          case (?x) if (equal(x, element)) return ?indexByBlockElement(i, j);
+        j -%= 1;
+        switch (db[j.toNat()]) {
+          case (?x) if (equal(x, element)) return ?indexByBlockElement(i, j.toNat());
           case null Prim.trap INTERNAL_ERROR
         }
       };
@@ -1556,21 +1762,15 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // the array iterator compiles to a plain loop
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return null;
-
-      var j = 0;
-      while (j < sz) {
-        let slot = db[j];
+      for (slot in blocks[i].values()) {
         switch (slot) {
           // return the stored option as is to avoid allocating a new one
           case (?x) if (predicate(x)) return slot;
           case null return null
-        };
-        j += 1
+        }
       };
       i += 1
     };
@@ -1602,22 +1802,21 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // the array iterator compiles to a plain loop; Nat64 position, see
+    // nextIndexOf
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return null;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) if (predicate(x)) return ?indexByBlockElement(i, j);
+      var j : Nat64 = 0;
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) if (predicate(x)) return ?indexByBlockElement(i, j.toNat());
           case null return null
         };
-        j += 1
+        j +%= 1
       };
       i += 1
     };
+
     null
   };
 
@@ -1651,12 +1850,12 @@ module {
 
     while (i > 0) {
       let db = blocks[i];
-      let sz = db.size();
-      var j = if (i == blockIndex) elementIndex else sz;
+      // Nat64 position, see nextIndexOf
+      var j = Nat64.fromIntWrap(if (i == blockIndex) elementIndex else db.size());
       while (j > 0) {
-        j -= 1;
-        switch (db[j]) {
-          case (?x) if (predicate(x)) return ?indexByBlockElement(i, j);
+        j -%= 1;
+        switch (db[j.toNat()]) {
+          case (?x) if (predicate(x)) return ?indexByBlockElement(i, j.toNat());
           case null Prim.trap INTERNAL_ERROR
         }
       };
@@ -1789,22 +1988,18 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // the array iterator compiles to a plain loop
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return true;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) if (not predicate(x)) return false;
           case null return true
-        };
-        j += 1
+        }
       };
       i += 1
     };
+
     true
   };
 
@@ -1855,25 +2050,35 @@ module {
   public func values<T>(self : List<T>) : Types.Iter<T> = object {
     let blocks = self.blocks.size();
     var blockIndex = 0;
-    var elementIndex = 0;
+    // position in data block `db`, kept as Nat32, see reader
+    var elementIndex : Nat32 = 0;
     var db : [var ?T] = self.blocks[blockIndex];
-    var dbSize = db.size();
+    var dbSize = Nat32.fromIntWrap(db.size());
 
     public func next() : ?T {
-      if (elementIndex == dbSize) {
+      // each field is read once per call
+      var position = elementIndex;
+      if (position == dbSize) {
         blockIndex += 1;
         if (blockIndex >= blocks) return null;
         db := self.blocks[blockIndex];
-        dbSize := db.size();
-        if (dbSize == 0) return null;
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          elementIndex += 1;
-          return ?x
+        let sz = Nat32.fromIntWrap(db.size());
+        dbSize := sz;
+        if (sz == 0) {
+          // stay consistent so that later calls keep returning null
+          elementIndex := 0;
+          return null
         };
-        case (_) return null
+        position := 0
+      };
+      let slot = db[position.toNat()];
+      switch (slot) {
+        case (?_) {
+          elementIndex := position +% 1;
+          // the stored option is returned as is
+          slot
+        };
+        case (_) null
       }
     }
   };
@@ -1904,28 +2109,36 @@ module {
   public func enumerate<T>(self : List<T>) : Types.Iter<(Nat, T)> = object {
     let blocks = self.blocks.size();
     var blockIndex = 0;
-    var elementIndex = 0;
-    var size = 0;
+    // position in data block `db` as Nat32 and the running index as
+    // Nat64, see reader
+    var elementIndex : Nat32 = 0;
+    var size : Nat32 = 0;
     var db : [var ?T] = [var];
-    var i = 0;
+    var i : Nat64 = 0;
 
     public func next() : ?(Nat, T) {
-      if (elementIndex == size) {
+      var position = elementIndex;
+      if (position == size) {
         blockIndex += 1;
         if (blockIndex >= blocks) return null;
         db := self.blocks[blockIndex];
-        size := db.size();
-        if (size == 0) return null;
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          let ret = ?(i, x);
-          elementIndex += 1;
-          i += 1;
-          return ret
+        let sz = Nat32.fromIntWrap(db.size());
+        size := sz;
+        if (sz == 0) {
+          // stay consistent so that later calls keep returning null
+          elementIndex := 0;
+          return null
         };
-        case (_) return null
+        position := 0
+      };
+      switch (db[position.toNat()]) {
+        case (?x) {
+          let index = i;
+          elementIndex := position +% 1;
+          i := index +% 1;
+          ?(index.toNat(), x)
+        };
+        case (_) null
       }
     }
   };
@@ -1956,22 +2169,26 @@ module {
   /// Space: `O(1)`
   public func reverseValues<T>(self : List<T>) : Types.Iter<T> = object {
     var blockIndex = self.blockIndex;
-    var elementIndex = self.elementIndex;
+    // position in data block `db`, kept as Nat32, see reader
+    var elementIndex = Nat32.fromIntWrap(self.elementIndex);
     var db : [var ?T] = if (blockIndex < self.blocks.size()) {
       self.blocks[blockIndex]
     } else { [var] };
 
     public func next() : ?T {
-      if (elementIndex != 0) {
-        elementIndex -= 1
+      var position = elementIndex;
+      if (position != 0) {
+        position -%= 1
       } else {
+        // the first data block is exhausted: stay there and keep
+        // returning null
+        if (blockIndex <= 1) return null;
         blockIndex -= 1;
-        if (blockIndex == 0) return null;
         db := self.blocks[blockIndex];
-        elementIndex := db.size() - 1
+        position := Nat32.fromIntWrap(db.size()) -% 1
       };
-
-      db[elementIndex]
+      elementIndex := position;
+      db[position.toNat()]
     }
   };
 
@@ -1999,26 +2216,33 @@ module {
   ///
   /// Warning: Allocates memory on the heap to store ?(T, Nat).
   public func reverseEnumerate<T>(self : List<T>) : Types.Iter<(Nat, T)> = object {
-    var i = size(self);
+    // the running index as Nat64, the position in data block `db` as
+    // Nat32, see reader
+    var i = Nat64.fromIntWrap(size(self));
     var blockIndex = self.blockIndex;
-    var elementIndex = self.elementIndex;
+    var elementIndex = Nat32.fromIntWrap(self.elementIndex);
     var db : [var ?T] = if (blockIndex < self.blocks.size()) {
       self.blocks[blockIndex]
     } else { [var] };
 
     public func next() : ?(Nat, T) {
-      if (elementIndex != 0) {
-        elementIndex -= 1
+      var position = elementIndex;
+      if (position != 0) {
+        position -%= 1
       } else {
+        // the first data block is exhausted: stay there and keep
+        // returning null
+        if (blockIndex <= 1) return null;
         blockIndex -= 1;
-        if (blockIndex == 0) return null;
         db := self.blocks[blockIndex];
-        elementIndex := db.size() - 1
+        position := Nat32.fromIntWrap(db.size()) -% 1
       };
-      switch (db[elementIndex]) {
+      elementIndex := position;
+      switch (db[position.toNat()]) {
         case (?x) {
-          i -= 1;
-          return ?(i, x)
+          let index = i -% 1;
+          i := index;
+          return ?(index.toNat(), x)
         };
         // a null slot here means the list shrank during iteration;
         // end the iteration like `values`, `enumerate` and `reverseValues`
@@ -2070,7 +2294,20 @@ module {
   /// Space: `O(size)`
   public func fromIter<T>(iter : Types.Iter<T>) : List<T> {
     let list = empty<T>();
-    for (element in iter) add(list, element);
+    // local insertion point, see nextOutBlock
+    var out : [var ?T] = [var];
+    var e : Nat64 = 0;
+    var outSize : Nat64 = 0;
+    for (element in iter) {
+      if (e == outSize) {
+        out := nextOutBlock(list, outSize);
+        outSize := Nat64.fromIntWrap(out.size());
+        e := 0
+      };
+      out[e.toNat()] := ?element;
+      e +%= 1
+    };
+    finishOut(list, e, outSize);
     list
   };
 
@@ -2110,27 +2347,47 @@ module {
   ///
   /// Space: `O(size(added))`
   public func append<T>(self : List<T>, added : List<T>) {
-    reserve(self, size(added));
+    let count = size(added);
+    if (count == 0) return;
+    reserve(self, count);
 
-    let blocks = added.blocks;
-    let blockCount = blocks.size();
+    // Copy exactly `count` elements, so that appending a list to itself
+    // copies it once. The source is read after reserve, which may have
+    // replaced the index block of `self`, and so of `added` if they are
+    // the same List. The write cursor (wb, we) moves through the data
+    // blocks that reserve allocated.
+    let source = added.blocks;
+    let blocks = self.blocks;
+    var wb = self.blockIndex;
+    var out = blocks[wb];
+    var we = Nat64.fromIntWrap(self.elementIndex);
+    var outSize = Nat64.fromIntWrap(out.size());
+    var remaining = Nat64.fromIntWrap(count);
 
     var i = 1;
-    while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) addUnsafe(self, x);
-          case null return
-        };
-        j += 1
+    label l while (true) {
+      for (slot in source[i].values()) {
+        if (remaining == 0) break l;
+        switch (slot) {
+          case (?_) {
+            if (we == outSize) {
+              wb += 1;
+              out := blocks[wb];
+              outSize := Nat64.fromIntWrap(out.size());
+              we := 0
+            };
+            out[we.toNat()] := slot;
+            we +%= 1;
+            remaining -%= 1
+          };
+          case null Prim.trap INTERNAL_ERROR
+        }
       };
+      if (remaining == 0) break l;
       i += 1
-    }
+    };
+
+    setInsertionPoint(self, wb, we, outSize)
   };
 
   /// Adds all elements from the provided iterator to the end of the list.
@@ -2173,28 +2430,8 @@ module {
   ///
   /// Space: `O(size)`
   public func toArray<T>(self : List<T>) : [T] {
-    var blockIndex = 0;
-    var elementIndex = 0;
-    var sz = 0;
-    var db : [var ?T] = [var];
-
-    func generator(_ : Nat) : T {
-      if (elementIndex == sz) {
-        blockIndex += 1;
-        db := self.blocks[blockIndex];
-        sz := db.size();
-        elementIndex := 0
-      };
-      switch (db[elementIndex]) {
-        case (?x) {
-          elementIndex += 1;
-          return x
-        };
-        case (_) Prim.trap INTERNAL_ERROR
-      }
-    };
-
-    Array.tabulate(size(self), generator)
+    // the cursor of sliceToArray, see there
+    Array.tabulate(size(self), sliceToArrayBase(self, 0).next)
   };
 
   /// Creates a List containing elements from an Array.
@@ -2218,20 +2455,23 @@ module {
     let blocks = newIndexBlockLength(Nat.toNat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
+    // One pass over the source with the array iterator, which the compiler
+    // turns into a plain loop, opening a null-filled data block whenever
+    // the current one is full. Positions are Nat64, see nextIndexOf.
     var i = 1;
-    var pos = 0;
-
-    while (i < blockIndex) {
-      let len = dataBlockSize(i);
-      dataBlocks[i] := VarArray.tabulate(len, func i = ?array[pos + i]);
-      pos += len;
-      i += 1
-    };
-    if (elementIndex != 0 and blockIndex < blocks) {
-      dataBlocks[i] := VarArray.tabulate(
-        dataBlockSize(i),
-        func i = if (i < elementIndex) ?array[pos + i] else null
-      )
+    var db : [var ?T] = [var];
+    var j : Nat64 = 0;
+    var sz : Nat64 = 0;
+    for (x in array.values()) {
+      if (j == sz) {
+        db := VarArray.repeat(null, dataBlockSize(i));
+        dataBlocks[i] := db;
+        i += 1;
+        j := 0;
+        sz := Nat64.fromIntWrap(db.size())
+      };
+      db[j.toNat()] := ?x;
+      j +%= 1
     };
 
     {
@@ -2259,31 +2499,27 @@ module {
   /// Space: `O(size)`
   public func toVarArray<T>(self : List<T>) : [var T] {
     let ?fs = first(self) else return [var];
-
     let array = VarArray.repeat(fs, size(self));
 
-    var index = 0;
+    // the array iterator compiles to a plain loop; Nat64 index, see
+    // nextIndexOf
+    var index : Nat64 = 0;
 
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return array;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) array[index] := x;
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) array[index.toNat()] := x;
           case null return array
         };
-        j += 1;
-        index += 1
+        index +%= 1
       };
       i += 1
     };
+
     array
   };
 
@@ -2309,29 +2545,21 @@ module {
     let blocks = newIndexBlockLength(Nat.toNat32(if (elementIndex == 0) { blockIndex - 1 } else blockIndex));
     let dataBlocks = VarArray.repeat<[var ?T]>([var], blocks);
 
-    func makeBlock(array : [var T], p : Nat, len : Nat, fill : Nat) : [var ?T] {
-      let block = VarArray.repeat<?T>(null, len);
-      var j = 0;
-      var pos = p;
-      while (j < fill) {
-        block[j] := ?array[pos];
-        j += 1;
-        pos += 1
-      };
-      block
-    };
-
+    // same as fromArray
     var i = 1;
-    var pos = 0;
-
-    while (i < blockIndex) {
-      let len = dataBlockSize(i);
-      dataBlocks[i] := makeBlock(array, pos, len, len);
-      pos += len;
-      i += 1
-    };
-    if (elementIndex != 0) {
-      dataBlocks[i] := makeBlock(array, pos, dataBlockSize(i), elementIndex)
+    var db : [var ?T] = [var];
+    var j : Nat64 = 0;
+    var sz : Nat64 = 0;
+    for (x in array.values()) {
+      if (j == sz) {
+        db := VarArray.repeat(null, dataBlockSize(i));
+        dataBlocks[i] := db;
+        i += 1;
+        j := 0;
+        sz := Nat64.fromIntWrap(db.size())
+      };
+      db[j.toNat()] := ?x;
+      j +%= 1
     };
 
     {
@@ -2401,19 +2629,14 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // the array iterator compiles to a plain loop
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) f(x);
           case null return
-        };
-        j += 1
+        }
       };
       i += 1
     }
@@ -2441,24 +2664,21 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func forEachEntry<T>(self : List<T>, f : (Nat, T) -> ()) {
-    var index = 0;
+    // the array iterator compiles to a plain loop; Nat64 index, see
+    // nextIndexOf
+    var index : Nat64 = 0;
+
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
-          case (?x) f(index, x);
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) f(index.toNat(), x);
           case null return
         };
-        j += 1;
-        index += 1
+        index +%= 1
       };
       i += 1
     }
@@ -2507,59 +2727,74 @@ module {
   /// Space: O(1)
   public func range<T>(self : List<T>, fromInclusive : Int, toExclusive : Int) : Types.Iter<T> = object {
     let (start, end) = actualInterval(fromInclusive, toExclusive, size(self));
-    let blocks = self.blocks.size();
+
+    // The iterator walks data blocks from the one holding `start` to the one
+    // holding `end - 1`. Within the current data block `db` it reads slots
+    // `j` until `stop`. Positions within a block are below 2^31 and kept
+    // as Nat32, see reader.
+    let (lastBlock, lastStop) : (Nat, Nat32) = if (start < end) {
+      let (block, element) = locate(end - 1 : Nat);
+      (block, Nat32.fromIntWrap(element) +% 1)
+    } else (0, 0);
+
     var blockIndex = 0;
-    var elementIndex = 0;
-    if (start != 0) {
-      let (block, element) = locate(start - 1);
+    var db : [var ?T] = [var];
+    var j : Nat32 = 0;
+    var stop : Nat32 = 0;
+    if (start < end) {
+      let (block, element) = locate(start);
       blockIndex := block;
-      elementIndex := element + 1
+      db := self.blocks[block];
+      j := Nat32.fromIntWrap(element);
+      stop := if (block == lastBlock) lastStop else Nat32.fromIntWrap(db.size())
+    } else {
+      // an empty range: next() returns null right away
+      blockIndex := lastBlock
     };
-    var db : [var ?T] = self.blocks[blockIndex];
-    var dbSize = db.size();
-    var index = start;
 
     public func next() : ?T {
-      if (index >= end) return null;
-      index += 1;
-
-      if (elementIndex == dbSize) {
+      // each field is read once per call
+      var position = j;
+      if (position == stop) {
+        if (blockIndex == lastBlock) return null;
         blockIndex += 1;
-        if (blockIndex >= blocks) return null;
         db := self.blocks[blockIndex];
-        dbSize := db.size();
-        if (dbSize == 0) return null;
-        elementIndex := 0
+        let sz = Nat32.fromIntWrap(db.size());
+        // the List shrank during iteration
+        if (sz == 0) return null;
+        position := 0;
+        stop := if (blockIndex == lastBlock) lastStop else sz
       };
-      let ret = db[elementIndex];
-      elementIndex += 1;
-      ret
+      j := position +% 1;
+      db[position.toNat()]
     }
   };
 
   func sliceToArrayBase<T>(self : List<T>, start : Nat) : {
     next(i : Nat) : T
   } = object {
+    // a cursor like the one of reader, see there
     var blockIndex = 0;
-    var elementIndex = 0;
+    var elementIndex : Nat32 = 0;
     if (start != 0) {
       let (block, element) = locate(start - 1);
       blockIndex := block;
-      elementIndex := element + 1
+      elementIndex := Nat32.fromIntWrap(element) +% 1
     };
     var db : [var ?T] = self.blocks[blockIndex];
-    var dbSize = db.size();
+    var dbSize = Nat32.fromIntWrap(db.size());
 
-    public func next(i : Nat) : T {
-      if (elementIndex == dbSize) {
+    public func next(_ : Nat) : T {
+      var position = elementIndex;
+      if (position == dbSize) {
         blockIndex += 1;
         db := self.blocks[blockIndex];
-        dbSize := db.size();
-        elementIndex := 0
+        dbSize := Nat32.fromIntWrap(db.size());
+        position := 0
       };
-      switch (db[elementIndex]) {
+      switch (db[position.toNat()]) {
         case (?x) {
-          elementIndex += 1;
+          elementIndex := position +% 1;
           return x
         };
         case null Prim.trap INTERNAL_ERROR
@@ -2609,7 +2844,52 @@ module {
   /// Space: O(toExclusive - fromInclusive)
   public func sliceToVarArray<T>(self : List<T>, fromInclusive : Int, toExclusive : Int) : [var T] {
     let (start, end) = actualInterval(fromInclusive, toExclusive, size(self));
-    VarArray.tabulate(end - start : Nat, sliceToArrayBase(self, start).next)
+    if (start == end) return [var];
+
+    // Copy block by block into an array seeded with the first element,
+    // instead of calling a generator closure per element. Positions are
+    // Nat64, see nextIndexOf.
+    let array = VarArray.repeat(at(self, start), end - start : Nat);
+    let blocks = self.blocks;
+    let (fromBlock, fromElement) = locate(start);
+    let (toBlock, toElement) = locate(end);
+    // copies slots [from, to) of block, which are all in use, to array
+    // from position k on and returns the next position. k is passed
+    // around rather than captured: a captured var would live in a heap box.
+    func copyPart(block : [var ?T], from : Nat, to : Nat, k : Nat64) : Nat64 {
+      var j = Nat64.fromIntWrap(from);
+      var p = k;
+      let stop = Nat64.fromIntWrap(to);
+      while (j < stop) {
+        switch (block[j.toNat()]) {
+          case (?x) array[p.toNat()] := x;
+          case null Prim.trap INTERNAL_ERROR
+        };
+        j +%= 1;
+        p +%= 1
+      };
+      p
+    };
+
+    if (fromBlock == toBlock) {
+      ignore copyPart(blocks[fromBlock], fromElement, toElement, 0);
+      return array
+    };
+    var k = copyPart(blocks[fromBlock], fromElement, blocks[fromBlock].size(), 0);
+    var i = fromBlock + 1;
+    while (i < toBlock) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?x) array[k.toNat()] := x;
+          case null Prim.trap INTERNAL_ERROR
+        };
+        k +%= 1
+      };
+      i += 1
+    };
+    // toBlock may not exist when toElement == 0
+    if (toElement != 0) ignore copyPart(blocks[toBlock], 0, toElement, k);
+    array
   };
 
   /// Like `forEachEntryRev` but iterates through the list in reverse order,
@@ -2634,7 +2914,8 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func reverseForEachEntry<T>(self : List<T>, f : (Nat, T) -> ()) {
-    var index = 0;
+    // Nat64 index and positions, see nextIndexOf
+    var index : Nat64 = 0;
 
     let blocks = self.blocks;
     let blockIndex = self.blockIndex;
@@ -2645,15 +2926,14 @@ module {
 
     while (i > 0) {
       let db = blocks[i];
-      let sz = db.size();
-      var j = if (i == blockIndex) elementIndex else sz;
+      var j = Nat64.fromIntWrap(if (i == blockIndex) elementIndex else db.size());
       while (j > 0) {
-        j -= 1;
-        switch (db[j]) {
-          case (?x) f(index, x);
+        j -%= 1;
+        switch (db[j.toNat()]) {
+          case (?x) f(index.toNat(), x);
           case null Prim.trap INTERNAL_ERROR
         };
-        index += 1
+        index +%= 1
       };
       i -= 1
     }
@@ -2688,11 +2968,11 @@ module {
 
     while (i > 0) {
       let db = blocks[i];
-      let sz = db.size();
-      var j = if (i == blockIndex) elementIndex else sz;
+      // Nat64 position, see nextIndexOf
+      var j = Nat64.fromIntWrap(if (i == blockIndex) elementIndex else db.size());
       while (j > 0) {
-        j -= 1;
-        switch (db[j]) {
+        j -%= 1;
+        switch (db[j.toNat()]) {
           case (?x) f(x);
           case null Prim.trap INTERNAL_ERROR
         }
@@ -2717,20 +2997,22 @@ module {
   public func forEachInRange<T>(self : List<T>, f : T -> (), fromInclusive : Nat, toExclusive : Nat) {
     if (not (fromInclusive <= toExclusive and toExclusive <= size(self))) Prim.trap("List range out of bounds in forEachInRange");
 
+    // calls f on slots [from, to) of block, which are all in use.
+    // Positions are Nat64, see nextIndexOf.
     func traverseBlock(block : [var ?T], f : T -> (), from : Nat, to : Nat) {
-      var i = from;
-      while (i < to) {
-        switch (block[i]) {
+      var i = Nat64.fromIntWrap(from);
+      let stop = Nat64.fromIntWrap(to);
+      while (i < stop) {
+        switch (block[i.toNat()]) {
           case (?value) f(value);
           case null Prim.trap(INTERNAL_ERROR)
         };
-        i += 1
+        i +%= 1
       }
     };
 
     let (fromBlock, fromElement) = locate(fromInclusive);
     let (toBlock, toElement) = locate(toExclusive);
-
     let blocks = self.blocks;
     let sz = blocks.size();
 
@@ -2741,10 +3023,17 @@ module {
 
     traverseBlock(blocks[fromBlock], f, fromElement, blocks[fromBlock].size());
 
+    // the blocks in between are full: traverse them with the array
+    // iterator, which the compiler turns into a plain loop
     var i = fromBlock + 1;
     let to = Nat.min(toBlock, sz);
     while (i < to) {
-      traverseBlock(blocks[i], f, 0, blocks[i].size());
+      for (slot in blocks[i].values()) {
+        switch (slot) {
+          case (?value) f(value);
+          case null Prim.trap(INTERNAL_ERROR)
+        }
+      };
       i += 1
     };
 
@@ -2804,22 +3093,18 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // block 1 holds only the first element; the array iterator compiles to
+    // a plain loop
     var i = 2;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return ?maxSoFar;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) switch (compare(x, maxSoFar)) {
             case (#greater) maxSoFar := x;
             case _ {}
           };
           case null return ?maxSoFar
-        };
-        j += 1
+        }
       };
       i += 1
     };
@@ -2856,22 +3141,18 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // block 1 holds only the first element; the array iterator compiles to
+    // a plain loop
     var i = 2;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return ?minSoFar;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) switch (compare(x, minSoFar)) {
             case (#less) minSoFar := x;
             case _ {}
           };
           case null return ?minSoFar
-        };
-        j += 1
+        }
       };
       i += 1
     };
@@ -2911,20 +3192,21 @@ module {
     while (i < blockCount) {
       let db1 = blocks1[i];
       let db2 = blocks2[i];
-      let sz = Nat.min(db1.size(), db2.size());
+      // Nat64 position, see nextIndexOf
+      let sz = Nat64.fromIntWrap(Nat.min(db1.size(), db2.size()));
       if (sz == 0) return true;
-
-      var j = 0;
+      var j : Nat64 = 0;
       while (j < sz) {
+        let k = j.toNat();
         // nested switches only to avoid allocating a tuple for a pair switch
-        switch (db1[j]) {
-          case (?x) switch (db2[j]) {
+        switch (db1[k]) {
+          case (?x) switch (db2[k]) {
             case (?y) if (not equal(x, y)) return false;
             case null return true
           };
           case null return true
         };
-        j += 1
+        j +%= 1
       };
       i += 1
     };
@@ -2962,14 +3244,15 @@ module {
     label l while (i < blockCount) {
       let db1 = blocks1[i];
       let db2 = blocks2[i];
-      let sz = Nat.min(db1.size(), db2.size());
+      // Nat64 position, see nextIndexOf
+      let sz = Nat64.fromIntWrap(Nat.min(db1.size(), db2.size()));
       if (sz == 0) break l;
-
-      var j = 0;
+      var j : Nat64 = 0;
       while (j < sz) {
+        let k = j.toNat();
         // nested switches only to avoid allocating a tuple for a pair switch
-        switch (db1[j]) {
-          case (?x) switch (db2[j]) {
+        switch (db1[k]) {
+          case (?x) switch (db2[k]) {
             case (?y) switch (compare(x, y)) {
               case (#less) return #less;
               case (#greater) return #greater;
@@ -2979,7 +3262,7 @@ module {
           };
           case null break l
         };
-        j += 1
+        j +%= 1
       };
       i += 1
     };
@@ -3012,19 +3295,15 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // block 1 holds only the first element; the array iterator compiles to
+    // a plain loop
     var i = 2;
     label l while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) break l;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) text #= ", " # toText(x);
           case null break l
-        };
-        j += 1
+        }
       };
       i += 1
     };
@@ -3056,22 +3335,18 @@ module {
     let blocks = self.blocks;
     let blockCount = blocks.size();
 
+    // the array iterator compiles to a plain loop
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return accumulation;
-
-      var j = 0;
-      while (j < sz) {
-        switch (db[j]) {
+      for (slot in blocks[i].values()) {
+        switch (slot) {
           case (?x) accumulation := combine(accumulation, x);
           case null return accumulation
-        };
-        j += 1
+        }
       };
       i += 1
     };
+
     accumulation
   };
 
@@ -3105,11 +3380,11 @@ module {
 
     while (i > 0) {
       let db = blocks[i];
-      let sz = db.size();
-      var j = if (i == blockIndex) elementIndex else sz;
+      // Nat64 position, see nextIndexOf
+      var j = Nat64.fromIntWrap(if (i == blockIndex) elementIndex else db.size());
       while (j > 0) {
-        j -= 1;
-        switch (db[j]) {
+        j -%= 1;
+        switch (db[j.toNat()]) {
           case (?x) accumulation := combine(x, accumulation);
           case null Prim.trap INTERNAL_ERROR
         }
@@ -3141,37 +3416,35 @@ module {
     if (vsize <= 1) return;
 
     let (finalBlock, finalElement) = locate(vsize / 2);
-
     let blocks = self.blocks;
 
+    // front cursor (i, j) and back cursor (blockIndexBack,
+    // elementIndexBack); element positions are Nat64, see nextIndexOf
     var blockIndexBack = self.blockIndex;
-    var elementIndexBack = self.elementIndex;
-    var dbBack : [var ?T] = if (blockIndexBack < self.blocks.size()) {
-      self.blocks[blockIndexBack]
+    var elementIndexBack = Nat64.fromIntWrap(self.elementIndex);
+    var dbBack : [var ?T] = if (blockIndexBack < blocks.size()) {
+      blocks[blockIndexBack]
     } else { [var] };
 
     var i = 1;
-    var index = 0;
     while (i <= finalBlock) {
       let db = blocks[i];
-      let sz = if (i == finalBlock) finalElement else db.size();
-
-      var j = 0;
+      let sz = Nat64.fromIntWrap(if (i == finalBlock) finalElement else db.size());
+      var j : Nat64 = 0;
       while (j < sz) {
         if (elementIndexBack == 0) {
           blockIndexBack -= 1;
-          dbBack := self.blocks[blockIndexBack];
-          elementIndexBack := dbBack.size() - 1
+          dbBack := blocks[blockIndexBack];
+          elementIndexBack := Nat64.fromIntWrap(dbBack.size()) -% 1
         } else {
-          elementIndexBack -= 1
+          elementIndexBack -%= 1
         };
-
-        let temp = db[j];
-        db[j] := dbBack[elementIndexBack];
-        dbBack[elementIndexBack] := temp;
-
-        j += 1;
-        index += 1
+        let front = j.toNat();
+        let back = elementIndexBack.toNat();
+        let temp = db[front];
+        db[front] := dbBack[back];
+        dbBack[back] := temp;
+        j +%= 1
       };
       i += 1
     }
@@ -3198,35 +3471,33 @@ module {
 
     let blocks = self.blocks;
     let blockCount = blocks.size();
+    let rblocks = rlist.blocks;
 
+    // back cursor into rlist; Nat64 position, see nextIndexOf
     var blockIndexBack = rlist.blockIndex;
-    var elementIndexBack = rlist.elementIndex;
-    var dbBack : [var ?T] = if (blockIndexBack < rlist.blocks.size()) {
-      rlist.blocks[blockIndexBack]
+    var elementIndexBack = Nat64.fromIntWrap(rlist.elementIndex);
+    var dbBack : [var ?T] = if (blockIndexBack < rblocks.size()) {
+      rblocks[blockIndexBack]
     } else { [var] };
 
+    // the array iterator compiles to a plain loop; the copy ends when the
+    // back cursor reaches the front of rlist
     var i = 1;
     while (i < blockCount) {
-      let db = blocks[i];
-      let sz = db.size();
-      if (sz == 0) return rlist;
-
-      var j = 0;
-      while (j < sz) {
+      for (slot in blocks[i].values()) {
         if (elementIndexBack == 0) {
           blockIndexBack -= 1;
           if (blockIndexBack == 0) return rlist;
-          dbBack := rlist.blocks[blockIndexBack];
-          elementIndexBack := dbBack.size() - 1
+          dbBack := rblocks[blockIndexBack];
+          elementIndexBack := Nat64.fromIntWrap(dbBack.size()) -% 1
         } else {
-          elementIndexBack -= 1
+          elementIndexBack -%= 1
         };
-
-        dbBack[elementIndexBack] := db[j];
-        j += 1
+        dbBack[elementIndexBack.toNat()] := slot
       };
       i += 1
     };
+
     rlist
   };
 
@@ -3261,26 +3532,34 @@ module {
   ///
   /// Space: `O(1)`
   public func reader<T>(self : List<T>, start : Nat) : () -> T {
+    // The cursor is the data block `db` at blockIndex and the position
+    // elementIndex in it. The cursor lives in the closure, where a Nat
+    // would need bignum-capable arithmetic and a Nat64 boxing checks. The
+    // position is below 2^31 (the largest data block holds 2^31 elements),
+    // so it is kept as a Nat32, whose boxed form is just a shift.
     var blockIndex = 0;
-    var elementIndex = 0;
+    var elementIndex : Nat32 = 0;
     if (start != 0) {
       let (block, element) = locate(start - 1);
       blockIndex := block;
-      elementIndex := element + 1
+      elementIndex := Nat32.fromIntWrap(element) +% 1
     };
     var db : [var ?T] = self.blocks[blockIndex];
-    var dbSize = db.size();
+    var dbSize = Nat32.fromIntWrap(db.size());
+
     func next() : T {
       // Note: next() traps when reading beyond end of list
-      if (elementIndex == dbSize) {
+      // each field is read once per call
+      var position = elementIndex;
+      if (position == dbSize) {
         blockIndex += 1;
         db := self.blocks[blockIndex];
-        dbSize := db.size();
-        elementIndex := 0
+        dbSize := Nat32.fromIntWrap(db.size());
+        position := 0
       };
-      switch (db[elementIndex]) {
+      switch (db[position.toNat()]) {
         case (?ret) {
-          elementIndex += 1;
+          elementIndex := position +% 1;
           return ret
         };
         case (_) Prim.trap("List index out of bounds in reader")

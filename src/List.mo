@@ -56,6 +56,10 @@ module {
   /// ```motoko include=import
   /// let list = List.empty<Nat>(); // Creates a new List
   /// ```
+  ///
+  /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   public func empty<T>() : List<T> = {
     // the first block is always empty and is present in each List
     // this is done to optimize locate, at, get, etc
@@ -298,6 +302,8 @@ module {
   /// theoretical limit is 2^61 elements.
   ///
   /// Runtime: `O(count)`
+  ///
+  /// Space: `O(count)`
   public func addRepeat<T>(self : List<T>, initValue : T, count : Nat) = addRepeatInternal(self, ?initValue, count);
 
   /// Truncates the list to the specified size.
@@ -358,6 +364,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   public func clear<T>(self : List<T>) {
     self.blocks := [var [var]];
     self.blockIndex := 1;
@@ -433,9 +441,9 @@ module {
     var sz = 0;
     forEach(self, func(sublist) = sz += size(sublist));
 
-    let result = repeatInternal<T>(null, sz);
-    result.blockIndex := 1;
-    result.elementIndex := 0;
+    // reserve all data blocks up front, then write without capacity checks
+    let result = empty<T>();
+    reserve(result, sz);
 
     forEach(
       self,
@@ -443,7 +451,7 @@ module {
         forEach(
           sublist,
           func(item) {
-            add(result, item)
+            addUnsafe(result, item)
           }
         )
       }
@@ -489,12 +497,11 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func clone<T>(self : List<T>) : List<T> = {
     var blocks = VarArray.tabulate(
-      Nat.min(
-        newIndexBlockLength(Nat.toNat32(if (self.elementIndex == 0) self.blockIndex - 1 else self.blockIndex)),
-        self.blocks.size()
-      ),
+      copyIndexBlockLength(self),
       func(i) = self.blocks[i].clone()
     );
     var blockIndex = self.blockIndex;
@@ -514,11 +521,10 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func map<T, R>(self : List<T>, f : T -> R) : List<R> {
-    let blocksCount = Nat.min(
-      newIndexBlockLength(Nat.toNat32(if (self.elementIndex == 0) self.blockIndex - 1 else self.blockIndex)),
-      self.blocks.size()
-    );
+    let blocksCount = copyIndexBlockLength(self);
     let blocks = VarArray.repeat<[var ?R]>([var], blocksCount);
 
     var i = 1;
@@ -602,8 +608,8 @@ module {
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func mapEntries<T, R>(self : List<T>, f : (T, Nat) -> R) : List<R> {
-    let blocks = VarArray.repeat<[var ?R]>([var], self.blocks.size());
-    let blocksCount = self.blocks.size();
+    let blocksCount = copyIndexBlockLength(self);
+    let blocks = VarArray.repeat<[var ?R]>([var], blocksCount);
 
     var index = 0;
 
@@ -660,8 +666,8 @@ module {
   public func mapResult<T, R, E>(self : List<T>, f : T -> Types.Result<R, E>) : Types.Result<List<R>, E> {
     var error : ?E = null;
 
-    let blocks = VarArray.repeat<[var ?R]>([var], self.blocks.size());
-    let blocksCount = self.blocks.size();
+    let blocksCount = copyIndexBlockLength(self);
+    let blocks = VarArray.repeat<[var ?R]>([var], blocksCount);
 
     var i = 1;
     while (i < blocksCount) {
@@ -910,6 +916,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(1)` (with some internal calculations)
+  ///
+  /// Space: `O(1)`
   public func size<T>(self : List<T>) : Nat {
     // due to the design of List (blockIndex, elementIndex) pair points
     // exactly to the place where size-th element should be added
@@ -937,6 +945,14 @@ module {
       Nat32.toNat(((blockIndex >> s) +% 1) << s)
     }
   };
+
+  // Returns the index block length a copy of `list` needs: the ladder
+  // length for its last used data block, capped at the current length so
+  // a copy never carries more spare index slots than the original.
+  func copyIndexBlockLength<T>(list : List<T>) : Nat = Nat.min(
+    newIndexBlockLength(Nat.toNat32(if (list.elementIndex == 0) list.blockIndex - 1 else list.blockIndex)),
+    list.blocks.size()
+  );
 
   // If the index block is exactly full then grow it to the next ladder
   // length, otherwise do nothing.
@@ -994,6 +1010,8 @@ module {
   /// theoretical limit is 2^61 elements, beyond which `add` traps.
   ///
   /// Amortized Runtime: `O(1)`, Worst Case Runtime: `O(sqrt(n))`
+  ///
+  /// Amortized Space: `O(1)`, Worst Case Space: `O(sqrt(n))`
   public func add<T>(self : List<T>, element : T) {
     var elementIndex = self.elementIndex;
     if (elementIndex == 0) {
@@ -1083,7 +1101,7 @@ module {
   // Returns the (blockIndex, elementIndex) position of the element with
   // the given index. For example, locate(2^32) = (131_072, 0).
   // Also often used with a size-valued argument, in which case the next
-  // next insertion position is returned (see prevIndexOf, truncate,
+  // insertion position is returned (see prevIndexOf, truncate,
   // repeat/tabulate/addRepeat).
   func locate(index : Nat) : (Nat, Nat) {
     // For the derivation of the bit arithmetic see locate_readable64
@@ -1112,6 +1130,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   public func at<T>(self : List<T>, index : Nat) : T {
     // inlined version of:
     //   let (a,b) = locate(index);
@@ -1132,7 +1152,7 @@ module {
       }
     ) {
       case (?result) return result;
-      case (_) Prim.trap "List index out of bounds in get"
+      case (_) Prim.trap "List index out of bounds in at"
     }
   };
 
@@ -1187,6 +1207,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   public func put<T>(self : List<T>, index : Nat, value : T) {
     // inlined version of locate.
     // for index >= size the block lookup or the null slot check
@@ -1357,7 +1379,7 @@ module {
     label l while (i < blockCount) {
       let db = blocks[i];
       let sz = db.size();
-      if (sz == 0) return break l;
+      if (sz == 0) break l;
 
       var j = 0;
       while (j < sz) {
@@ -1394,6 +1416,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func indexOf<T>(self : List<T>, equal : (implicit : (T, T) -> Bool), element : T) : ?Nat {
@@ -1462,6 +1486,8 @@ module {
   ///
   /// Runtime: `O(size)`
   ///
+  /// Space: `O(1)`
+  ///
   /// *Runtime and space assumes that `equal` runs in `O(1)` time and space.
   public func lastIndexOf<T>(self : List<T>, equal : (implicit : (T, T) -> Bool), element : T) : ?Nat = prevIndexOf(
     self,
@@ -1527,10 +1553,29 @@ module {
   ///
   /// *Runtime and space assumes that `predicate` runs in O(1) time and space.
   public func find<T>(self : List<T>, predicate : T -> Bool) : ?T {
-    switch (findIndex(self, predicate)) {
-      case (?i) ?at(self, i);
-      case null null
-    }
+    let blocks = self.blocks;
+    let blockCount = blocks.size();
+
+    var i = 1;
+    while (i < blockCount) {
+      let db = blocks[i];
+      let sz = db.size();
+      if (sz == 0) return null;
+
+      var j = 0;
+      while (j < sz) {
+        let slot = db[j];
+        switch (slot) {
+          // return the stored option as is to avoid allocating a new one
+          case (?x) if (predicate(x)) return slot;
+          case null return null
+        };
+        j += 1
+      };
+      i += 1
+    };
+
+    null
   };
 
   /// Finds the index of the first element in `list` for which `predicate` is true.
@@ -1549,6 +1594,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findIndex<T>(self : List<T>, predicate : T -> Bool) : ?Nat {
@@ -1590,6 +1637,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `predicate` runs in `O(1)` time and space.
   public func findLastIndex<T>(self : List<T>, predicate : T -> Bool) : ?Nat {
@@ -1659,7 +1708,7 @@ module {
       var lessOrEqual = Nat32.toNat((1 << epoch) / 2);
 
       // lessOrEqual * 3 is always the first data block in an epoch
-      // while the first element of the first data block in an epoch is actually grater then element go to the previous epoch
+      // while the first element of the first data block in an epoch is actually greater than element go to the previous epoch
       // as the last epoch is half of the array we each iteration of the search divides the interval in four
       while (lessOrEqual != 0 and compare(blocks[lessOrEqual * 3][0].unwrap(), element) == #greater) {
         lessOrEqual /= 2
@@ -1684,7 +1733,7 @@ module {
 
     // binary search the blockIndex in [left, right)
     let blockIndex = do {
-      // guarateed less or equal to element
+      // guaranteed less or equal to element
       var left = lessOrEqual;
       // right is either outside of the array or greater than element
       var right = Nat.min(b + 1, lessOrEqual * 2);
@@ -1801,6 +1850,8 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   public func values<T>(self : List<T>) : Types.Iter<T> = object {
     let blocks = self.blocks.size();
     var blockIndex = 0;
@@ -1846,6 +1897,8 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   ///
   /// Warning: Allocates memory on the heap to store ?(Nat, T).
   public func enumerate<T>(self : List<T>) : Types.Iter<(Nat, T)> = object {
@@ -1899,6 +1952,8 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   public func reverseValues<T>(self : List<T>) : Types.Iter<T> = object {
     var blockIndex = self.blockIndex;
     var elementIndex = self.elementIndex;
@@ -1940,6 +1995,8 @@ module {
   ///
   /// Runtime: `O(1)`
   ///
+  /// Space: `O(1)`
+  ///
   /// Warning: Allocates memory on the heap to store ?(T, Nat).
   public func reverseEnumerate<T>(self : List<T>) : Types.Iter<(Nat, T)> = object {
     var i = size(self);
@@ -1963,7 +2020,9 @@ module {
           i -= 1;
           return ?(i, x)
         };
-        case (_) Prim.trap INTERNAL_ERROR
+        // a null slot here means the list shrank during iteration;
+        // end the iteration like `values`, `enumerate` and `reverseValues`
+        case (_) return null
       }
     }
   };
@@ -1987,6 +2046,8 @@ module {
   /// List, then this may lead to unexpected results.
   ///
   /// Runtime: `O(1)`
+  ///
+  /// Space: `O(1)`
   public func keys<T>(self : List<T>) : Types.Iter<Nat> = Nat.range(0, size(self));
 
   /// Creates a new List containing all elements from the provided iterator.
@@ -2005,6 +2066,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func fromIter<T>(iter : Types.Iter<T>) : List<T> {
     let list = empty<T>();
     for (element in iter) add(list, element);
@@ -2027,6 +2090,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func toList<T>(self : Types.Iter<T>) : List<T> {
     // ignore-self-type-check
     fromIter(self)
@@ -2087,7 +2152,9 @@ module {
   /// The List size is in practice limited only by available memory; the
   /// theoretical limit is 2^61 elements.
   ///
-  /// Runtime: `O(size)`, where n is the size of iter.
+  /// Runtime: `O(n)`, where `n` is the number of elements in `iter`.
+  ///
+  /// Space: `O(n)`
   public func addAll<T>(self : List<T>, iter : Types.Iter<T>) {
     for (element in iter) add(self, element)
   };
@@ -2103,6 +2170,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func toArray<T>(self : List<T>) : [T] {
     var blockIndex = 0;
     var elementIndex = 0;
@@ -2141,6 +2210,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func fromArray<T>(array : [T]) : List<T> {
     let (blockIndex, elementIndex) = locate(array.size());
 
@@ -2184,6 +2255,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func toVarArray<T>(self : List<T>) : [var T] {
     let ?fs = first(self) else return [var];
 
@@ -2228,6 +2301,8 @@ module {
   /// ```
   ///
   /// Runtime: `O(size)`
+  ///
+  /// Space: `O(size)`
   public func fromVarArray<T>(array : [var T]) : List<T> {
     let (blockIndex, elementIndex) = locate(array.size());
 
@@ -2640,7 +2715,7 @@ module {
   ///
   /// Space: `O(1)`
   public func forEachInRange<T>(self : List<T>, f : T -> (), fromInclusive : Nat, toExclusive : Nat) {
-    if (not (fromInclusive <= toExclusive and toExclusive <= size(self))) Prim.trap("Invalid range");
+    if (not (fromInclusive <= toExclusive and toExclusive <= size(self))) Prim.trap("List range out of bounds in forEachInRange");
 
     func traverseBlock(block : [var ?T], f : T -> (), from : Nat, to : Nat) {
       var i = from;
@@ -3208,7 +3283,7 @@ module {
           elementIndex += 1;
           return ret
         };
-        case (_) Prim.trap("List.reader(): out of bounds")
+        case (_) Prim.trap("List index out of bounds in reader")
       }
     };
     next

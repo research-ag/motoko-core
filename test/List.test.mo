@@ -2009,6 +2009,19 @@ func testIteratorsAfterEnd(n : Nat) : Bool {
   true
 };
 
+func testReverseForEachEntry(n : Nat) : Bool {
+  // the same (index, value) pairs as reverseEnumerate, in the same order
+  let vec = List.tabulate<Nat>(n, func i = 2 * i);
+  let visited = List.empty<(Nat, Nat)>();
+  vec.reverseForEachEntry(func(i, x) = visited.add((i, x)));
+  let expected = Array.tabulate(n, func k = (n - 1 - k : Nat, 2 * (n - 1 - k : Nat)));
+  if (visited.toArray() != expected or vec.reverseEnumerate().toArray() != expected) {
+    Debug.print("reverseForEachEntry: expected " # debug_show (expected) # ", got " # debug_show (visited.toArray()));
+    return false
+  };
+  true
+};
+
 func runAllTests() {
   runTest("testNew", testNew);
   runTest("testInit", testInit);
@@ -2060,7 +2073,8 @@ func runAllTests() {
   runTest("testMax", testMax);
   runTest("testReader", testReader);
   runTest("testAppendToItself", testAppendToItself);
-  runTest("testIteratorsAfterEnd", testIteratorsAfterEnd)
+  runTest("testIteratorsAfterEnd", testIteratorsAfterEnd);
+  runTest("testReverseForEachEntry", testReverseForEachEntry)
 };
 
 // Run all tests

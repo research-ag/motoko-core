@@ -291,7 +291,8 @@ module {
   ///
   /// ```motoko include=import
   /// let list = List.repeat<Nat>(2, 4); // [2, 2, 2, 2]
-  /// list.addRepeat(2, 1); // [2, 2, 2, 2, 1, 1]
+  /// list.addRepeat(1, 2); // adds 2 copies of 1
+  /// assert list.toArray() == [2, 2, 2, 2, 1, 1];
   /// ```
   ///
   /// The List size is in practice limited only by available memory; the
@@ -313,7 +314,7 @@ module {
   ///
   /// Runtime: `O(size)`
   ///
-  /// Space: `O(1)`
+  /// Space: `O(sqrt(size))` if the index block shrinks, otherwise `O(1)`
   public func truncate<T>(self : List<T>, newSize : Nat) {
     if (newSize > size(self)) return;
 
@@ -560,7 +561,7 @@ module {
   ///
   /// Runtime: O(size)
   ///
-  /// Space: O(size)
+  /// Space: O(1)
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func mapInPlace<T>(self : List<T>, f : T -> T) {
@@ -759,7 +760,7 @@ module {
   ///
   /// Runtime: `O(size)`
   ///
-  /// Space: `O(sqrt(size))` if `list` was truncated otherwise `O(1)`
+  /// Space: `O(sqrt(size))` if the index block shrinks, otherwise `O(1)`
   public func retain<T>(self : List<T>, predicate : T -> Bool) {
     self.blockIndex := 1;
     self.elementIndex := 0;
@@ -841,9 +842,11 @@ module {
   /// let newList = list.flatMap(func x = [x, -x].values());
   /// assert newList.equal(List.fromArray([1, -1, 2, -2, 3, -3, 4, -4]), Int.equal);
   /// ```
+  ///
   /// Runtime: O(size)
   ///
   /// Space: O(size)
+  ///
   /// *Runtime and space assumes that `k` runs in O(1) time and space.
   public func flatMap<T, R>(self : List<T>, k : T -> Types.Iter<R>) : List<R> {
     let result = empty<R>();
@@ -1175,7 +1178,7 @@ module {
     } else null
   };
 
-  /// Overwrites the current element at `index` with `element`.
+  /// Overwrites the current element at `index` with `value`.
   /// Traps if `index` >= size, error message may not be descriptive. Indexing is zero-based.
   ///
   /// Example:
@@ -1224,6 +1227,7 @@ module {
   /// Runtime: O(size * log(size))
   ///
   /// Space: O(size)
+  ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
   public func sortInPlace<T>(self : List<T>, compare : (implicit : (T, T) -> Types.Order)) {
     if (size(self) < 2) return;
@@ -1255,8 +1259,9 @@ module {
     }
   };
 
-  /// Sorts the elements in the list according to `compare`.
-  /// Sort is deterministic, stable, and in-place.
+  /// Returns a new list with the elements of `list` sorted according to
+  /// `compare`. `list` itself is not modified. Sort is deterministic and
+  /// stable.
   ///
   /// Example:
   /// ```motoko include=import
@@ -1273,6 +1278,7 @@ module {
   /// Runtime: O(size * log(size))
   ///
   /// Space: O(size)
+  ///
   /// *Runtime and space assumes that `compare` runs in O(1) time and space.
   public func sort<T>(self : List<T>, compare : (implicit : (T, T) -> Types.Order)) : List<T> {
     let array = toVarArray(self);
@@ -1283,7 +1289,7 @@ module {
   /// Checks whether the `list` is sorted.
   ///
   /// Example:
-  /// ```
+  /// ```motoko include=import
   /// import Nat "mo:core/Nat";
   ///
   /// let list = List.fromArray<Nat>([1, 2, 3]);
@@ -1328,7 +1334,7 @@ module {
   /// Remove adjacent duplicates from the `list`, if the `list` is sorted all elements will be unique.
   ///
   /// Example:
-  /// ```
+  /// ```motoko include=import
   /// import Nat "mo:core/Nat";
   ///
   /// let list = List.fromArray<Nat>([1, 1, 2, 2, 3]);
@@ -1338,7 +1344,7 @@ module {
   ///
   /// Runtime: O(size)
   ///
-  /// Space: O(1)
+  /// Space: `O(sqrt(size))` if the index block shrinks, otherwise `O(1)`
   public func deduplicate<T>(self : List<T>, equal : (implicit : (T, T) -> Bool)) {
     var prev = switch (first(self)) {
       case (?x) x;
@@ -1401,7 +1407,7 @@ module {
     nextIndexOf(self, equal, element, 0)
   };
 
-  /// Returns the index of the next occurence of `element` in the `list` starting from the `from` index (inclusive).
+  /// Returns the index of the next occurrence of `element` in the `list`, searching from index `fromInclusive` on.
   ///
   /// Traps if `fromInclusive >= size(list)`.
   ///
@@ -1470,7 +1476,7 @@ module {
     size(self)
   );
 
-  /// Returns the index of the previous occurence of `element` in the `list` starting from the `from` index (exclusive).
+  /// Returns the index of the previous occurrence of `element` in the `list`, searching backwards from just before index `fromExclusive`.
   ///
   /// Traps if `fromExclusive > size(list)`. Note that `fromExclusive = size(list)`
   /// is valid and starts the search from the end of the list.
@@ -1521,6 +1527,7 @@ module {
   /// let found = list.find(func(x) { x > 8 });
   /// assert found == ?9;
   /// ```
+  ///
   /// Runtime: O(size)
   ///
   /// Space: O(1)
@@ -1814,8 +1821,10 @@ module {
         if (blockIndex >= blocks) return null;
         db := self.blocks[blockIndex];
         dbSize := db.size();
-        if (dbSize == 0) return null;
-        elementIndex := 0
+        // reset before a possible return, so that later calls keep
+        // returning null instead of reading past the empty block
+        elementIndex := 0;
+        if (dbSize == 0) return null
       };
       switch (db[elementIndex]) {
         case (?x) {
@@ -1862,8 +1871,10 @@ module {
         if (blockIndex >= blocks) return null;
         db := self.blocks[blockIndex];
         size := db.size();
-        if (size == 0) return null;
-        elementIndex := 0
+        // reset before a possible return, so that later calls keep
+        // returning null instead of reading past the empty block
+        elementIndex := 0;
+        if (size == 0) return null
       };
       switch (db[elementIndex]) {
         case (?x) {
@@ -1910,8 +1921,10 @@ module {
       if (elementIndex != 0) {
         elementIndex -= 1
       } else {
+        // the first data block is exhausted: stay there, so that later
+        // calls keep returning null instead of underflowing blockIndex
+        if (blockIndex <= 1) return null;
         blockIndex -= 1;
-        if (blockIndex == 0) return null;
         db := self.blocks[blockIndex];
         elementIndex := db.size() - 1
       };
@@ -1940,7 +1953,7 @@ module {
   ///
   /// Runtime: `O(1)`
   ///
-  /// Warning: Allocates memory on the heap to store ?(T, Nat).
+  /// Warning: Allocates memory on the heap to store ?(Nat, T).
   public func reverseEnumerate<T>(self : List<T>) : Types.Iter<(Nat, T)> = object {
     var i = size(self);
     var blockIndex = self.blockIndex;
@@ -1953,8 +1966,10 @@ module {
       if (elementIndex != 0) {
         elementIndex -= 1
       } else {
+        // the first data block is exhausted: stay there, so that later
+        // calls keep returning null instead of underflowing blockIndex
+        if (blockIndex <= 1) return null;
         blockIndex -= 1;
-        if (blockIndex == 0) return null;
         db := self.blocks[blockIndex];
         elementIndex := db.size() - 1
       };
@@ -1979,7 +1994,7 @@ module {
   /// list.add("A");
   /// list.add("B");
   /// list.add("C");
-  /// list.keys().toArray() // [0, 1, 2]
+  /// assert list.keys().toArray() == [0, 1, 2];
   /// ```
   ///
   /// Note: This does not create a snapshot. If the returned iterator is not consumed at once,
@@ -2032,7 +2047,9 @@ module {
     fromIter(self)
   };
 
-  /// Appends all elements from `added` to the end of `list`.
+  /// Appends all elements from `added` to the end of `list`. `added` may be
+  /// `list` itself.
+  ///
   /// Example:
   /// ```motoko include=import
   /// let list = List.fromArray<Nat>([1, 2]);
@@ -2045,8 +2062,13 @@ module {
   ///
   /// Space: `O(size(added))`
   public func append<T>(self : List<T>, added : List<T>) {
-    reserve(self, size(added));
+    let count = size(added);
+    reserve(self, count);
 
+    // Copy exactly `count` elements: when `added` is `self`, the copies
+    // written at the end must not be read again. The blocks are read after
+    // reserve, which may have replaced the index block.
+    var remaining = count;
     let blocks = added.blocks;
     let blockCount = blocks.size();
 
@@ -2058,10 +2080,12 @@ module {
 
       var j = 0;
       while (j < sz) {
+        if (remaining == 0) return;
         switch (db[j]) {
           case (?x) addUnsafe(self, x);
           case null return
         };
+        remaining -= 1;
         j += 1
       };
       i += 1
@@ -2319,7 +2343,7 @@ module {
   ///
   /// Runtime: `O(size)`
   ///
-  /// Space: `O(size)`
+  /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func forEach<T>(self : List<T>, f : T -> ()) {
@@ -2362,7 +2386,7 @@ module {
   ///
   /// Runtime: `O(size)`
   ///
-  /// Space: `O(size)`
+  /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func forEachEntry<T>(self : List<T>, f : (Nat, T) -> ()) {
@@ -2493,15 +2517,16 @@ module {
   };
 
   /// Returns a new array containing elements from `list` starting at index `fromInclusive` up to (but not including) index `toExclusive`.
-  /// If the indices are out of bounds, they are clamped to the array bounds.
+  /// Negative indices are relative to the end of the list. For example, `-1` corresponds to the last element in the list.
+  /// If the indices are out of bounds, they are clamped to the list bounds.
   ///
   /// ```motoko include=import
-  /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   ///
-  /// let slice1 = array.sliceToArray(1, 4);
+  /// let slice1 = list.sliceToArray(1, 4);
   /// assert slice1 == [2, 3, 4];
   ///
-  /// let slice2 = array.sliceToArray(1, -1);
+  /// let slice2 = list.sliceToArray(1, -1);
   /// assert slice2 == [2, 3, 4];
   /// ```
   ///
@@ -2514,18 +2539,19 @@ module {
   };
 
   /// Returns a new var array containing elements from `list` starting at index `fromInclusive` up to (but not including) index `toExclusive`.
-  /// If the indices are out of bounds, they are clamped to the array bounds.
+  /// Negative indices are relative to the end of the list. For example, `-1` corresponds to the last element in the list.
+  /// If the indices are out of bounds, they are clamped to the list bounds.
   ///
   /// ```motoko include=import
   /// import VarArray "mo:core/VarArray";
   /// import Nat "mo:core/Nat";
   ///
-  /// let array = List.fromArray<Nat>([1, 2, 3, 4, 5]);
+  /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
   ///
-  /// let slice1 = array.sliceToVarArray(1, 4);
+  /// let slice1 = list.sliceToVarArray(1, 4);
   /// assert slice1.equal([var 2, 3, 4], Nat.equal);
   ///
-  /// let slice2 = array.sliceToVarArray(1, -1);
+  /// let slice2 = list.sliceToVarArray(1, -1);
   /// assert slice2.equal([var 2, 3, 4], Nat.equal);
   /// ```
   ///
@@ -2537,8 +2563,9 @@ module {
     VarArray.tabulate(end - start : Nat, sliceToArrayBase(self, start).next)
   };
 
-  /// Like `forEachEntryRev` but iterates through the list in reverse order,
-  /// from end to beginning.
+  /// Like `forEachEntry` but iterates through the list in reverse order,
+  /// from end to beginning. As in `forEachEntry`, `i` is the index of `x`
+  /// in `list`, so the indices run from `size - 1` down to `0`.
   ///
   /// Example:
   /// ```motoko include=import
@@ -2548,18 +2575,19 @@ module {
   /// let list = List.fromArray<Nat>([1, 2, 3]);
   ///
   /// list.reverseForEachEntry(func(i, x) {
-  ///   // prints each item (i,x) in list
+  ///   // prints each item (i,x) in list, from (2,3) down to (0,1)
   ///   Debug.print(i.toText() # x.toText());
   /// });
   /// ```
   ///
   /// Runtime: `O(size)`
   ///
-  /// Space: `O(size)`
+  /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func reverseForEachEntry<T>(self : List<T>, f : (Nat, T) -> ()) {
-    var index = 0;
+    // the index of the element visited next, counting down
+    var index = size(self);
 
     let blocks = self.blocks;
     let blockIndex = self.blockIndex;
@@ -2574,11 +2602,11 @@ module {
       var j = if (i == blockIndex) elementIndex else sz;
       while (j > 0) {
         j -= 1;
+        index -= 1;
         switch (db[j]) {
           case (?x) f(index, x);
           case null Prim.trap INTERNAL_ERROR
-        };
-        index += 1
+        }
       };
       i -= 1
     }
@@ -2600,7 +2628,7 @@ module {
   ///
   /// Runtime: `O(size)`
   ///
-  /// Space: `O(size)`
+  /// Space: `O(1)`
   ///
   /// *Runtime and space assumes that `f` runs in O(1) time and space.
   public func reverseForEach<T>(self : List<T>, f : T -> ()) {
@@ -2633,10 +2661,10 @@ module {
   /// import Nat "mo:core/Nat";
   ///
   /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
-  /// list.forEachInRange(func x = Debug.print(x.toText()), 1, 2); // prints 2 and 3
+  /// list.forEachInRange(func x = Debug.print(x.toText()), 1, 3); // prints 2 and 3
   /// ```
   ///
-  /// Runtime: `O(toExclusive - fromExclusive)`
+  /// Runtime: `O(toExclusive - fromInclusive)`
   ///
   /// Space: `O(1)`
   public func forEachInRange<T>(self : List<T>, f : T -> (), fromInclusive : Nat, toExclusive : Nat) {
@@ -2958,7 +2986,7 @@ module {
   };
 
   /// Collapses the elements in `list` into a single value by starting with `base`
-  /// and progessively combining elements into `base` with `combine`. Iteration runs
+  /// and progressively combining elements into `base` with `combine`. Iteration runs
   /// left to right.
   ///
   /// Example:
@@ -2974,7 +3002,7 @@ module {
   ///
   /// Space: `O(1)`
   ///
-  /// *Runtime and space assumes that `combine` runs in O(1)` time and space.
+  /// *Runtime and space assumes that `combine` runs in `O(1)` time and space.
   public func foldLeft<A, T>(self : List<T>, base : A, combine : (A, T) -> A) : A {
     var accumulation = base;
 
@@ -3001,7 +3029,7 @@ module {
   };
 
   /// Collapses the elements in `list` into a single value by starting with `base`
-  /// and progessively combining elements into `base` with `combine`. Iteration runs
+  /// and progressively combining elements into `base` with `combine`. Iteration runs
   /// right to left.
   ///
   /// Example:
@@ -3017,7 +3045,7 @@ module {
   ///
   /// Space: `O(1)`
   ///
-  /// *Runtime and space assumes that `combine` runs in O(1)` time and space.
+  /// *Runtime and space assumes that `combine` runs in `O(1)` time and space.
   public func foldRight<T, A>(self : List<T>, base : A, combine : (T, A) -> A) : A {
     var accumulation = base;
 
@@ -3117,7 +3145,7 @@ module {
   ///
   /// Runtime: `O(size)`
   ///
-  /// Space: `O(1)`
+  /// Space: `O(size)`
   public func reverse<T>(self : List<T>) : List<T> {
     let rlist = repeatInternal<T>(null, size(self));
 
@@ -3171,12 +3199,14 @@ module {
     self.blockIndex == 1
   };
 
-  /// Unsafe iterator starting from `start`.
+  /// Returns a function that returns the elements of `list` one by one,
+  /// starting at index `start`. Unlike an iterator it returns the elements
+  /// themselves, not options: it traps when called past the end of the list.
   ///
   /// Example:
-  /// ```
+  /// ```motoko include=import
   /// let list = List.fromArray<Nat>([1, 2, 3, 4, 5]);
-  /// let reader = list.reader<Nat>(2);
+  /// let reader = list.reader(2);
   /// assert reader() == 3;
   /// assert reader() == 4;
   /// assert reader() == 5;

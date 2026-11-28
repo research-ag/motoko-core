@@ -50,6 +50,54 @@ module {
 
   let INTERNAL_ERROR = "List: internal error";
 
+  // Cost model behind the loops in this module
+  //
+  // The choices below were measured with `mops bench --query` on moc
+  // 1.16.0 and 2.2.4, see bench/ListAccess.bench.mo and
+  // bench/ListTraversal.bench.mo. Re-measure before changing a hot loop.
+  //
+  // - Nat arithmetic and comparisons compile to runtime calls (B_add,
+  //   B_lt, B_eq, ...) of about 15-25 instructions each, because a Nat may
+  //   be a bignum. Hot loops therefore count in Nat64 locals, which
+  //   compile to single wasm instructions, and convert to Nat only to
+  //   subscript an array. On 32-bit builds (legacy persistence) a Nat
+  //   above 2^30 is a bignum, so comparing with such a constant allocates:
+  //   see the guard in get.
+  // - `for (x in a.values())` and `for (i in a.keys())` compile to plain
+  //   loops without calls or bounds checks, so whole data blocks are
+  //   walked with them.
+  // - State captured by a closure or an object (iterators, reader,
+  //   sliceToArray) lives in heap boxes: a Nat there needs the runtime
+  //   calls above and a Nat64 a range check on every write, while a Nat32
+  //   is boxed by a shift. Positions within a data block (below 2^31) are
+  //   therefore kept as Nat32 there, and each field is read once per call.
+  // - Every `self.field` read is a lookup by field hash: read a field once
+  //   into a local. A (Nat64, Nat64) tuple returned by an `if` is boxed:
+  //   write both branches out instead (at, get, put).
+  // - Calls are not inlined. Calling add, or a closure, per element
+  //   dominates the cost of a builder, so the functions that fill a fresh
+  //   List keep its insertion point in locals (see nextOutBlock).
+  // - Storing a pointer into an existing array goes through the write
+  //   barrier of the incremental GC: every store checks whether a GC
+  //   increment is running, and while one is, the barrier records the
+  //   overwritten pointer for the mark phase and resolves forwarding
+  //   pointers after objects were moved. VarArray.tabulate fills a fresh
+  //   array with plain stores instead, at the price of a closure call per
+  //   element. Hence:
+  //   - a fresh data block whose element j depends only on slot j of
+  //     another block (map, mapResult, clone) is built with
+  //     VarArray.tabulate;
+  //   - one that needs another running index (tabulate, fromArray,
+  //     fromVarArray, mapEntries) is allocated with VarArray.repeat and
+  //     filled in a loop: a `base + j` Nat addition in the closure, or a
+  //     counter captured in a heap box, costs more than the barrier check
+  //     (measured +7% to +60%);
+  //   - in-place updates (put, fill, mapInPlace, retain, ...) pay the
+  //     barrier in any case.
+  //   The benchmarks run as queries, where no GC increment runs, so they
+  //   measure only the check; the full barrier makes store loops costlier
+  //   in update calls.
+
   /// Creates a new empty List for elements of type T.
   ///
   /// Example:
